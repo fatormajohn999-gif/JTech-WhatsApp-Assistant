@@ -49,6 +49,7 @@ A high-performance personal WhatsApp AI assistant for **JTech** with a mobile-fi
    | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST Token |
    | `GEMINI_API_KEY` | Google Gemini API Key |
    | `GROQ_API_KEY` | Groq API Key |
+   | `ALLOWED_ORIGIN` | Allowed frontend origin for CORS (e.g. `https://<username>.github.io`, falls back to `*` if unset) |
    | `PORT` | Set automatically by Render (defaults to `3000`) |
 
    *Note: The frontend never contains or asks for any API keys. Secrets live strictly on the backend.*
