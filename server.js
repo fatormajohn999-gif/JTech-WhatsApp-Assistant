@@ -1,20 +1,18 @@
 /**
- * Personal WhatsApp AI Assistant - server.js
+ * JTech Assistant - server.js
  * 
- * Features:
- * - Node 20+, ES modules, Express
+ * Production-ready backend for JTech Assistant on WhatsApp.
+ * - Node 20+, ES modules, Express with CORS
  * - @whiskeysockets/baileys (linked device, pairing code login, no QR)
  * - @upstash/redis REST (automaticDeserialization: false)
  * - Dual AI: Google Gemini & Groq with 12s timeout & automatic fallback
- * - Sensitive topics guardrail (money requests, passwords, promises, meetings -> personal handoff)
+ * - Sensitive topics guardrail (money requests, passwords, promises -> personal handoff)
  * - Owner human reply detection (silences bot for 10 minutes when owner replies personally)
- * - Intelligent Prompt Builder rebuilt on every message:
- *     1) base rules 2) owner profile (Freetown, Sierra Leone / English & Krio / custom style)
- *     3) Africa/Freetown real-time clock 4) contact facts 5) chat summary
- * - Auto-summarization every 20 messages (key sum:<jid>, max 600 chars)
- * - Typing indicator with random delay (300-1200ms editable)
- * - Timing-safe authentication for dashboard /api routes
- * - Tiny public /health route for uptime pingers
+ * - Intelligent Prompt Builder for JTech Assistant with Africa/Freetown clock
+ * - Token-based authentication (POST /api/login, Authorization: Bearer <token>)
+ * - Endpoints: /api/login, /api/state, /api/link, /api/cfg, /api/chats, /api/chats/:jid,
+ *              /api/chats/:jid/takeover, /api/chats/:jid/resume, /api/stats,
+ *              /api/clear-memory, /api/logout-wa, /health
  */
 
 import express from 'express';
@@ -39,10 +37,8 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Environment variables
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || 'freetown_assistant_2026';
-const PHONE_NUMBER = process.env.PHONE_NUMBER || '';
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -210,7 +206,7 @@ class UpstashStore {
 const redis = new UpstashStore();
 
 // ---------------------------------------------------------------------------
-// 2. Timing-Safe Password Verification
+// 2. Timing-Safe Auth & Token Session Store
 // ---------------------------------------------------------------------------
 function timingSafeEqualStr(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -228,28 +224,34 @@ function timingSafeEqualStr(a, b) {
 // ---------------------------------------------------------------------------
 let cachedSettings = null;
 let lastSettingsFetch = 0;
-const SETTINGS_CACHE_TTL = 30 * 1000; // 30 seconds
+const SETTINGS_CACHE_TTL = 30 * 1000;
 
 const DEFAULT_PROFILE = {
+  ownerName: 'Mohamed',
+  ownerAbout: 'Founder of JTech, software engineer and tech entrepreneur based in Freetown, Sierra Leone.',
+  ownerLanguages: 'English, Krio',
+  writingStyle: 'Warm, professional, concise, respectful, authentic Sierra Leonean courtesy.',
   name: 'Mohamed',
   city: 'Freetown, Sierra Leone',
   timeZone: 'Africa/Freetown',
-  job: 'Software Engineer & Tech Entrepreneur',
+  job: 'Software Engineer & JTech Founder',
   languages: 'English, Krio',
-  facts: 'Passionate about African tech innovation, building software, football, and good coffee. Friendly, respectful, direct, and thoughtful.',
+  facts: 'Founder of JTech. Passionate about software innovation, tech in Sierra Leone, football, and building great products.',
   sampleMessage1: 'Kusheh! Good to hear from you. Let me check that out for you right away.',
   sampleMessage2: 'All good my friend! How are things with you today?',
   sampleMessage3: 'I will look into this and get back to you shortly. Take care!'
 };
 
 const DEFAULT_BASE_RULES = 
-`You are the personal WhatsApp AI assistant for the owner described below.
+`You are the JTech Assistant, an AI assistant for JTech.
 Your instructions:
-1. Speak on behalf of the owner in their authentic voice, personality, and tone.
-2. If asked "who are you?", "is this an AI?", or "is this [Owner]?", politely explain: "I am [Owner]'s personal AI assistant. I'm here helping manage their messages, but I speak on their behalf."
-3. Reply to every single private message. Never stay silent. Small talk, greetings ("kusheh", "how de body", "hello"), and questions always get a warm, thoughtful reply.
-4. SENSITIVE TOPICS GUARDRAIL: If anyone asks for money (wire transfer, borrowing, payments), asks for passwords/credentials, asks for legal/formal promises, or asks to schedule an in-person meeting/appointment: DO NOT agree or make commitments. Reply politely that you will notify the owner so they can answer personally.
-5. Keep WhatsApp replies natural, concise (1-3 sentences unless a detailed explanation was explicitly asked), and human. Avoid robotic phrases like "As an AI language model".`;
+1. When asked who you are, state clearly that you are the JTech Assistant, an AI assistant for JTech, and that the owner will reply personally when available.
+2. Reply to every single message. Never stay silent.
+3. Keep replies short and concise (1-3 sentences).
+4. Match the sender's language (English, Krio, or any language the user writes in).
+5. Use WhatsApp formatting only (*bold*, _italic_). Do not use Markdown headers (like # or ##) or bullet asterisks without formatting.
+6. Use at most one emoji per message.
+7. Politely defer all money requests, passwords, and promises to the owner. Never promise loans, payments, credentials, or commitments yourself.`;
 
 async function getSettings(forceRefresh = false) {
   const now = Date.now();
@@ -413,32 +415,38 @@ function buildPrompt({ baseRules, profile, contactFacts, chatSummary, senderJid,
 
   let summarySection = chatSummary ? chatSummary : 'First conversation or no older summary yet.';
 
+  const ownerName = profile.ownerName || profile.name || 'Mohamed';
+  const ownerAbout = profile.ownerAbout || profile.facts || 'Founder of JTech';
+  const ownerLanguages = profile.ownerLanguages || profile.languages || 'English, Krio';
+  const writingStyle = profile.writingStyle || 'Warm, professional, concise, respectful';
+
   return `
 ${baseRules}
 
-=== OWNER IDENTITY & BACKGROUND ===
-- Name: ${profile.name}
-- Location: ${profile.city} (Time zone: ${profile.timeZone})
+=== JTECH ASSISTANT & OWNER PROFILE ===
+- Assistant Name: JTech Assistant (AI assistant for JTech)
+- Owner: ${ownerName}
+- About Owner & JTech: ${ownerAbout}
+- Location: ${profile.city || 'Freetown, Sierra Leone'} (Time zone: ${profile.timeZone || 'Africa/Freetown'})
 - Current Date & Time: ${timeNow}
-- Profession: ${profile.job}
-- Languages spoken: ${profile.languages}
-- Key facts about owner: ${profile.facts}
+- Languages spoken: ${ownerLanguages}
+- Writing style to copy: ${writingStyle}
 
-=== SAMPLES OF OWNER'S VOICE & STYLE (Mimic this natural tone) ===
-Sample 1: "${profile.sampleMessage1}"
-Sample 2: "${profile.sampleMessage2}"
-Sample 3: "${profile.sampleMessage3}"
+=== SAMPLES OF OWNER'S VOICE & TONE ===
+Sample 1: "${profile.sampleMessage1 || 'Kusheh! Good to hear from you.'}"
+Sample 2: "${profile.sampleMessage2 || 'All good my friend! How can I help you today?'}"
+Sample 3: "${profile.sampleMessage3 || 'I will check on this and get back to you shortly.'}"
 
 === THIS CONTACT ===
-- Contact identifier: ${senderJid}
-- Known name/phone: ${contactName || 'Friend / Contact'}
-- Known facts about this person:
+- Identifier: ${senderJid}
+- Known Name/Phone: ${contactName || 'Contact'}
+- Known Facts:
 ${factsSection}
 
-=== RECAP OF OLDER CONVERSATION ===
+=== RECAP OF OLDER CHAT ===
 ${summarySection}
 
-Answer the latest message thoughtfully in the owner's style. Keep it concise, authentic, and polite.
+Answer thoughtfully on behalf of JTech / ${ownerName}. Keep it short (1-3 sentences), use WhatsApp formatting (*bold*, _italic_) only, at most one emoji, and politely defer money/passwords/promises.
 `.trim();
 }
 
@@ -446,7 +454,6 @@ Answer the latest message thoughtfully in the owner's style. Keep it concise, au
 // 6. Memory: Last 12 Messages, Auto-Summary & Contact Facts
 // ---------------------------------------------------------------------------
 async function getChatMemory(jid) {
-  // Parallel fetch: messages, summary, facts, handoff
   const [rawMessages, summary, rawFacts, handoffVal] = await Promise.all([
     redis.lrange(`chat:${jid}:messages`, -12, -1),
     redis.get(`sum:${jid}`),
@@ -481,7 +488,7 @@ async function recordMessage(jid, role, text, fromMe = false, senderName = '') {
     const timestamp = Date.now();
     const msgObj = {
       id: `${jid}_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
-      role, // 'user' or 'assistant'
+      role,
       text,
       timestamp,
       fromMe,
@@ -490,12 +497,10 @@ async function recordMessage(jid, role, text, fromMe = false, senderName = '') {
 
     const listKey = `chat:${jid}:messages`;
     await redis.rpush(listKey, JSON.stringify(msgObj));
-    await redis.ltrim(listKey, -50, -1); // keep last 50
+    await redis.ltrim(listKey, -50, -1);
 
-    // Increment message count for auto-summary trigger
     const msgCount = await redis.incr(`contact:${jid}:msg_count`);
 
-    // Update conversation metadata
     const handoffVal = await redis.get(`handoff:${jid}`);
     const metaKey = `chat:${jid}:meta`;
     const metaObj = {
@@ -508,7 +513,6 @@ async function recordMessage(jid, role, text, fromMe = false, senderName = '') {
     };
     await redis.set(metaKey, JSON.stringify(metaObj));
 
-    // Maintain recent list (up to 30)
     const recentRaw = await redis.get('chats:recent');
     let recent = [];
     if (recentRaw) {
@@ -519,12 +523,10 @@ async function recordMessage(jid, role, text, fromMe = false, senderName = '') {
     if (recent.length > 30) recent = recent.slice(0, 30);
     await redis.set('chats:recent', JSON.stringify(recent));
 
-    // Every 20 messages, trigger background summary update (max 600 chars)
     if (msgCount % 20 === 0) {
       triggerBackgroundSummary(jid).catch(e => console.error(`[Summary] Background task failed for ${jid}:`, e.message));
     }
 
-    // Extract facts asynchronously if user provided new info
     if (role === 'user' && text.length > 10) {
       extractContactFacts(jid, text).catch(e => console.error(`[Facts] Error extracting for ${jid}:`, e.message));
     }
@@ -533,7 +535,6 @@ async function recordMessage(jid, role, text, fromMe = false, senderName = '') {
   }
 }
 
-// Background auto-summary (max 600 characters)
 async function triggerBackgroundSummary(jid) {
   try {
     const rawMessages = await redis.lrange(`chat:${jid}:messages`, -20, -1);
@@ -549,7 +550,7 @@ async function triggerBackgroundSummary(jid) {
       }
     }).join('\n');
 
-    const prompt = `You are a concise conversation summarizer.
+    const prompt = `You are a concise conversation summarizer for JTech Assistant.
 Update the previous summary of this conversation with the latest messages.
 PREVIOUS SUMMARY: "${existingSummary}"
 LATEST CHAT:
@@ -557,7 +558,7 @@ ${chatLines}
 
 CRITICAL RULES:
 1. Max 600 characters.
-2. Focus on: key topics discussed, agreements, pending questions, and personal details shared.
+2. Focus on: topics discussed, agreements, pending questions, customer requests.
 3. Be strictly factual and concise.`;
 
     const res = await callGeminiWithTimeout(prompt, 'Summarize concisely under 600 characters.', 'gemini-2.5-flash', 12000);
@@ -571,10 +572,8 @@ CRITICAL RULES:
   }
 }
 
-// Background fact extraction (up to 10 facts)
 async function extractContactFacts(jid, userText) {
   try {
-    // Only extract if text has meaningful keywords (e.g. "I am", "my work", "living in", "I like", "call me")
     if (!/(i am|i'm|my name|i work|i live|i study|my phone|my email|i like|i need|my wife|my husband|my friend)/i.test(userText)) {
       return;
     }
@@ -585,13 +584,13 @@ async function extractContactFacts(jid, userText) {
       try { facts = JSON.parse(rawFacts); } catch (_) {}
     }
 
-    const prompt = `Extract any permanent facts about this contact (e.g., their name, location, occupation, family, preferences) from their message.
+    const prompt = `Extract permanent facts about this contact from their message:
 Existing facts:
 ${facts.map(f => `- ${f}`).join('\n')}
 
 New message: "${userText}"
 
-Reply ONLY with a JSON array of up to 10 strings representing the updated facts. Example: ["Name is Alpha", "Lives in Aberdeen", "Software student"]. If no new facts, return existing facts.`;
+Reply ONLY with a JSON array of up to 10 strings representing updated facts.`;
 
     const res = await callGeminiWithTimeout(prompt, 'Output JSON array only.', 'gemini-2.5-flash', 8000);
     if (res && res.text) {
@@ -601,7 +600,6 @@ Reply ONLY with a JSON array of up to 10 strings representing the updated facts.
         if (Array.isArray(parsed)) {
           const cleanFacts = parsed.slice(0, 10).map(s => String(s).trim());
           await redis.set(`contact:${jid}:facts`, JSON.stringify(cleanFacts));
-          console.log(`[Facts] Saved ${cleanFacts.length} facts for ${jid}`);
         }
       }
     }
@@ -638,7 +636,7 @@ async function handleBothProvidersFailed(summary) {
   consecutiveFailures += 1;
   console.warn(`[Auto-Pause] Consecutive failure count: ${consecutiveFailures}/3`);
   if (consecutiveFailures >= 3) {
-    autoPauseUntil = Date.now() + 10 * 60 * 1000; // 10 minutes
+    autoPauseUntil = Date.now() + 10 * 60 * 1000;
     await redis.set('autopause:until', String(autoPauseUntil));
     await recordAiFailure('System (Auto-Pause)', `Paused replies for 10 min after 3 dual-failures: ${summary}`);
     console.error(`[Auto-Pause] Triggered! Replies paused until ${new Date(autoPauseUntil).toLocaleTimeString()}`);
@@ -656,7 +654,6 @@ async function handleAiSuccess(provider) {
   } catch (_) {}
 }
 
-// 12-second timeout wrapper for Gemini
 let geminiClient = null;
 async function callGeminiWithTimeout(userText, systemInstruction, modelName = 'gemini-2.5-flash', timeoutMs = 12000) {
   if (!GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
@@ -688,7 +685,6 @@ async function callGeminiWithTimeout(userText, systemInstruction, modelName = 'g
   return { text: text.trim(), provider: 'gemini' };
 }
 
-// 12-second timeout wrapper for Groq
 async function callGroqWithTimeout(userText, systemInstruction, modelName = 'llama-3.3-70b-versatile', timeoutMs = 12000) {
   const apiKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
   if (!apiKey) {
@@ -737,17 +733,16 @@ async function callGroqWithTimeout(userText, systemInstruction, modelName = 'lla
   }
 }
 
-// High-level AI runner with automatic fallback
 async function generateAiReply(userText, promptBuilderArgs) {
   const settings = await getSettings();
 
   if (settings.isPaused) {
-    return { text: null, paused: true, reason: 'Dashboard manual pause active' };
+    return { text: null, paused: true, reason: 'Manual pause active' };
   }
 
   if (await checkAutoPause()) {
     const remainingSecs = Math.max(0, Math.ceil((autoPauseUntil - Date.now()) / 1000));
-    return { text: null, paused: true, remainingSecs, reason: 'Auto-pause after 3 consecutive failures' };
+    return { text: null, paused: true, remainingSecs, reason: 'Auto-pause active' };
   }
 
   const systemInstruction = buildPrompt({
@@ -762,7 +757,6 @@ async function generateAiReply(userText, promptBuilderArgs) {
   const primary = (settings.provider || 'gemini').toLowerCase();
   const fallback = primary === 'gemini' ? 'groq' : 'gemini';
 
-  // Primary attempt
   try {
     let result;
     if (primary === 'gemini') {
@@ -776,7 +770,6 @@ async function generateAiReply(userText, promptBuilderArgs) {
     console.warn(`[AI] Primary ${primary} failed:`, primaryErr.message);
     await recordAiFailure(primary, primaryErr.message);
 
-    // Fallback attempt
     try {
       let fallbackResult;
       if (fallback === 'gemini') {
@@ -785,10 +778,9 @@ async function generateAiReply(userText, promptBuilderArgs) {
         fallbackResult = await callGroqWithTimeout(userText, systemInstruction, settings.groqModel, 12000);
       }
       await handleAiSuccess(fallback);
-      console.log(`[AI] Fallback ${fallback} succeeded!`);
       return { text: fallbackResult.text, provider: fallback, fallbackUsed: true };
     } catch (fallbackErr) {
-      console.error(`[AI] Fallback ${fallback} also failed:`, fallbackErr.message);
+      console.error(`[AI] Fallback ${fallback} failed:`, fallbackErr.message);
       await recordAiFailure(fallback, fallbackErr.message);
       await handleBothProvidersFailed(`${primary}: ${primaryErr.message} | ${fallback}: ${fallbackErr.message}`);
       throw new Error(`Both AI providers failed. ${primary}: ${primaryErr.message}. ${fallback}: ${fallbackErr.message}`);
@@ -797,16 +789,14 @@ async function generateAiReply(userText, promptBuilderArgs) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. Baileys WhatsApp Connection & Human Reply Detection
+// 8. Baileys WhatsApp Connection
 // ---------------------------------------------------------------------------
 let sock = null;
 let connectionStatus = 'disconnected';
 let currentPairingCode = null;
-let activePhone = PHONE_NUMBER || process.env.PHONE_NUMBER || '';
+let activePhone = '';
 
-// Track messages sent by this bot to distinguish from human owner replies
 const botSentMessageIds = new Set();
-
 const logger = pino({ level: 'silent' });
 
 function cleanDigits(val) {
@@ -849,7 +839,7 @@ async function startWhatsApp(pairingPhone = '') {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
-      browser: ['Personal AI Assistant', 'Chrome', '124.0.0'],
+      browser: ['JTech Assistant', 'Chrome', '124.0.0'],
       generateHighQualityLinkPreview: false
     });
 
@@ -864,7 +854,7 @@ async function startWhatsApp(pairingPhone = '') {
       } else if (connection === 'open') {
         connectionStatus = 'open';
         currentPairingCode = null;
-        console.log('[WhatsApp] Connection opened successfully! Bot ready.');
+        console.log('[WhatsApp] Connection opened successfully! JTech Assistant is active.');
       } else if (connection === 'close') {
         connectionStatus = 'disconnected';
         currentPairingCode = null;
@@ -875,10 +865,10 @@ async function startWhatsApp(pairingPhone = '') {
         if (loggedOut) {
           console.warn('[WhatsApp] Session logged out. Clearing wa:* keys from Redis...');
           await clearWhatsAppAuth();
-          // Request new pairing code if phone available
-          setTimeout(() => startWhatsApp(activePhone), 4000);
+          if (activePhone) {
+            setTimeout(() => startWhatsApp(activePhone), 4000);
+          }
         } else {
-          // Reconnect automatically
           setTimeout(() => startWhatsApp(activePhone), 5000);
         }
       }
@@ -896,7 +886,6 @@ async function startWhatsApp(pairingPhone = '') {
       }
     });
 
-    // Request pairing code if phone provided and not yet registered
     const phoneToPair = pairingPhone || activePhone;
     if (!sock.authState.creds.registered && phoneToPair) {
       setTimeout(async () => {
@@ -930,73 +919,57 @@ async function handleIncomingMessage(m) {
   const senderJid = m.key.remoteJid || '';
   if (!senderJid) return;
 
-  // 1. Never reply to groups (@g.us), broadcasts (@broadcast), or newsletters (@newsletter)
   if (senderJid.endsWith('@g.us')) return;
   if (senderJid.includes('@broadcast') || senderJid === 'status@broadcast') return;
   if (senderJid.endsWith('@newsletter')) return;
 
   const msgId = m.key.id;
 
-  // 2. OWNER DIRECT HUMAN REPLY DETECTION
-  // If the message is fromMe:
+  // Owner human reply detection
   if (m.key.fromMe) {
-    // If the bot sent it, ignore
-    if (botSentMessageIds.has(msgId)) {
-      return;
-    }
-    // If NOT sent by bot, this was sent personally by the owner on their phone!
-    // Silence bot for that person for 10 minutes:
-    const silenceUntil = Date.now() + 10 * 60 * 1000; // 10 minutes
+    if (botSentMessageIds.has(msgId)) return;
+
+    const silenceUntil = Date.now() + 10 * 60 * 1000;
     await redis.set(`handoff:${senderJid}`, String(silenceUntil), { ex: 600 });
     console.log(`[Human Reply] Owner replied directly to ${senderJid}. Silencing bot for 10 minutes.`);
     
-    // Record owner message in memory so assistant knows context later
     const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Owner sent media]';
     await recordMessage(senderJid, 'user', text, true, 'Owner (You)');
     return;
   }
 
-  // 3. Check if Handoff is active (either manual takeover or 10-minute owner direct reply)
+  // Check Handoff Status
   const handoffVal = await redis.get(`handoff:${senderJid}`);
   if (handoffVal) {
     const until = parseInt(handoffVal, 10);
     if (!isNaN(until) && Date.now() < until) {
       const remainingMins = Math.ceil((until - Date.now()) / 60000);
-      console.log(`[Handoff] Active silence for ${senderJid} (${remainingMins}m remaining). Skipping bot reply.`);
-      // Still record contact message
+      console.log(`[Handoff] Active silence for ${senderJid} (${remainingMins}m remaining).`);
       const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Media]';
       await recordMessage(senderJid, 'user', text, false, m.pushName || 'Contact');
       return;
     } else if (isNaN(until)) {
-      // Manual takeover without expiration
-      console.log(`[Handoff] Manual takeover active for ${senderJid}. Skipping bot reply.`);
+      console.log(`[Handoff] Manual takeover active for ${senderJid}.`);
       const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Media]';
       await recordMessage(senderJid, 'user', text, false, m.pushName || 'Contact');
       return;
     }
   }
 
-  // 4. Contact Rules: Allowlist / Blocklist / All
+  // Contact Rules Check
   const settings = await getSettings();
   const rules = settings.contactRules || { mode: 'all', allowlist: [], blocklist: [] };
   const phone = jidToPhone(senderJid);
 
   if (rules.mode === 'allowlist') {
-    if (!matchesContactRule(senderJid, rules.allowlist, phone)) {
-      console.log(`[Filter] ${senderJid} not in allowlist. Ignoring.`);
-      return;
-    }
+    if (!matchesContactRule(senderJid, rules.allowlist, phone)) return;
   } else if (rules.mode === 'blocklist') {
-    if (matchesContactRule(senderJid, rules.blocklist, phone)) {
-      console.log(`[Filter] ${senderJid} is in blocklist. Ignoring.`);
-      return;
-    }
+    if (matchesContactRule(senderJid, rules.blocklist, phone)) return;
   }
 
   const pushName = m.pushName || '';
   const msgContent = m.message;
 
-  // 5. Voice notes and images: reply politely asking for text
   let userText = '';
   let isMedia = false;
 
@@ -1015,38 +988,31 @@ async function handleIncomingMessage(m) {
   } else if (msgContent.documentMessage) {
     isMedia = true;
   } else if (msgContent.stickerMessage) {
-    return; // ignore stickers
+    return;
   }
 
   if (isMedia && !userText.trim()) {
-    const politeReply = `Hello! I am ${settings.profile.name}'s assistant. I cannot listen to voice notes or view photos right now. Please send your message as text, and I'll be happy to help! 🙏`;
+    const politeReply = `Hello! I am the *JTech Assistant*. I cannot process voice notes or photos. Please send your message as text. 🙏`;
     await recordMessage(senderJid, 'user', '[Voice note or Image received]', false, pushName);
     
-    // Typing indicator
     await sock.sendPresenceUpdate('composing', senderJid);
     await new Promise(r => setTimeout(r, 600));
     await sock.sendPresenceUpdate('paused', senderJid);
 
     const sent = await sock.sendMessage(senderJid, { text: politeReply }, { quoted: m });
     if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
-    await recordMessage(senderJid, 'assistant', politeReply, true, 'Assistant');
+    await recordMessage(senderJid, 'assistant', politeReply, true, 'JTech Assistant');
     return;
   }
 
-  // Must have text
   if (!userText || !userText.trim()) return;
   const cleanText = userText.trim();
 
-  // Save incoming user message
   await recordMessage(senderJid, 'user', cleanText, false, pushName);
-
-  // 6. Fetch Contact Memory in parallel (chat history, summary, facts)
   const memory = await getChatMemory(senderJid);
 
-  // 7. Show Typing Indicator right away
   await sock.sendPresenceUpdate('composing', senderJid);
 
-  // 8. Generate AI Reply with Intelligent Prompt Builder
   try {
     const aiResult = await generateAiReply(cleanText, {
       contactFacts: memory.facts,
@@ -1057,12 +1023,10 @@ async function handleIncomingMessage(m) {
 
     if (aiResult.paused) {
       await sock.sendPresenceUpdate('paused', senderJid);
-      console.log(`[Reply] Paused for ${senderJid}: ${aiResult.reason}`);
       return;
     }
 
     if (aiResult.text) {
-      // Random delay (300ms - 1200ms editable)
       const minD = Math.max(100, settings.minDelay);
       const maxD = Math.max(minD, settings.maxDelay);
       const delay = Math.floor(Math.random() * (maxD - minD + 1)) + minD;
@@ -1070,18 +1034,16 @@ async function handleIncomingMessage(m) {
 
       await sock.sendPresenceUpdate('paused', senderJid);
 
-      // Send reply
       const sent = await sock.sendMessage(senderJid, { text: aiResult.text }, { quoted: m });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
-        // prune bot sent cache if large
         if (botSentMessageIds.size > 2000) {
           const first = botSentMessageIds.values().next().value;
           botSentMessageIds.delete(first);
         }
       }
 
-      await recordMessage(senderJid, 'assistant', aiResult.text, true, `AI (${aiResult.provider})`);
+      await recordMessage(senderJid, 'assistant', aiResult.text, true, `JTech Assistant (${aiResult.provider})`);
       console.log(`[Reply] Sent AI reply to ${senderJid} via ${aiResult.provider} (delay ${delay}ms)`);
     }
   } catch (err) {
@@ -1097,52 +1059,99 @@ function jidToPhone(jid) {
 }
 
 // ---------------------------------------------------------------------------
-// 10. Express Server & Timing-Safe Dashboard API
+// 10. Express Server, CORS & Token Auth API
 // ---------------------------------------------------------------------------
 const app = express();
 app.use(express.json());
 
-// Tiny public /health route for uptime pinger
+// Enable Cross-Origin Resource Sharing (CORS) for GitHub Pages
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-pass');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// Public health check route for uptime pingers
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
+    app: 'JTech Assistant',
     uptime: Math.floor(process.uptime()),
     timestamp: Date.now(),
     whatsapp: connectionStatus
   });
 });
 
-// Timing-safe authentication middleware for /api routes
-function requireTimingSafeAuth(req, res, next) {
-  const pass = req.headers['x-pass'] || req.query.pass;
-  if (!pass || !timingSafeEqualStr(String(pass), String(DASHBOARD_PASSWORD))) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid x-pass header' });
+// Authentication middleware accepting Authorization: Bearer <token> or x-pass
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    if (token) {
+      const valid = await redis.get('session:' + token);
+      if (valid) {
+        return next();
+      }
+    }
   }
-  next();
+
+  // Fallback for x-pass
+  const pass = req.headers['x-pass'] || req.query.pass;
+  if (pass && timingSafeEqualStr(String(pass), String(DASHBOARD_PASSWORD))) {
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
 }
 
-// Serve UI dashboard
-app.get('/', (req, res) => {
-  const uiPath = path.join(__dirname, 'ui.html');
-  if (fs.existsSync(uiPath)) {
-    res.sendFile(uiPath);
-  } else {
-    res.send('ui.html not found');
+// POST /api/login { password } returns { token }
+app.post('/api/login', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || !timingSafeEqualStr(String(password), String(DASHBOARD_PASSWORD))) {
+      return res.status(401).json({ error: 'Incorrect dashboard password' });
+    }
+
+    const token = crypto.randomBytes(24).toString('hex');
+    await redis.set('session:' + token, '1', { ex: 86400 * 14 }); // 14 days TTL
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/ui.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'ui.html'));
-});
-
-// API: System & Connection Status
-app.get('/api/status', requireTimingSafeAuth, async (req, res) => {
+// GET /api/state
+app.get('/api/state', requireAuth, async (req, res) => {
   try {
     const isPaused = await checkAutoPause();
     const remainingPauseSecs = isPaused ? Math.max(0, Math.ceil((autoPauseUntil - Date.now()) / 1000)) : 0;
     const settings = await getSettings();
+    const today = new Date().toISOString().slice(0, 10);
+    const [repliesToday, geminiCount, groqCount, rawErrors] = await Promise.all([
+      redis.get(`stats:replies:${today}`),
+      redis.get('stats:provider:gemini'),
+      redis.get('stats:provider:groq'),
+      redis.lrange('stats:ai_errors', 0, 4)
+    ]);
+
+    let connPill = 'Offline';
+    if (connectionStatus === 'open') {
+      connPill = 'Connected';
+    } else if (connectionStatus === 'connecting' || currentPairingCode) {
+      connPill = 'Waiting';
+    }
+
+    const recentErrors = [];
+    for (const item of (rawErrors || [])) {
+      try { recentErrors.push(JSON.parse(item)); } catch (_) { recentErrors.push({ message: item, timestamp: Date.now() }); }
+    }
 
     res.json({
+      connectionPill: connPill,
       status: connectionStatus,
       pairingCode: currentPairingCode,
       activePhone,
@@ -1153,23 +1162,32 @@ app.get('/api/status', requireTimingSafeAuth, async (req, res) => {
       activeProvider: settings.provider,
       geminiModel: settings.geminiModel,
       groqModel: settings.groqModel,
+      uptime: Math.floor(process.uptime()),
       freetownTime: getFreetownTime(),
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
-      hasGroqKey: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
-      hasRedis: Boolean(redis.isUpstash)
+      repliesToday: parseInt(repliesToday || '0', 10),
+      providers: {
+        gemini: parseInt(geminiCount || '0', 10),
+        groq: parseInt(groqCount || '0', 10)
+      },
+      recentErrors,
+      keys: {
+        gemini: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
+        groq: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
+        redis: Boolean(redis.isUpstash)
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Request Pairing Code
-app.post('/api/pair', requireTimingSafeAuth, async (req, res) => {
+// POST /api/link { phone }
+app.post('/api/link', requireAuth, async (req, res) => {
   try {
     const { phone } = req.body;
     const digits = cleanDigits(phone);
     if (!digits) {
-      return res.status(400).json({ error: 'Please enter a valid phone number with country code' });
+      return res.status(400).json({ error: 'Please enter a valid phone number (digits only, e.g. 23276123456)' });
     }
 
     activePhone = digits;
@@ -1183,30 +1201,15 @@ app.post('/api/pair', requireTimingSafeAuth, async (req, res) => {
       }
     } else {
       startWhatsApp(digits);
-      return res.json({ success: true, message: 'Initiating pairing... refresh in a few seconds', phone: digits });
+      return res.json({ success: true, message: 'Initiating pairing... check pairing code in 3 seconds', phone: digits });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: WhatsApp Logout & Clear Auth
-app.post('/api/logout', requireTimingSafeAuth, async (req, res) => {
-  try {
-    if (sock) {
-      await sock.logout();
-    }
-    await clearWhatsAppAuth();
-    connectionStatus = 'disconnected';
-    currentPairingCode = null;
-    res.json({ success: true, message: 'Logged out and wa:* keys cleared from Redis' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// API: Get Full Settings (Profile, Rules, Delays, Contacts)
-app.get('/api/settings', requireTimingSafeAuth, async (req, res) => {
+// GET /api/cfg and POST /api/cfg
+app.get('/api/cfg', requireAuth, async (req, res) => {
   try {
     const settings = await getSettings(true);
     res.json(settings);
@@ -1215,8 +1218,7 @@ app.get('/api/settings', requireTimingSafeAuth, async (req, res) => {
   }
 });
 
-// API: Save Settings
-app.post('/api/settings', requireTimingSafeAuth, async (req, res) => {
+app.post('/api/cfg', requireAuth, async (req, res) => {
   try {
     const { profile, baseRules, provider, geminiModel, groqModel, minDelay, maxDelay, isPaused, contactRules } = req.body;
 
@@ -1246,14 +1248,14 @@ app.post('/api/settings', requireTimingSafeAuth, async (req, res) => {
     }
 
     invalidateSettingsCache();
-    res.json({ success: true, message: 'Settings saved successfully' });
+    res.json({ success: true, message: 'Configuration saved successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Live Chat - Latest 30 Conversations
-app.get('/api/chats', requireTimingSafeAuth, async (req, res) => {
+// GET /api/chats
+app.get('/api/chats', requireAuth, async (req, res) => {
   try {
     const recentRaw = await redis.get('chats:recent');
     let jids = [];
@@ -1297,8 +1299,8 @@ app.get('/api/chats', requireTimingSafeAuth, async (req, res) => {
   }
 });
 
-// API: Live Chat - Last 12 Messages of a Conversation
-app.get('/api/chats/:jid/messages', requireTimingSafeAuth, async (req, res) => {
+// GET /api/chats/:jid
+app.get('/api/chats/:jid', requireAuth, async (req, res) => {
   try {
     const { jid } = req.params;
     const memory = await getChatMemory(jid);
@@ -1321,11 +1323,10 @@ app.get('/api/chats/:jid/messages', requireTimingSafeAuth, async (req, res) => {
   }
 });
 
-// API: Per-Contact Take Over
-app.post('/api/chats/:jid/takeover', requireTimingSafeAuth, async (req, res) => {
+// POST /api/chats/:jid/takeover
+app.post('/api/chats/:jid/takeover', requireAuth, async (req, res) => {
   try {
     const { jid } = req.params;
-    // Set handoff indefinite until manual resume
     await redis.set(`handoff:${jid}`, 'manual_takeover');
     res.json({ success: true, message: `Bot paused for ${jid}. Human takeover active.` });
   } catch (err) {
@@ -1333,8 +1334,8 @@ app.post('/api/chats/:jid/takeover', requireTimingSafeAuth, async (req, res) => 
   }
 });
 
-// API: Per-Contact Resume Bot
-app.post('/api/chats/:jid/resume', requireTimingSafeAuth, async (req, res) => {
+// POST /api/chats/:jid/resume
+app.post('/api/chats/:jid/resume', requireAuth, async (req, res) => {
   try {
     const { jid } = req.params;
     await redis.del(`handoff:${jid}`);
@@ -1344,24 +1345,38 @@ app.post('/api/chats/:jid/resume', requireTimingSafeAuth, async (req, res) => {
   }
 });
 
-// API: Clear Memory for Contact
-app.post('/api/chats/:jid/clear-memory', requireTimingSafeAuth, async (req, res) => {
+// GET /api/stats
+app.get('/api/stats', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
-    await Promise.all([
-      redis.del(`chat:${jid}:messages`),
-      redis.del(`sum:${jid}`),
-      redis.del(`contact:${jid}:facts`),
-      redis.del(`contact:${jid}:msg_count`)
+    const today = new Date().toISOString().slice(0, 10);
+    const [repliesToday, geminiCount, groqCount, rawErrors] = await Promise.all([
+      redis.get(`stats:replies:${today}`),
+      redis.get('stats:provider:gemini'),
+      redis.get('stats:provider:groq'),
+      redis.lrange('stats:ai_errors', 0, 4)
     ]);
-    res.json({ success: true, message: `Memory cleared for ${jid}` });
+
+    const recentErrors = [];
+    for (const item of (rawErrors || [])) {
+      try { recentErrors.push(JSON.parse(item)); } catch (_) { recentErrors.push({ message: item, timestamp: Date.now() }); }
+    }
+
+    res.json({
+      repliesToday: parseInt(repliesToday || '0', 10),
+      providers: {
+        gemini: parseInt(geminiCount || '0', 10),
+        groq: parseInt(groqCount || '0', 10)
+      },
+      uptime: Math.floor(process.uptime()),
+      recentErrors
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Global Memory Clear
-app.post('/api/clear-all-memory', requireTimingSafeAuth, async (req, res) => {
+// POST /api/clear-memory
+app.post('/api/clear-memory', requireAuth, async (req, res) => {
   try {
     const recentRaw = await redis.get('chats:recent');
     let jids = [];
@@ -1385,66 +1400,49 @@ app.post('/api/clear-all-memory', requireTimingSafeAuth, async (req, res) => {
   }
 });
 
-// API: Usage Panel & AI Errors
-app.get('/api/usage', requireTimingSafeAuth, async (req, res) => {
+// POST /api/logout-wa
+app.post('/api/logout-wa', requireAuth, async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const [repliesToday, geminiCount, groqCount, rawErrors, isAutoPaused] = await Promise.all([
-      redis.get(`stats:replies:${today}`),
-      redis.get('stats:provider:gemini'),
-      redis.get('stats:provider:groq'),
-      redis.lrange('stats:ai_errors', 0, 4),
-      checkAutoPause()
-    ]);
-
-    const recentErrors = [];
-    for (const item of rawErrors) {
-      try {
-        recentErrors.push(JSON.parse(item));
-      } catch (_) {
-        recentErrors.push({ message: item, timestamp: Date.now() });
-      }
+    if (sock) {
+      await sock.logout();
     }
-
-    const remainingPauseSecs = isAutoPaused ? Math.max(0, Math.ceil((autoPauseUntil - Date.now()) / 1000)) : 0;
-
-    res.json({
-      repliesToday: parseInt(repliesToday || '0', 10),
-      providers: {
-        gemini: parseInt(geminiCount || '0', 10),
-        groq: parseInt(groqCount || '0', 10)
-      },
-      consecutiveFailures,
-      isAutoPaused,
-      remainingPauseSecs,
-      recentErrors
-    });
+    await clearWhatsAppAuth();
+    connectionStatus = 'disconnected';
+    currentPairingCode = null;
+    res.json({ success: true, message: 'Logged out and wa:* keys cleared from Redis' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Resume Auto-Pause
-app.post('/api/autopause/resume', requireTimingSafeAuth, async (req, res) => {
-  try {
-    consecutiveFailures = 0;
-    autoPauseUntil = 0;
-    await redis.del('autopause:until');
-    res.json({ success: true, message: 'Auto-pause lifted. Replies resumed.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+// Compatibility aliases
+app.get('/api/settings', requireAuth, (req, res) => res.redirect('/api/cfg'));
+app.post('/api/settings', requireAuth, (req, res) => res.redirect(307, '/api/cfg'));
+app.get('/api/status', requireAuth, (req, res) => res.redirect('/api/state'));
+app.get('/api/usage', requireAuth, (req, res) => res.redirect('/api/stats'));
+app.post('/api/logout', requireAuth, (req, res) => res.redirect(307, '/api/logout-wa'));
+app.post('/api/clear-all-memory', requireAuth, (req, res) => res.redirect(307, '/api/clear-memory'));
+
+// Serve UI dashboard
+app.get('/', (req, res) => {
+  const uiPath = path.join(__dirname, 'ui.html');
+  if (fs.existsSync(uiPath)) {
+    res.sendFile(uiPath);
+  } else {
+    res.send('ui.html not found');
   }
 });
 
-// ---------------------------------------------------------------------------
-// 11. Start Express Server & WhatsApp
-// ---------------------------------------------------------------------------
+app.get('/ui.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'ui.html'));
+});
+
+// Start Express and WhatsApp
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
-  console.log(` Personal WhatsApp AI Assistant running on port ${PORT}`);
+  console.log(` JTech Assistant backend running on port ${PORT}`);
   console.log(` Dashboard URL: http://localhost:${PORT}`);
   console.log(` Health check URL: http://localhost:${PORT}/health`);
-  console.log(` Target platform: Render Web Service`);
   console.log(`====================================================`);
 
   startWhatsApp().catch((err) => {

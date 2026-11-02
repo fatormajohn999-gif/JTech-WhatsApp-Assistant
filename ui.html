@@ -2,40 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Personal WhatsApp AI Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>JTech Assistant</title>
+  
+  <!-- Add-to-Home-Screen & PWA meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="JTech Assistant">
+  <meta name="theme-color" content="#0b0f17" id="meta-theme-color">
+
   <style>
+    /* Deliberate Palette: 6 Core Colors */
     :root {
-      --bg: #0b141a;
-      --surface: #111b21;
-      --card: #202c33;
-      --card-hover: #222e35;
-      --border: #2a3942;
-      --text: #e9edef;
-      --subtext: #8696a0;
-      --accent: #25d366;
-      --primary: #128c7e;
+      --bg-base: #0b0f17;
+      --bg-surface: #121824;
+      --bg-card: #1a2332;
+      --bg-card-hover: #222d40;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: #00f2fe;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-primary: #00f2fe;
+      --accent-glow: rgba(0, 242, 254, 0.25);
+      --accent-secondary: #10b981;
       --danger: #ef4444;
       --warning: #f59e0b;
-      --user-bubble: #005c4b;
-      --bot-bubble: #202c33;
-      --radius: 12px;
+      --bubble-bot: #1a2332;
+      --bubble-user: #0e3b43;
+      --bottom-bar-h: 68px;
+      --header-h: 56px;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
     }
 
     [data-theme="light"] {
-      --bg: #eae6df;
-      --surface: #ffffff;
-      --card: #f0f2f5;
-      --card-hover: #e9edef;
-      --border: #d1d7db;
-      --text: #111b21;
-      --subtext: #667781;
-      --accent: #25d366;
-      --primary: #00a884;
+      --bg-base: #f1f5f9;
+      --bg-surface: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --border-subtle: rgba(15, 23, 42, 0.08);
+      --border-focus: #0284c7;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent-primary: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.2);
+      --accent-secondary: #059669;
       --danger: #dc2626;
       --warning: #d97706;
-      --user-bubble: #d9fdd3;
-      --bot-bubble: #ffffff;
+      --bubble-bot: #f1f5f9;
+      --bubble-user: #e0f2fe;
     }
 
     * {
@@ -43,189 +60,418 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    input, textarea, select {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    /* App Viewport Container */
+    #app-container {
       display: flex;
       flex-direction: column;
-      padding-bottom: 24px;
-      transition: background-color 0.2s, color 0.2s;
+      height: 100%;
+      height: 100dvh;
+      position: relative;
+      overflow: hidden;
     }
 
-    /* Header */
-    header {
-      background-color: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 18px;
-      position: sticky;
-      top: 0;
-      z-index: 50;
+    /* Fixed Top App Header */
+    header.app-header {
+      height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: 16px;
+      padding-right: 16px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 40;
     }
 
-    .brand {
+    .brand-wrap {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      background: var(--accent);
-      border-radius: 50%;
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #000;
-      font-weight: 700;
-      font-size: 16px;
+      color: #0b0f17;
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    .brand-logo svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2.2;
     }
 
     .brand-title {
       font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.2px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
     }
 
     .brand-time {
       font-size: 11px;
-      color: var(--subtext);
+      color: var(--text-muted);
+      font-weight: 500;
     }
 
-    .header-actions {
+    .header-pills {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    .status-badge {
+    /* Status Pill */
+    .status-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 5px 12px;
+      padding: 4px 10px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card);
       text-transform: capitalize;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: #888;
     }
 
-    .status-dot.open { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-    .status-dot.connecting { background: var(--warning); animation: pulse 1.5s infinite; }
-    .status-dot.disconnected { background: var(--danger); }
+    .status-pill.connected .status-dot { background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
+    .status-pill.waiting .status-dot { background: var(--warning); animation: pulse 1.4s infinite; }
+    .status-pill.offline .status-dot { background: var(--danger); }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
     }
 
-    /* Warning Banner */
-    #alert-banner {
-      display: none;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid var(--danger);
-      color: #fca5a5;
-      padding: 12px 18px;
-      margin: 12px 16px 0;
-      border-radius: var(--radius);
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+      color: var(--text-main);
+      display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      font-size: 13px;
+      justify-content: center;
+      cursor: pointer;
     }
 
-    #alert-banner.show {
-      display: flex;
-    }
+    .icon-btn svg { width: 17px; height: 17px; }
 
-    /* Navigation Tabs */
-    nav {
-      display: flex;
-      background-color: var(--surface);
-      border-bottom: 1px solid var(--border);
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    nav::-webkit-scrollbar { display: none; }
-
-    .nav-btn {
+    /* Screen Stage */
+    #screen-viewport {
       flex: 1;
-      min-width: 90px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-screen {
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px 16px calc(var(--bottom-bar-h) + env(safe-area-inset-bottom, 0px) + 20px);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .app-screen.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .app-screen {
+        transition: none !important;
+        transform: none !important;
+      }
+    }
+
+    /* Fixed Bottom Navigation Bar (TikTok Style) */
+    nav.app-bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom, 0px));
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 50;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-item {
+      flex: 1;
+      height: var(--bottom-bar-h);
+      min-height: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      text-decoration: none;
+      color: var(--text-muted);
+      cursor: pointer;
       background: none;
       border: none;
-      color: var(--subtext);
-      padding: 13px 10px;
-      font-size: 13px;
+      transition: color 0.15s, transform 0.1s;
+    }
+
+    .nav-item:active { transform: scale(0.94); }
+
+    .nav-item svg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 2;
+    }
+
+    .nav-item span {
+      font-size: 10.5px;
       font-weight: 500;
-      cursor: pointer;
-      text-align: center;
-      border-bottom: 2px solid transparent;
-      white-space: nowrap;
-      transition: color 0.15s, border-color 0.15s;
+      letter-spacing: -0.1px;
     }
 
-    .nav-btn.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
+    .nav-item.active {
+      color: var(--accent-primary);
     }
 
-    /* Container */
-    main {
-      flex: 1;
-      max-width: 920px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 16px;
+    .nav-item.active svg {
+      stroke-width: 2.4;
+      filter: drop-shadow(0 0 6px var(--accent-glow));
     }
 
-    .tab-panel {
-      display: none;
-      flex-direction: column;
-      gap: 16px;
+    /* Center Raised "Link" Button */
+    .nav-item.nav-center-link {
+      position: relative;
+      top: -12px;
+      flex: 0 0 58px;
     }
 
-    .tab-panel.active {
+    .center-link-disc {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
       display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0b0f17;
+      box-shadow: 0 4px 18px var(--accent-glow);
+      border: 3px solid var(--bg-surface);
+      transition: transform 0.15s, box-shadow 0.15s;
     }
 
-    /* Cards */
+    .nav-center-link:active .center-link-disc {
+      transform: scale(0.92);
+    }
+
+    .center-link-disc svg {
+      width: 24px;
+      height: 24px;
+      stroke: #0b0f17;
+      stroke-width: 2.4;
+    }
+
+    .nav-center-link span {
+      margin-top: 1px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* Cards & Components */
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
     }
 
     .card-title {
-      font-size: 15px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    /* Grid Stats */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       font-weight: 600;
-      margin-bottom: 4px;
+    }
+
+    .stat-val {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    /* Quick Toggle Switch */
+    .toggle-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
     }
 
-    .card-subtitle {
-      font-size: 12.5px;
-      color: var(--subtext);
-      margin-bottom: 16px;
-      line-height: 1.4;
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 28px;
+      min-height: 28px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #334155;
+      transition: .25s;
+      border-radius: 30px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .25s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: var(--accent-primary); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* Buttons */
+    .btn {
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-block { width: 100%; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: #0b0f17;
+      box-shadow: 0 2px 12px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .btn-sm {
+      min-height: 34px;
+      padding: 0 12px;
+      font-size: 12px;
+      border-radius: 7px;
     }
 
     /* Forms */
@@ -235,9 +481,10 @@
 
     label {
       display: block;
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 12.5px;
+      font-weight: 600;
       margin-bottom: 6px;
+      color: var(--text-muted);
     }
 
     input[type="text"],
@@ -246,352 +493,380 @@
     textarea,
     select {
       width: 100%;
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 8px;
-      font-size: 13.5px;
+      min-height: 44px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 10px 14px;
+      font-size: 14px;
       outline: none;
       transition: border-color 0.2s;
     }
 
-    input:focus,
-    textarea:focus,
-    select:focus {
-      border-color: var(--accent);
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--border-focus);
     }
 
     textarea {
+      min-height: 90px;
       resize: vertical;
-      min-height: 85px;
       line-height: 1.4;
     }
 
-    .input-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    @media (max-width: 540px) {
-      .input-row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .help-note {
-      font-size: 12px;
-      color: var(--subtext);
-      margin-top: 5px;
-      line-height: 1.35;
-    }
-
-    /* Buttons */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-
-    .btn:active {
-      opacity: 0.85;
-    }
-
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-accent { background: var(--accent); color: #000; }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
-    .btn-block { width: 100%; }
-
-    /* Switch / Toggle */
-    .switch-container {
+    /* Status Chips */
+    .chips-row {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      background: var(--card);
-      border-radius: 8px;
-      border: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
     }
 
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
+    .chip {
+      font-size: 11.5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      font-weight: 500;
     }
 
-    .switch input { opacity: 0; width: 0; height: 0; }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      inset: 0;
-      background-color: #4b5563;
-      transition: .3s;
-      border-radius: 24px;
+    .chip.active {
+      color: var(--accent-secondary);
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.08);
     }
 
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: .3s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider { background-color: var(--accent); }
-    input:checked + .slider:before { transform: translateX(20px); }
-
-    /* Pairing Display */
-    .pairing-box {
-      background: var(--card);
-      border: 2px dashed var(--accent);
-      border-radius: 10px;
-      padding: 20px;
+    /* Pairing Code Box */
+    .pairing-card {
+      background: var(--bg-surface);
+      border: 2px dashed var(--accent-primary);
+      border-radius: var(--radius-md);
+      padding: 22px 16px;
       text-align: center;
       margin-top: 14px;
+      cursor: pointer;
     }
 
-    .pairing-code {
-      font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    .pairing-digits {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       font-size: 32px;
-      font-weight: 700;
-      letter-spacing: 5px;
-      color: var(--accent);
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: var(--accent-primary);
       margin: 10px 0;
-      user-select: all;
+      text-shadow: 0 0 12px var(--accent-glow);
     }
 
-    /* Mode Selector */
-    .mode-selector {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-
-    .mode-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      text-align: center;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-
-    .mode-card.selected {
-      border-color: var(--accent);
-      background: rgba(37, 211, 102, 0.12);
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    /* Chat Layout */
-    .chat-layout {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    @media (min-width: 640px) {
-      .chat-layout {
-        grid-template-columns: 290px 1fr;
-        height: 620px;
-      }
-    }
-
-    .conv-list {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow-y: auto;
-      max-height: 450px;
-    }
-
-    @media (min-width: 640px) {
-      .conv-list { max-height: 100%; }
-    }
-
-    .conv-item {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .conv-item:hover, .conv-item.active { background: var(--card); }
-
-    .conv-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 4px;
-    }
-
-    .conv-name {
-      font-weight: 600;
-      font-size: 13.5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 170px;
-    }
-
-    .conv-time { font-size: 11px; color: var(--subtext); }
-    .conv-snippet { font-size: 12px; color: var(--subtext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .badge {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-      text-transform: uppercase;
-      display: inline-block;
-      margin-top: 5px;
-    }
-
-    .badge-bot { background: rgba(37, 211, 102, 0.15); color: var(--accent); }
-    .badge-human { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
-
-    /* Viewport */
-    .chat-viewport {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      display: flex;
-      flex-direction: column;
-      height: 480px;
-    }
-
-    @media (min-width: 640px) {
-      .chat-viewport { height: 100%; }
-    }
-
-    .chat-header {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      background: var(--card);
-      border-radius: var(--radius) var(--radius) 0 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .chat-info-bar {
-      background: rgba(0, 0, 0, 0.2);
-      border-bottom: 1px solid var(--border);
-      padding: 8px 12px;
-      font-size: 11.5px;
-      color: var(--subtext);
-      line-height: 1.35;
-    }
-
-    .chat-messages {
-      flex: 1;
-      padding: 14px;
-      overflow-y: auto;
+    /* 3 Short Steps */
+    .steps-list {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      background: #0b141a;
-      background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
-      background-size: 16px 16px;
+      margin-top: 16px;
+      text-align: left;
     }
 
-    .msg-bubble {
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      color: #0b0f17;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* Mode Selector Buttons */
+    .mode-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .mode-btn {
+      min-height: 42px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 8px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .mode-btn.selected {
+      background: rgba(0, 242, 254, 0.12);
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+    }
+
+    /* Activity Items (Home screen) */
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+    }
+
+    /* Chats List Screen */
+    .chats-list-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chat-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .chat-row:active {
+      background: var(--bg-card-hover);
+    }
+
+    .chat-avatar {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      border-radius: 50%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--accent-primary);
+      font-size: 15px;
+    }
+
+    .chat-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-info-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 2px;
+    }
+
+    .chat-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .chat-snippet {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .chat-tag.bot { background: rgba(16, 185, 129, 0.15); color: var(--accent-secondary); }
+    .chat-tag.human { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+
+    /* Full-screen Chat Detail Overlay */
+    #chat-detail-view {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-base);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #chat-detail-view.open {
+      transform: translateX(0);
+    }
+
+    .chat-detail-header {
+      height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: 12px;
+      padding-right: 12px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .chat-detail-info {
+      background: rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 14px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.35;
+      max-height: 85px;
+      overflow-y: auto;
+    }
+
+    .chat-messages-scroll {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bubble {
       max-width: 82%;
-      padding: 8px 12px;
-      border-radius: 8px;
+      padding: 9px 13px;
+      border-radius: var(--radius-md);
       font-size: 13.5px;
       line-height: 1.4;
       word-break: break-word;
     }
 
-    .msg-bubble.user {
+    .bubble.user {
       align-self: flex-start;
-      background: var(--bot-bubble);
-      border-bottom-left-radius: 2px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: var(--bubble-bot);
+      border: 1px solid var(--border-subtle);
+      border-bottom-left-radius: 3px;
     }
 
-    .msg-bubble.assistant {
+    .bubble.assistant {
       align-self: flex-end;
-      background: var(--user-bubble);
-      border-bottom-right-radius: 2px;
+      background: var(--bubble-user);
+      border-bottom-right-radius: 3px;
     }
 
-    .msg-meta {
+    .bubble-meta {
       font-size: 10px;
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-muted);
       text-align: right;
       margin-top: 3px;
     }
 
-    /* Stats Grid */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 10px;
-      margin-bottom: 16px;
+    /* Skeleton Loader */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-card-hover) 50%, var(--bg-surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-sm);
     }
 
-    .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
 
-    .stat-num { font-size: 24px; font-weight: 700; margin-top: 4px; }
-    .stat-label { font-size: 11px; color: var(--subtext); text-transform: uppercase; }
-
-    .error-item {
-      background: var(--card);
-      border-left: 3px solid var(--danger);
-      padding: 10px 12px;
-      border-radius: 0 6px 6px 0;
-      font-size: 12px;
+    .skeleton-chat {
+      height: 64px;
       margin-bottom: 8px;
+      border-radius: var(--radius-md);
     }
 
-    /* Toast */
+    /* Friendly Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    .empty-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .empty-desc {
+      font-size: 12.5px;
+      line-height: 1.4;
+      max-width: 260px;
+      margin: 0 auto 16px;
+    }
+
+    /* Floating Toast */
     #toast {
       position: fixed;
-      bottom: 24px;
+      top: calc(env(safe-area-inset-top, 0px) + 68px);
       left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: #1f2c34;
-      color: #fff;
-      border: 1px solid var(--border);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-      padding: 10px 18px;
+      transform: translateX(-50%) translateY(-30px);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      padding: 8px 18px;
       border-radius: 30px;
       font-size: 13px;
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: 8px;
-      z-index: 999;
+      z-index: 1000;
       opacity: 0;
-      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease;
       pointer-events: none;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
     }
 
     #toast.show {
@@ -599,665 +874,962 @@
       opacity: 1;
     }
 
-    /* Auth Modal */
-    #auth-modal {
+    /* Auth Modal & Missing API Overlay */
+    #auth-sheet, #missing-api-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      z-index: 1000;
+      background: rgba(0, 0, 0, 0.82);
+      z-index: 2000;
       display: none;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    #auth-sheet.open {
+      display: flex;
+    }
+
+    #missing-api-overlay.open {
+      display: flex;
+      align-items: center;
       padding: 16px;
     }
 
-    #auth-modal.show { display: flex; }
-
-    .modal-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+    .sheet-card {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       width: 100%;
-      max-width: 360px;
-      padding: 24px;
+      max-width: 480px;
+      padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
       text-align: center;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Header -->
-  <header>
-    <div class="brand">
-      <div class="brand-icon">AI</div>
-      <div>
-        <div class="brand-title">Personal AI Assistant</div>
-        <div class="brand-time" id="freetown-clock">Freetown: --:--</div>
-      </div>
-    </div>
-    <div class="header-actions">
-      <div class="status-badge">
-        <span class="status-dot" id="status-dot"></span>
-        <span id="status-text">Checking...</span>
-      </div>
-      <button class="btn btn-secondary btn-sm" id="btn-theme-toggle" title="Toggle Dark/Light Mode">🌓</button>
-      <button class="btn btn-secondary btn-sm" id="btn-auth-pass" title="Change Dashboard Password">🔑</button>
-    </div>
-  </header>
+  <div id="app-container">
 
-  <!-- Auto-Pause / Global Pause Warning Banner -->
-  <div id="alert-banner">
-    <div>
-      <strong id="alert-title">Auto-pause active</strong><br>
-      <span id="alert-desc">Replies are currently paused.</span>
-    </div>
-    <button class="btn btn-sm btn-accent" id="btn-resume-alert">Resume now</button>
-  </div>
-
-  <!-- Navigation Tabs -->
-  <nav>
-    <button class="nav-btn active" data-tab="tab-chat">Chats & takeover</button>
-    <button class="nav-btn" data-tab="tab-profile">Owner profile</button>
-    <button class="nav-btn" data-tab="tab-ai">AI switch & prompt</button>
-    <button class="nav-btn" data-tab="tab-rules">Contact rules</button>
-    <button class="nav-btn" data-tab="tab-usage">Usage & errors</button>
-    <button class="nav-btn" data-tab="tab-device">Link device</button>
-  </nav>
-
-  <!-- Main View -->
-  <main>
-
-    <!-- Tab 1: Live Chat Viewer & Takeover -->
-    <section class="tab-panel active" id="tab-chat">
-      <div class="chat-layout">
-        <!-- 30 Conversations List -->
-        <div class="conv-list" id="conv-list">
-          <div style="padding: 20px; text-align: center; color: var(--subtext); font-size: 13px;">
-            Loading conversations...
-          </div>
+    <!-- Fixed Top Header -->
+    <header class="app-header">
+      <div class="brand-wrap">
+        <div class="brand-logo">
+          <!-- Sparkle / Brain Icon -->
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
         </div>
+        <div>
+          <div class="brand-title">JTech Assistant</div>
+          <div class="brand-time" id="app-freetown-time">Freetown: --:--</div>
+        </div>
+      </div>
 
-        <!-- Chat Viewport -->
-        <div class="chat-viewport">
-          <div class="chat-header">
+      <div class="header-pills">
+        <div class="status-pill offline" id="pill-conn-status">
+          <span class="status-dot"></span>
+          <span id="pill-conn-text">Offline</span>
+        </div>
+        <button class="icon-btn" id="btn-theme" title="Toggle theme">
+          <!-- Sun/Moon icon -->
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" id="svg-theme-icon">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- App Stage (Screens) -->
+    <div id="screen-viewport">
+
+      <!-- SCREEN 1: HOME (#home) -->
+      <section class="app-screen active" id="screen-home">
+        
+        <!-- Connection Card -->
+        <div class="card" id="home-conn-card">
+          <div class="card-header">
             <div>
-              <div id="active-chat-title" style="font-weight: 600; font-size: 14px;">Select a conversation</div>
-              <div id="active-chat-sub" style="font-size: 11px; color: var(--subtext);">Tap a chat from the left list</div>
+              <div class="card-title">WhatsApp connection</div>
+              <div class="card-desc" id="home-conn-desc">Checking background service status...</div>
             </div>
-            <div id="chat-actions" style="display: none; gap: 8px;">
-              <button class="btn btn-sm" id="btn-takeover" style="display:none; background:#d97706; color:#fff;">Take over</button>
-              <button class="btn btn-sm btn-accent" id="btn-resume-chat" style="display:none;">Resume bot</button>
-              <button class="btn btn-sm btn-secondary" id="btn-clear-chat-mem" title="Clear Memory">🗑</button>
-            </div>
+            <a href="#link" class="btn btn-sm btn-primary" id="home-link-cta">Link</a>
           </div>
-
-          <!-- Dynamic Info Bar: Shows Summary & Contact Facts -->
-          <div class="chat-info-bar" id="chat-info-bar" style="display: none;">
-            <div id="info-summary" style="margin-bottom: 3px;"><strong>Summary:</strong> None</div>
-            <div id="info-facts"><strong>Known facts:</strong> None</div>
-          </div>
-
-          <div class="chat-messages" id="chat-messages">
-            <div style="margin: auto; text-align: center; color: var(--subtext); font-size: 13px;">
-              Tap any contact on the left to view messages, learned facts, and takeover controls.
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tab 2: Owner Identity Profile Form -->
-    <section class="tab-panel" id="tab-profile">
-      <div class="card">
-        <div class="card-title">Owner identity & voice cloning</div>
-        <div class="card-subtitle">
-          Your assistant speaks for you in your personal style, culture, and tone. Fill out these details so it sounds authentically like you.
-        </div>
-
-        <div class="input-row">
-          <div class="form-group">
-            <label for="prof-name">Your full name</label>
-            <input type="text" id="prof-name" placeholder="e.g. Mohamed Sesay">
-          </div>
-          <div class="form-group">
-            <label for="prof-city">City and country</label>
-            <input type="text" id="prof-city" placeholder="e.g. Freetown, Sierra Leone">
+          <div class="chips-row">
+            <span class="chip" id="chip-phone">Number: Not linked</span>
+            <span class="chip" id="chip-uptime">Uptime: --</span>
           </div>
         </div>
 
-        <div class="input-row">
-          <div class="form-group">
-            <label for="prof-job">Occupation / Studies</label>
-            <input type="text" id="prof-job" placeholder="e.g. Software Engineer & Tech Founder">
-          </div>
-          <div class="form-group">
-            <label for="prof-languages">Languages you speak</label>
-            <input type="text" id="prof-languages" placeholder="e.g. English, Krio">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="prof-facts">About you (interests, how you like to talk, key facts)</label>
-          <textarea id="prof-facts" rows="3" placeholder="e.g. Passionate about Sierra Leone tech, football, music. Friendly, warm, concise, and respectful."></textarea>
-        </div>
-
-        <div style="margin: 16px 0 10px; font-size: 13.5px; font-weight: 600;">
-          Sample messages (the AI will mimic your phrasing, greetings, and vibe)
-        </div>
-
-        <div class="form-group">
-          <label for="prof-sample1">Sample greeting or casual message</label>
-          <input type="text" id="prof-sample1" placeholder="e.g. Kusheh! Good to hear from you. Hope everything is blessed with you.">
-        </div>
-
-        <div class="form-group">
-          <label for="prof-sample2">Sample work or helpful message</label>
-          <input type="text" id="prof-sample2" placeholder="e.g. Yes sure, let me check into that for you and share updates shortly.">
-        </div>
-
-        <div class="form-group">
-          <label for="prof-sample3">Sample wrap-up or sign-off</label>
-          <input type="text" id="prof-sample3" placeholder="e.g. Take good care my friend! Chat soon.">
-        </div>
-
-        <button class="btn btn-primary btn-block" id="btn-save-profile">Save owner profile</button>
-      </div>
-    </section>
-
-    <!-- Tab 3: AI Switch, Prompt & Delays -->
-    <section class="tab-panel" id="tab-ai">
-      <div class="card">
-        <div class="card-title">AI switch & provider models</div>
-        <div class="card-subtitle">
-          Toggle between Google Gemini and Groq. If the primary provider times out (12s) or errors, the bot automatically falls back to the other.
-        </div>
-
-        <div class="form-group">
-          <label for="ai-provider">Active primary provider</label>
-          <select id="ai-provider">
-            <option value="gemini">Google Gemini</option>
-            <option value="groq">Groq</option>
-          </select>
-        </div>
-
-        <div class="input-row">
-          <div class="form-group">
-            <label for="gemini-model">Gemini model name</label>
-            <input type="text" id="gemini-model" placeholder="gemini-2.5-flash">
-          </div>
-          <div class="form-group">
-            <label for="groq-model">Groq model name</label>
-            <input type="text" id="groq-model" placeholder="llama-3.3-70b-versatile">
-          </div>
-        </div>
-
-        <div class="switch-container" style="margin-bottom: 14px;">
+        <!-- Quick Pause/Resume Switch -->
+        <div class="toggle-row">
           <div>
-            <div style="font-weight: 600; font-size: 13.5px;">Global pause auto-reply</div>
-            <div style="font-size: 12px; color: var(--subtext);">Mutes all automated replies without disconnecting WhatsApp</div>
+            <div style="font-weight: 700; font-size: 13.5px;">Auto-reply bot</div>
+            <div style="font-size: 11.5px; color: var(--text-muted);" id="pause-status-sub">Bot replies are currently active</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="pause-toggle">
+            <input type="checkbox" id="home-pause-toggle">
             <span class="slider"></span>
           </label>
         </div>
 
-        <div class="input-row">
-          <div class="form-group">
-            <label for="delay-min">Min reply delay (ms)</label>
-            <input type="number" id="delay-min" placeholder="300" min="100" max="5000">
+        <!-- Metric Stat Cards -->
+        <div class="stat-row">
+          <div class="stat-box">
+            <span class="stat-label">Replies today</span>
+            <span class="stat-val" id="home-stat-today">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Primary provider</span>
+            <span class="stat-val" id="home-stat-provider" style="font-size: 20px; text-transform: capitalize;">Gemini</span>
+          </div>
+        </div>
+
+        <!-- Last 5 Activity Items -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recent activity</div>
+            <a href="#chats" style="font-size: 12px; color: var(--accent-primary); text-decoration: none; font-weight: 600;">View all</a>
+          </div>
+
+          <div class="activity-list" id="home-activity-list">
+            <div class="skeleton" style="height: 38px; margin-bottom: 6px;"></div>
+            <div class="skeleton" style="height: 38px;"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- SCREEN 2: CHATS (#chats) -->
+      <section class="app-screen" id="screen-chats">
+        <div class="card-title" style="margin-bottom: 12px;">Active conversations</div>
+        
+        <div class="chats-list-wrap" id="chats-list">
+          <!-- Skeletons while loading -->
+          <div class="skeleton skeleton-chat"></div>
+          <div class="skeleton skeleton-chat"></div>
+          <div class="skeleton skeleton-chat"></div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: LINK (#link) - The ONLY place for WhatsApp Login -->
+      <section class="app-screen" id="screen-link">
+        <div class="card" style="text-align: center;">
+          <div style="width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: rgba(0, 242, 254, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 26px; height: 26px; stroke-width: 2.2;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </div>
+
+          <div class="card-title" style="justify-content: center; font-size: 17px;">Link WhatsApp account</div>
+          <div class="card-desc" style="max-width: 280px; margin: 4px auto 16px;">
+            Enter your WhatsApp phone number to generate an official 8-digit pairing code.
+          </div>
+
+          <div class="form-group" style="text-align: left;">
+            <label for="link-phone-input">Phone number (country code + digits, no + sign)</label>
+            <input type="text" id="link-phone-input" placeholder="e.g. 23276123456 or 15551234567" inputmode="numeric">
+          </div>
+
+          <button class="btn btn-primary btn-block" id="btn-request-link">
+            Get pairing code
+          </button>
+
+          <!-- Pairing Code Box -->
+          <div class="pairing-card" id="pairing-result-box" style="display: none;">
+            <div style="font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Your pairing code</div>
+            <div class="pairing-digits" id="pairing-code-label">----</div>
+            <div style="font-size: 12px; color: var(--accent-primary); font-weight: 600;">Tap to copy code</div>
+          </div>
+
+          <!-- 3 Short Steps -->
+          <div class="steps-list">
+            <div class="step-item">
+              <span class="step-num">1</span>
+              <span>Open <strong>WhatsApp</strong> on your phone</span>
+            </div>
+            <div class="step-item">
+              <span class="step-num">2</span>
+              <span>Go to <strong>Settings</strong> &gt; <strong>Linked devices</strong> &gt; <strong>Link a device</strong></span>
+            </div>
+            <div class="step-item">
+              <span class="step-num">3</span>
+              <span>Choose <strong>Link with phone number instead</strong> & enter code</span>
+            </div>
+          </div>
+
+          <!-- Success Alert when connected -->
+          <div id="link-success-banner" style="display: none; margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-secondary); border-radius: var(--radius-sm); color: var(--accent-secondary); font-size: 13px; font-weight: 600;">
+            ✓ WhatsApp is connected & active!
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: DASHBOARD (#dashboard) -->
+      <section class="app-screen" id="screen-dashboard">
+        <div class="card-title" style="margin-bottom: 12px;">Usage & provider health</div>
+
+        <div class="stat-row">
+          <div class="stat-box">
+            <span class="stat-label">Today's total</span>
+            <span class="stat-val" id="dash-stat-today">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Gemini replies</span>
+            <span class="stat-val" id="dash-stat-gemini">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Groq replies</span>
+            <span class="stat-val" id="dash-stat-groq">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Server uptime</span>
+            <span class="stat-val" id="dash-stat-uptime" style="font-size: 18px;">--</span>
+          </div>
+        </div>
+
+        <!-- Read-only Secret Status Chips -->
+        <div class="card">
+          <div class="card-title">Environment status</div>
+          <div class="card-desc">Read-only status reported securely by backend /api/state.</div>
+          <div class="chips-row" style="margin-top: 10px;">
+            <span class="chip" id="chip-key-gemini">Gemini key: checking...</span>
+            <span class="chip" id="chip-key-groq">Groq key: checking...</span>
+            <span class="chip" id="chip-key-redis">Upstash Redis: checking...</span>
+          </div>
+        </div>
+
+        <!-- Last 5 AI Errors -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Last 5 provider errors</div>
+          </div>
+          <div id="dash-error-list">
+            <div style="color: var(--text-muted); font-size: 12.5px; text-align: center; padding: 12px;">
+              No AI errors recorded.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: SETTINGS (#settings) -->
+      <section class="app-screen" id="screen-settings">
+        <div class="card-title" style="margin-bottom: 12px;">Assistant settings</div>
+
+        <!-- Base Instructions (Default Bot Behavior) -->
+        <div class="card">
+          <div class="card-title">Bot behavior & instructions</div>
+          <div class="card-desc">Defines identity, tone, brevity, language matching, and deferrals.</div>
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-base-rules">Base instructions</label>
+            <textarea id="set-base-rules" rows="4" placeholder="You are the JTech Assistant, an AI assistant for JTech. When asked who you are, state that you are the JTech Assistant and that the owner will reply personally. Reply to every message, keep replies short, match the sender's language, use WhatsApp formatting only (*bold*, _italic_), use at most one emoji, and politely defer money requests, passwords, and promises to the owner."></textarea>
+          </div>
+        </div>
+
+        <!-- AI Provider Switch -->
+        <div class="card">
+          <div class="card-title">AI engine & models</div>
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-provider">Primary provider</label>
+            <select id="set-provider">
+              <option value="gemini">Google Gemini (Fallback: Groq)</option>
+              <option value="groq">Groq (Fallback: Gemini)</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="delay-max">Max reply delay (ms)</label>
-            <input type="number" id="delay-max" placeholder="1200" min="200" max="8000">
+            <label for="set-gemini-model">Gemini model</label>
+            <input type="text" id="set-gemini-model" placeholder="gemini-2.5-flash">
+          </div>
+          <div class="form-group">
+            <label for="set-groq-model">Groq model</label>
+            <input type="text" id="set-groq-model" placeholder="llama-3.3-70b-versatile">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label for="set-min-delay">Min delay (ms)</label>
+              <input type="number" id="set-min-delay" placeholder="300">
+            </div>
+            <div class="form-group">
+              <label for="set-max-delay">Max delay (ms)</label>
+              <input type="number" id="set-max-delay" placeholder="1200">
+            </div>
           </div>
         </div>
-        <div class="help-note" style="margin-top:-6px; margin-bottom: 14px;">
-          Typing indicator shows immediately, followed by this human-like random delay before sending.
-        </div>
 
-        <div class="form-group">
-          <label for="base-rules">Base rules & guardrails</label>
-          <textarea id="base-rules" rows="6"></textarea>
-          <div class="help-note">
-            Includes sensitive topic guardrails (refusing money, credentials, or appointments and deferring to personal reply).
+        <!-- Owner Profile & Voice Cloning -->
+        <div class="card">
+          <div class="card-title">Owner profile & personality</div>
+          <div class="card-desc">The assistant represents you and speaks in your personal style.</div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-prof-name">Owner name</label>
+            <input type="text" id="set-prof-name" placeholder="JTech">
+          </div>
+          <div class="form-group">
+            <label for="set-prof-about">About owner</label>
+            <textarea id="set-prof-about" rows="2" placeholder="Tech enthusiast, building intelligent software, friendly and respectful..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="set-prof-languages">Languages spoken</label>
+            <input type="text" id="set-prof-languages" placeholder="English, Krio">
+          </div>
+          <div class="form-group">
+            <label for="set-prof-style">Writing style</label>
+            <input type="text" id="set-prof-style" placeholder="Short, crisp, polite, direct, matching user tone">
+          </div>
+          <div class="form-group">
+            <label for="set-prof-city">City, country</label>
+            <input type="text" id="set-prof-city" placeholder="Freetown, Sierra Leone">
+          </div>
+
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 12px 0 6px;">3 Sample messages (style copy)</div>
+          <div class="form-group">
+            <input type="text" id="set-prof-s1" placeholder="Sample 1 (casual greeting)">
+          </div>
+          <div class="form-group">
+            <input type="text" id="set-prof-s2" placeholder="Sample 2 (work / helpful response)">
+          </div>
+          <div class="form-group">
+            <input type="text" id="set-prof-s3" placeholder="Sample 3 (sign-off)">
           </div>
         </div>
 
-        <button class="btn btn-primary btn-block" id="btn-save-ai">Save AI configuration</button>
-      </div>
-    </section>
-
-    <!-- Tab 4: Contact Rules (Allowlist / Blocklist) -->
-    <section class="tab-panel" id="tab-rules">
-      <div class="card">
-        <div class="card-title">Contact rules mode</div>
-        <div class="card-subtitle">Choose who receives automated replies.</div>
-
-        <div class="mode-selector">
-          <div class="mode-card" data-mode="all" id="mode-all">Reply to everyone</div>
-          <div class="mode-card" data-mode="allowlist" id="mode-allowlist">Only allowlist</div>
-          <div class="mode-card" data-mode="blocklist" id="mode-blocklist">Everyone except blocklist</div>
-        </div>
-
-        <div class="help-note" style="margin-bottom: 14px; background: var(--card); padding: 8px 12px; border-radius: 6px;">
-          💡 <strong>Matching:</strong> WhatsApp can use <code>@lid</code> IDs or standard phone JIDs. You can paste phone numbers with country code or full JIDs (one per line). Both are matched automatically.
-        </div>
-
-        <div class="form-group">
-          <label for="allowlist-input">Allowlist contacts (one per line)</label>
-          <textarea id="allowlist-input" placeholder="23276123456&#10;15551234567&#10;120363028392@lid"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="blocklist-input">Blocklist contacts (one per line)</label>
-          <textarea id="blocklist-input" placeholder="23277987654&#10;9876543210@s.whatsapp.net"></textarea>
-        </div>
-
-        <button class="btn btn-primary btn-block" id="btn-save-rules">Save contact rules</button>
-      </div>
-    </section>
-
-    <!-- Tab 5: Usage Panel & Error Logs -->
-    <section class="tab-panel" id="tab-usage">
-      <div class="card">
-        <div class="card-title">Daily usage & provider activity</div>
-        <div class="card-subtitle">Tracks reply counts and automatic fallback metrics.</div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">Replies today</div>
-            <div class="stat-num" id="stat-replies-today">0</div>
+        <!-- Contact Rules -->
+        <div class="card">
+          <div class="card-title">Contact rules</div>
+          <div class="card-desc">Control which contacts receive automated replies. Contacts can appear as @lid IDs or phone numbers.</div>
+          <div class="mode-bar" style="margin-top: 10px;">
+            <button class="mode-btn selected" data-mode="all">Everyone</button>
+            <button class="mode-btn" data-mode="allowlist">Only allowlist</button>
+            <button class="mode-btn" data-mode="blocklist">Blocklist</button>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">Gemini replies</div>
-            <div class="stat-num" id="stat-gemini-count">0</div>
+          <div class="form-group">
+            <label for="set-allowlist">Allowlist numbers / @lid IDs</label>
+            <textarea id="set-allowlist" rows="3" placeholder="23276123456&#10;120363028392@lid"></textarea>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">Groq replies</div>
-            <div class="stat-num" id="stat-groq-count">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Fail streak</div>
-            <div class="stat-num" id="stat-streak">0/3</div>
+          <div class="form-group">
+            <label for="set-blocklist">Blocklist numbers</label>
+            <textarea id="set-blocklist" rows="2" placeholder="9876543210@s.whatsapp.net"></textarea>
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="card-title">Last 5 AI provider errors</div>
-        <div class="card-subtitle">Monitors timeouts, rate limits, and fallback activations.</div>
+        <button class="btn btn-primary btn-block" id="btn-save-settings">
+          Save all settings
+        </button>
 
-        <div id="error-list">
-          <div style="color: var(--subtext); font-size: 13px; text-align: center; padding: 12px;">
-            No recent errors. All providers healthy.
+        <!-- Danger / Session Actions -->
+        <div class="card" style="margin-top: 20px; border-color: rgba(239, 68, 68, 0.2);">
+          <div class="card-title" style="color: var(--danger);">Session & memory</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-secondary btn-sm" id="btn-action-clear-mem">Clear chat memory</button>
+            <button class="btn btn-secondary btn-sm" id="btn-action-logout-wa">Log out WhatsApp</button>
+            <button class="btn btn-danger btn-sm" id="btn-action-signout">Sign out of dashboard</button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card">
-        <div class="card-title">Memory management</div>
-        <div class="card-subtitle">Reset stored chat threads and summaries across all contacts.</div>
-        <button class="btn btn-secondary btn-sm" id="btn-clear-all-mem">Clear all chat memory</button>
-      </div>
-    </section>
+    </div>
 
-    <!-- Tab 6: Link Device / Pairing Code -->
-    <section class="tab-panel" id="tab-device">
-      <div class="card">
-        <div class="card-title">Link WhatsApp account</div>
-        <div class="card-subtitle">
-          Pair using your phone number and an official 8-digit pairing code (no QR code required).
+    <!-- Full-screen Chat Detail View (Overlay) -->
+    <div id="chat-detail-view">
+      <div class="chat-detail-header">
+        <button class="icon-btn" id="btn-chat-back" title="Back to conversations">
+          <!-- Back arrow SVG -->
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+
+        <div style="text-align: center; max-width: 170px;">
+          <div id="detail-chat-name" style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Contact</div>
+          <div id="detail-chat-sub" style="font-size: 11px; color: var(--text-muted);">Bot active</div>
         </div>
 
-        <div class="form-group">
-          <label for="device-phone">Phone number with country code (digits only)</label>
-          <input type="text" id="device-phone" placeholder="e.g. 23276123456 or 15551234567">
-          <div class="help-note">Enter your country code without '+' or spaces.</div>
-        </div>
-
-        <button class="btn btn-accent btn-block" id="btn-get-pairing">Generate pairing code</button>
-
-        <div class="pairing-box" id="pairing-box" style="display: none;">
-          <div style="font-size: 12px; color: var(--subtext); text-transform: uppercase;">Pairing code</div>
-          <div class="pairing-code" id="pairing-code-val">----</div>
-          <div style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">
-            Open WhatsApp &gt; Linked Devices &gt; Link a Device &gt; Link with phone number instead &gt; Enter this code.
-          </div>
-          <button class="btn btn-secondary btn-sm" id="btn-copy-pairing">Copy code</button>
-        </div>
-
-        <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px;">
-          <button class="btn btn-danger btn-sm" id="btn-logout-wa">Logout WhatsApp session</button>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-sm btn-primary" id="btn-chat-takeover">Take over</button>
+          <button class="btn btn-sm btn-primary" id="btn-chat-resume" style="display: none; background: var(--accent-secondary); color: #fff;">Resume bot</button>
         </div>
       </div>
-    </section>
 
-  </main>
+      <div class="chat-detail-info" id="chat-detail-info">
+        <div id="detail-summary" style="margin-bottom: 2px;"><strong>Summary:</strong> None</div>
+        <div id="detail-facts"><strong>Facts:</strong> None</div>
+      </div>
+
+      <div class="chat-messages-scroll" id="detail-messages-container">
+        <!-- Bubbles injected here -->
+      </div>
+    </div>
+
+    <!-- Fixed Bottom Nav (TikTok layout) -->
+    <nav class="app-bottom-nav">
+      <a href="#home" class="nav-item active" data-target="screen-home">
+        <!-- Home SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span>Home</span>
+      </a>
+
+      <a href="#chats" class="nav-item" data-target="screen-chats">
+        <!-- Chats SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <span>Chats</span>
+      </a>
+
+      <!-- Large Raised Center Link Button -->
+      <a href="#link" class="nav-item nav-center-link" data-target="screen-link">
+        <div class="center-link-disc">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        </div>
+        <span>Link</span>
+      </a>
+
+      <a href="#dashboard" class="nav-item" data-target="screen-dashboard">
+        <!-- Dashboard / Bar Chart SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <span>Dashboard</span>
+      </a>
+
+      <a href="#settings" class="nav-item" data-target="screen-settings">
+        <!-- Settings / Sliders SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+  </div>
 
   <!-- Toast Notification -->
   <div id="toast">
     <span id="toast-icon">✓</span>
-    <span id="toast-text">Saved</span>
+    <span id="toast-msg">Saved</span>
   </div>
 
-  <!-- Password Unlock Modal -->
-  <div id="auth-modal">
-    <div class="modal-box">
-      <div style="font-size: 18px; font-weight: 600; margin-bottom: 6px;">Dashboard login</div>
-      <div style="font-size: 13px; color: var(--subtext); margin-bottom: 16px;">
-        Enter your DASHBOARD_PASSWORD to manage your personal AI assistant.
+  <!-- VITE_API_URL Missing Error Screen -->
+  <div id="missing-api-overlay">
+    <div class="card" style="max-width: 440px; width: 100%; border-color: var(--danger); text-align: center; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.7);">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: var(--danger); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 28px; height: 28px; stroke-width: 2.2;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
       </div>
-      <div class="form-group">
-        <input type="password" id="auth-pass-input" placeholder="Enter password...">
+      <div style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Backend URL Not Configured</div>
+      <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px; text-align: left;">
+        The build-time variable <code style="color:var(--accent-primary); background:var(--bg-surface); padding:2px 6px; border-radius:4px; font-weight:700;">VITE_API_URL</code> is missing.
+        <br><br>
+        <strong>How to configure for GitHub Pages:</strong><br>
+        1. Open GitHub repo &gt; <em>Settings &gt; Secrets and variables &gt; Actions &gt; Variables</em>.<br>
+        2. Create variable <strong style="color:var(--text-main);">VITE_API_URL</strong> set to your Render backend URL (e.g. <span style="word-break:break-all; color:var(--accent-primary);">https://jtech-assistant.onrender.com</span>).<br>
+        3. Re-run your GitHub Actions deployment.
       </div>
-      <button class="btn btn-accent btn-block" id="btn-submit-pass">Unlock dashboard</button>
+      <div class="form-group" style="text-align: left;">
+        <label for="manual-api-url">Or connect directly for this session:</label>
+        <input type="text" id="manual-api-url" placeholder="https://your-service.onrender.com">
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-save-manual-api">Connect to backend</button>
     </div>
   </div>
 
-  <script>
-    let dashboardPass = localStorage.getItem('wa_pass') || 'freetown_assistant_2026';
-    let activeChatJid = null;
-    let selectedMode = 'all';
+  <!-- Dashboard Auth Bottom Sheet -->
+  <div id="auth-sheet">
+    <div class="sheet-card">
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">Sign in to JTech Assistant</div>
+      <div style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px;">
+        Enter your DASHBOARD_PASSWORD to unlock management controls.
+      </div>
+      <div class="form-group">
+        <input type="password" id="auth-pass-val" placeholder="Dashboard password..." style="text-align: center;">
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-auth-unlock">
+        Unlock app
+      </button>
+    </div>
+  </div>
 
-    const statusDot = document.getElementById('status-dot');
-    const statusText = document.getElementById('status-text');
-    const alertBanner = document.getElementById('alert-banner');
-    const alertTitle = document.getElementById('alert-title');
-    const alertDesc = document.getElementById('alert-desc');
-    const toast = document.getElementById('toast');
-    const toastText = document.getElementById('toast-text');
-    const authModal = document.getElementById('auth-modal');
+  <script type="module">
+    // Determine Backend URL
+    // In Vite, import.meta.env.VITE_API_URL is replaced at build time with the actual repository variable.
+    let buildApiUrl = '';
+    try {
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+        buildApiUrl = import.meta.env.VITE_API_URL;
+      }
+    } catch (_) {}
 
-    // Theme toggle
-    const savedTheme = localStorage.getItem('wa_theme') || 'dark';
-    if (savedTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
-
-    document.getElementById('btn-theme-toggle').addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme');
-      const next = current === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('wa_theme', next);
-    });
-
-    // Toast helper
-    function showToast(msg, isError = false) {
-      toastText.textContent = msg;
-      toast.style.borderColor = isError ? 'var(--danger)' : 'var(--accent)';
-      document.getElementById('toast-icon').textContent = isError ? '✕' : '✓';
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2600);
+    // Priority: 1) sessionStorage custom override, 2) buildApiUrl, 3) window.location.origin if served from backend
+    let API_BASE = sessionStorage.getItem('custom_api_url') || buildApiUrl || '';
+    if (!API_BASE && window.location.origin && !window.location.origin.includes('github.io') && !window.location.origin.includes('localhost:5173')) {
+      API_BASE = window.location.origin;
     }
 
-    // Authenticated API request
+    // App State
+    let authToken = sessionStorage.getItem('auth_token') || '';
+    let activeChatJid = null;
+    let selectedMode = 'all';
+    let linkPollInterval = null;
+    let mainPollInterval = null;
+
+    // Elements
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-msg');
+    const toastIcon = document.getElementById('toast-icon');
+    const pillConn = document.getElementById('pill-conn-status');
+    const pillText = document.getElementById('pill-conn-text');
+    const authSheet = document.getElementById('auth-sheet');
+    const missingApiOverlay = document.getElementById('missing-api-overlay');
+    const chatDetail = document.getElementById('chat-detail-view');
+
+    // Toast helper
+    function showToast(text, isError = false) {
+      toastMsg.textContent = text;
+      toast.style.borderColor = isError ? 'var(--danger)' : 'var(--accent-primary)';
+      toastIcon.textContent = isError ? '✕' : '✓';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    // Verify Backend URL presence
+    function verifyBackendUrl() {
+      if (!API_BASE) {
+        missingApiOverlay.classList.add('open');
+        return false;
+      }
+      missingApiOverlay.classList.remove('open');
+      return true;
+    }
+
+    // Manual Backend URL Connect Handler
+    document.getElementById('btn-save-manual-api').addEventListener('click', () => {
+      const input = document.getElementById('manual-api-url').value.trim();
+      if (!input) {
+        showToast('Please enter a valid backend URL', true);
+        return;
+      }
+      API_BASE = input.replace(/\/+$/, '');
+      sessionStorage.setItem('custom_api_url', API_BASE);
+      missingApiOverlay.classList.remove('open');
+      showToast('Backend connected');
+      checkAuthentication();
+    });
+
+    // Authenticated API client sending Authorization: Bearer <token>
     async function api(path, options = {}) {
+      if (!verifyBackendUrl()) {
+        throw new Error('VITE_API_URL is missing');
+      }
+
+      const cleanBase = API_BASE.replace(/\/+$/, '');
+      const cleanPath = path.startsWith('/') ? path : '/' + path;
+      const url = cleanBase + cleanPath;
+
       const headers = options.headers || {};
-      headers['x-pass'] = dashboardPass;
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
       if (options.body && typeof options.body === 'object') {
         headers['Content-Type'] = 'application/json';
         options.body = JSON.stringify(options.body);
       }
       options.headers = headers;
 
-      const res = await fetch(path, options);
+      const res = await fetch(url, options);
       if (res.status === 401) {
-        authModal.classList.add('show');
+        authToken = '';
+        sessionStorage.removeItem('auth_token');
+        authSheet.classList.add('open');
         throw new Error('Authentication required');
       }
+
+      if (!res.ok) {
+        let errMsg = `Request failed (${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
       return await res.json();
     }
 
-    // Password modal
-    document.getElementById('btn-auth-pass').addEventListener('click', () => {
-      document.getElementById('auth-pass-input').value = dashboardPass;
-      authModal.classList.add('show');
-    });
+    // Check Auth on load
+    function checkAuthentication() {
+      if (!authToken) {
+        authSheet.classList.add('open');
+      } else {
+        authSheet.classList.remove('open');
+        initDashboard();
+      }
+    }
 
-    document.getElementById('btn-submit-pass').addEventListener('click', () => {
-      const pass = document.getElementById('auth-pass-input').value.trim();
-      if (pass) {
-        dashboardPass = pass;
-        localStorage.setItem('wa_pass', pass);
-        authModal.classList.remove('show');
-        showToast('Password updated');
-        loadAll();
+    // Password Login Handler: POST /api/login { password } returns { token }
+    document.getElementById('btn-auth-unlock').addEventListener('click', async () => {
+      const p = document.getElementById('auth-pass-val').value.trim();
+      if (!p) {
+        showToast('Please enter your password', true);
+        return;
+      }
+
+      if (!verifyBackendUrl()) return;
+
+      const btn = document.getElementById('btn-auth-unlock');
+      btn.textContent = 'Verifying...';
+      btn.disabled = true;
+
+      try {
+        const cleanBase = API_BASE.replace(/\/+$/, '');
+        const res = await fetch(`${cleanBase}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: p })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.token) {
+          throw new Error(data.error || 'Incorrect password');
+        }
+
+        authToken = data.token;
+        sessionStorage.setItem('auth_token', authToken);
+        authSheet.classList.remove('open');
+        document.getElementById('auth-pass-val').value = '';
+        showToast('Signed in successfully');
+        initDashboard();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.textContent = 'Unlock app';
+        btn.disabled = false;
       }
     });
 
-    // Tab Navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = document.getElementById(btn.dataset.tab);
-        if (tab) tab.classList.add('active');
+    // Theme Toggle
+    const themeBtn = document.getElementById('btn-theme');
+    const savedTheme = localStorage.getItem('app_theme') || 'dark';
+    if (savedTheme === 'light') applyTheme('light');
 
-        if (btn.dataset.tab === 'tab-chat') loadChats();
-        if (btn.dataset.tab === 'tab-usage') loadUsage();
-        if (btn.dataset.tab === 'tab-profile' || btn.dataset.tab === 'tab-ai' || btn.dataset.tab === 'tab-rules') loadSettings();
-      });
+    themeBtn.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      applyTheme(cur === 'light' ? 'dark' : 'light');
     });
 
-    // Refresh Status
-    async function refreshStatus() {
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('meta-theme-color').setAttribute('content', '#f1f5f9');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.getElementById('meta-theme-color').setAttribute('content', '#0b0f17');
+      }
+      localStorage.setItem('app_theme', theme);
+    }
+
+    // Hash Router Navigation (#home, #chats, #link, #dashboard, #settings)
+    function route() {
+      const hash = window.location.hash.slice(1) || 'home';
+      const targetScreenId = 'screen-' + hash;
+      const validScreens = ['screen-home', 'screen-chats', 'screen-link', 'screen-dashboard', 'screen-settings'];
+
+      if (!validScreens.includes(targetScreenId)) {
+        window.location.hash = '#home';
+        return;
+      }
+
+      // Close chat detail if open
+      chatDetail.classList.remove('open');
+
+      // Swap active screen
+      document.querySelectorAll('.app-screen').forEach(s => s.classList.remove('active'));
+      const activeScreen = document.getElementById(targetScreenId);
+      if (activeScreen) activeScreen.classList.add('active');
+
+      // Update bottom nav active state
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.target === targetScreenId);
+      });
+
+      // Manage 3-second polling on #link screen
+      if (hash === 'link') {
+        if (!linkPollInterval) {
+          linkPollInterval = setInterval(fetchState, 3000);
+        }
+      } else {
+        if (linkPollInterval) {
+          clearInterval(linkPollInterval);
+          linkPollInterval = null;
+        }
+      }
+
+      // Lazy fetch on screen switch
+      if (hash === 'home') { fetchHomeActivity(); fetchState(); }
+      if (hash === 'chats') { fetchChats(); }
+      if (hash === 'dashboard') { fetchStats(); fetchState(); }
+      if (hash === 'settings') { fetchSettings(); }
+    }
+
+    window.addEventListener('hashchange', route);
+
+    // Primary State Poller (GET /api/state)
+    async function fetchState() {
+      if (!authToken || !API_BASE) return;
       try {
-        const data = await api('/api/status');
-        if (!data) return;
+        const s = await api('/api/state');
+        if (!s) return;
 
-        statusDot.className = 'status-dot ' + (data.status || 'disconnected');
-        statusText.textContent = data.status || 'disconnected';
-        if (data.freetownTime) {
-          document.getElementById('freetown-clock').textContent = data.freetownTime.split(',')[1] || data.freetownTime;
+        // Header status pill (Connected / Waiting / Offline)
+        const pill = (s.connectionPill || 'Offline').toLowerCase();
+        pillConn.className = 'status-pill ' + pill;
+        pillText.textContent = s.connectionPill || 'Offline';
+
+        // Freetown Clock in header
+        if (s.freetownTime) {
+          const parts = s.freetownTime.split(',');
+          document.getElementById('app-freetown-time').textContent = 'Freetown: ' + (parts[1] || s.freetownTime).trim();
         }
 
-        // Auto-pause banner or manual pause
-        if (data.isAutoPaused) {
-          alertBanner.classList.add('show');
-          alertTitle.textContent = 'Auto-pause active';
-          const mins = Math.floor(data.remainingPauseSecs / 60);
-          const secs = data.remainingPauseSecs % 60;
-          alertDesc.textContent = `Both AI providers failed 3 times in a row. Paused for ${mins}m ${secs < 10 ? '0' : ''}${secs}s.`;
-        } else if (data.isManualPaused) {
-          alertBanner.classList.add('show');
-          alertTitle.textContent = 'Manual pause active';
-          alertDesc.textContent = 'Automated replies are toggled off in settings.';
+        // Home screen cards
+        document.getElementById('home-stat-today').textContent = s.repliesToday ?? 0;
+        document.getElementById('home-stat-provider').textContent = s.activeProvider || 'Gemini';
+        document.getElementById('chip-phone').textContent = s.activePhone ? `Number: +${s.activePhone}` : 'Number: Not linked';
+        document.getElementById('chip-uptime').textContent = `Uptime: ${Math.floor((s.uptime || 0) / 60)}m`;
+
+        const homeDesc = document.getElementById('home-conn-desc');
+        const homeCta = document.getElementById('home-link-cta');
+        if (pill === 'connected') {
+          homeDesc.textContent = 'Linked and listening for incoming messages.';
+          homeCta.style.display = 'none';
+        } else if (pill === 'waiting') {
+          homeDesc.textContent = 'Pairing code generated. Waiting for WhatsApp verification.';
+          homeCta.textContent = 'View code';
+          homeCta.style.display = 'inline-flex';
         } else {
-          alertBanner.classList.remove('show');
+          homeDesc.textContent = 'WhatsApp is not linked. Tap Link to connect.';
+          homeCta.textContent = 'Link now';
+          homeCta.style.display = 'inline-flex';
         }
 
-        if (data.pairingCode) {
-          document.getElementById('pairing-box').style.display = 'block';
-          document.getElementById('pairing-code-val').textContent = data.pairingCode;
+        // Quick Pause toggle state
+        const pauseToggle = document.getElementById('home-pause-toggle');
+        pauseToggle.checked = !s.isManualPaused;
+        document.getElementById('pause-status-sub').textContent = s.isManualPaused ? 'Automated replies are paused' : 'Bot replies are currently active';
+
+        // Link screen status
+        const linkSuccess = document.getElementById('link-success-banner');
+        if (pill === 'connected') {
+          linkSuccess.style.display = 'block';
+          document.getElementById('pairing-result-box').style.display = 'none';
+        } else {
+          linkSuccess.style.display = 'none';
         }
 
-        if (data.activePhone && !document.getElementById('device-phone').value) {
-          document.getElementById('device-phone').value = data.activePhone;
+        if (s.pairingCode) {
+          document.getElementById('pairing-result-box').style.display = 'block';
+          document.getElementById('pairing-code-label').textContent = s.pairingCode;
+        }
+
+        if (s.activePhone && !document.getElementById('link-phone-input').value) {
+          document.getElementById('link-phone-input').value = s.activePhone;
+        }
+
+        // Read-only secret chips from /api/state
+        const setChip = (id, label, ok) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.textContent = `${label}: ${ok ? 'set ✓' : 'missing ✕'}`;
+            el.classList.toggle('active', Boolean(ok));
+          }
+        };
+        setChip('chip-key-gemini', 'Gemini key', s.keys?.gemini);
+        setChip('chip-key-groq', 'Groq key', s.keys?.groq);
+        setChip('chip-key-redis', 'Upstash Redis', s.keys?.redis);
+
+      } catch (_) {}
+    }
+
+    // Dashboard Screen: GET /api/stats
+    async function fetchStats() {
+      if (!authToken || !API_BASE) return;
+      try {
+        const s = await api('/api/stats');
+        if (!s) return;
+
+        document.getElementById('dash-stat-today').textContent = s.repliesToday ?? 0;
+        document.getElementById('dash-stat-gemini').textContent = s.providers?.gemini ?? 0;
+        document.getElementById('dash-stat-groq').textContent = s.providers?.groq ?? 0;
+        document.getElementById('dash-stat-uptime').textContent = `${Math.floor((s.uptime || 0) / 60)}m`;
+
+        // Dashboard error list (last 5 AI errors)
+        const errList = document.getElementById('dash-error-list');
+        if (s.recentErrors && s.recentErrors.length > 0) {
+          errList.innerHTML = s.recentErrors.map(e => `
+            <div style="background: var(--bg-surface); border-left: 3px solid var(--danger); padding: 8px 12px; border-radius: 0 6px 6px 0; margin-bottom: 6px; font-size: 12px;">
+              <div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:10.5px; margin-bottom:2px;">
+                <strong>${e.provider || 'Provider'}</strong>
+                <span>${e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : ''}</span>
+              </div>
+              <div style="color:var(--text-main);">${e.message || 'Error'}</div>
+            </div>
+          `).join('');
+        } else {
+          errList.innerHTML = '<div style="color:var(--text-muted); font-size:12.5px; text-align:center; padding:12px;">No errors recorded. All systems healthy.</div>';
         }
       } catch (_) {}
     }
 
-    // Resume button in banner
-    document.getElementById('btn-resume-alert').addEventListener('click', async () => {
+    // Quick Pause/Resume Switch Handler (POST /api/cfg)
+    document.getElementById('home-pause-toggle').addEventListener('change', async (e) => {
+      const isPaused = !e.target.checked;
       try {
-        await api('/api/autopause/resume', { method: 'POST' });
-        // Also ensure manual pause is off
-        await api('/api/settings', { method: 'POST', body: { isPaused: false } });
-        showToast('Replies resumed');
-        refreshStatus();
+        await api('/api/cfg', { method: 'POST', body: { isPaused } });
+        showToast(isPaused ? 'Auto-reply paused' : 'Auto-reply resumed');
+        fetchState();
       } catch (err) {
         showToast(err.message, true);
       }
     });
 
-    // Load Settings
-    async function loadSettings() {
+    // Home screen: Last 5 activity items (from GET /api/chats)
+    async function fetchHomeActivity() {
+      if (!authToken || !API_BASE) return;
       try {
-        const s = await api('/api/settings');
-        if (!s) return;
-
-        // Profile
-        if (s.profile) {
-          document.getElementById('prof-name').value = s.profile.name || '';
-          document.getElementById('prof-city').value = s.profile.city || '';
-          document.getElementById('prof-job').value = s.profile.job || '';
-          document.getElementById('prof-languages').value = s.profile.languages || '';
-          document.getElementById('prof-facts').value = s.profile.facts || '';
-          document.getElementById('prof-sample1').value = s.profile.sampleMessage1 || '';
-          document.getElementById('prof-sample2').value = s.profile.sampleMessage2 || '';
-          document.getElementById('prof-sample3').value = s.profile.sampleMessage3 || '';
-        }
-
-        // AI
-        if (s.provider) document.getElementById('ai-provider').value = s.provider;
-        if (s.geminiModel) document.getElementById('gemini-model').value = s.geminiModel;
-        if (s.groqModel) document.getElementById('groq-model').value = s.groqModel;
-        if (s.baseRules) document.getElementById('base-rules').value = s.baseRules;
-        document.getElementById('delay-min').value = s.minDelay ?? 300;
-        document.getElementById('delay-max').value = s.maxDelay ?? 1200;
-        document.getElementById('pause-toggle').checked = Boolean(s.isPaused);
-
-        // Rules
-        if (s.contactRules) {
-          setMode(s.contactRules.mode || 'all');
-          document.getElementById('allowlist-input').value = (s.contactRules.allowlist || []).join('\n');
-          document.getElementById('blocklist-input').value = (s.contactRules.blocklist || []).join('\n');
-        }
-      } catch (err) {
-        console.error('Settings load error:', err);
-      }
-    }
-
-    // Save Profile
-    document.getElementById('btn-save-profile').addEventListener('click', async () => {
-      const profile = {
-        name: document.getElementById('prof-name').value.trim(),
-        city: document.getElementById('prof-city').value.trim(),
-        job: document.getElementById('prof-job').value.trim(),
-        languages: document.getElementById('prof-languages').value.trim(),
-        facts: document.getElementById('prof-facts').value.trim(),
-        sampleMessage1: document.getElementById('prof-sample1').value.trim(),
-        sampleMessage2: document.getElementById('prof-sample2').value.trim(),
-        sampleMessage3: document.getElementById('prof-sample3').value.trim()
-      };
-
-      try {
-        await api('/api/settings', { method: 'POST', body: { profile } });
-        showToast('Owner profile saved');
-      } catch (e) {
-        showToast('Save error: ' + e.message, true);
-      }
-    });
-
-    // Save AI & Delays
-    document.getElementById('btn-save-ai').addEventListener('click', async () => {
-      const provider = document.getElementById('ai-provider').value;
-      const geminiModel = document.getElementById('gemini-model').value.trim();
-      const groqModel = document.getElementById('groq-model').value.trim();
-      const baseRules = document.getElementById('base-rules').value;
-      const minDelay = parseInt(document.getElementById('delay-min').value, 10);
-      const maxDelay = parseInt(document.getElementById('delay-max').value, 10);
-      const isPaused = document.getElementById('pause-toggle').checked;
-
-      try {
-        await api('/api/settings', {
-          method: 'POST',
-          body: { provider, geminiModel, groqModel, baseRules, minDelay, maxDelay, isPaused }
-        });
-        showToast('AI settings saved');
-        refreshStatus();
-      } catch (e) {
-        showToast('Save error: ' + e.message, true);
-      }
-    });
-
-    // Mode Selector
-    function setMode(mode) {
-      selectedMode = mode;
-      document.querySelectorAll('.mode-card').forEach(c => {
-        c.classList.toggle('selected', c.dataset.mode === mode);
-      });
-    }
-
-    document.querySelectorAll('.mode-card').forEach(c => {
-      c.addEventListener('click', () => setMode(c.dataset.mode));
-    });
-
-    // Save Contact Rules
-    document.getElementById('btn-save-rules').addEventListener('click', async () => {
-      const allowlist = document.getElementById('allowlist-input').value.split('\n').map(s => s.trim()).filter(Boolean);
-      const blocklist = document.getElementById('blocklist-input').value.split('\n').map(s => s.trim()).filter(Boolean);
-
-      try {
-        await api('/api/settings', {
-          method: 'POST',
-          body: {
-            contactRules: { mode: selectedMode, allowlist, blocklist }
-          }
-        });
-        showToast('Contact rules saved');
-      } catch (e) {
-        showToast('Save error: ' + e.message, true);
-      }
-    });
-
-    // Live Chats List (Latest 30)
-    async function loadChats() {
-      try {
-        const data = await api('/api/chats');
-        const listEl = document.getElementById('conv-list');
-        if (!data || !data.conversations || data.conversations.length === 0) {
-          listEl.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--subtext); font-size: 13px;">No conversations yet. When messages arrive, they appear here.</div>';
+        const res = await api('/api/chats');
+        const list = document.getElementById('home-activity-list');
+        const items = (res.conversations || []).slice(0, 5);
+        if (items.length === 0) {
+          list.innerHTML = '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:8px;">No recent messages yet.</div>';
           return;
         }
 
-        listEl.innerHTML = data.conversations.map(conv => {
-          const time = conv.timestamp ? new Date(conv.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-          const active = conv.jid === activeChatJid ? 'active' : '';
-          const badge = conv.isHandoff
-            ? '<span class="badge badge-human">Human Takeover</span>'
-            : '<span class="badge badge-bot">Bot Active</span>';
+        list.innerHTML = items.map(a => `
+          <div class="activity-item" onclick="openChatDetail('${a.jid}')" style="cursor:pointer;">
+            <div style="min-width:0; flex:1; padding-right:8px;">
+              <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.name || a.jid}</div>
+              <div style="font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.lastMessage || '[No text]'}</div>
+            </div>
+            <div style="font-size:10.5px; color:var(--text-muted); flex-shrink:0;">
+              ${a.timestamp ? new Date(a.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''}
+            </div>
+          </div>
+        `).join('');
+      } catch (_) {}
+    }
+
+    // Link screen: Get Pairing Code (POST /api/link {phone})
+    document.getElementById('btn-request-link').addEventListener('click', async () => {
+      const phoneInput = document.getElementById('link-phone-input').value.trim();
+      const cleanPhone = phoneInput.replace(/\D/g, '');
+      if (!cleanPhone) {
+        showToast('Please enter your phone number with country code', true);
+        return;
+      }
+
+      const btn = document.getElementById('btn-request-link');
+      btn.textContent = 'Requesting code...';
+      btn.disabled = true;
+
+      try {
+        const res = await api('/api/link', { method: 'POST', body: { phone: cleanPhone } });
+        if (res.pairingCode) {
+          document.getElementById('pairing-result-box').style.display = 'block';
+          document.getElementById('pairing-code-label').textContent = res.pairingCode;
+          showToast('Pairing code ready!');
+        } else {
+          showToast(res.message || 'Connecting to WhatsApp...');
+        }
+        fetchState();
+      } catch (e) {
+        showToast(e.message, true);
+      } finally {
+        btn.textContent = 'Get pairing code';
+        btn.disabled = false;
+      }
+    });
+
+    // Tap Pairing Code to copy
+    document.getElementById('pairing-result-box').addEventListener('click', () => {
+      const code = document.getElementById('pairing-code-label').textContent;
+      if (code && code !== '----') {
+        navigator.clipboard.writeText(code).then(() => showToast('Pairing code copied!'));
+      }
+    });
+
+    // Chats Screen: Fetch List (GET /api/chats)
+    async function fetchChats() {
+      if (!authToken || !API_BASE) return;
+      try {
+        const data = await api('/api/chats');
+        const list = document.getElementById('chats-list');
+        if (!data.conversations || data.conversations.length === 0) {
+          list.innerHTML = `
+            <div class="empty-state">
+              <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              <div class="empty-title">No conversations yet</div>
+              <div class="empty-desc">When someone messages your linked WhatsApp, chats will appear here.</div>
+              <a href="#link" class="btn btn-sm btn-primary">Check link status</a>
+            </div>
+          `;
+          return;
+        }
+
+        list.innerHTML = data.conversations.map(c => {
+          const initials = (c.name || c.jid).slice(0, 2).toUpperCase();
+          const time = c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+          const tag = c.isHandoff
+            ? '<span class="chat-tag human">Human</span>'
+            : '<span class="chat-tag bot">Bot</span>';
 
           return `
-            <div class="conv-item ${active}" onclick="openChat('${conv.jid}')">
-              <div class="conv-top">
-                <span class="conv-name">${conv.name || conv.jid}</span>
-                <span class="conv-time">${time}</span>
+            <div class="chat-row" onclick="openChatDetail('${c.jid}')">
+              <div class="chat-avatar">${initials}</div>
+              <div class="chat-info">
+                <div class="chat-info-top">
+                  <span class="chat-name">${c.name || c.jid}</span>
+                  <span class="chat-time">${time}</span>
+                </div>
+                <div class="chat-snippet">${c.lastMessage || '[No text]'}</div>
+                <div style="margin-top: 4px;">${tag}</div>
               </div>
-              <div class="conv-snippet">${conv.lastMessage || '[No message]'}</div>
-              <div>${badge}</div>
             </div>
           `;
         }).join('');
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (_) {}
     }
 
-    // Open Chat Viewport
-    window.openChat = async function(jid) {
+    // Chat Detail: Open Overlay (GET /api/chats/:jid)
+    window.openChatDetail = async function(jid) {
       activeChatJid = jid;
-      loadChats();
+      chatDetail.classList.add('open');
 
-      const titleEl = document.getElementById('active-chat-title');
-      const subEl = document.getElementById('active-chat-sub');
-      const msgContainer = document.getElementById('chat-messages');
-      const actions = document.getElementById('chat-actions');
-      const btnTakeover = document.getElementById('btn-takeover');
-      const btnResume = document.getElementById('btn-resume-chat');
-      const infoBar = document.getElementById('chat-info-bar');
+      const nameEl = document.getElementById('detail-chat-name');
+      const subEl = document.getElementById('detail-chat-sub');
+      const msgBox = document.getElementById('detail-messages-container');
+      const btnTakeover = document.getElementById('btn-chat-takeover');
+      const btnResume = document.getElementById('btn-chat-resume');
 
-      titleEl.textContent = 'Loading...';
+      nameEl.textContent = 'Loading...';
       subEl.textContent = jid;
-      actions.style.display = 'flex';
-      infoBar.style.display = 'block';
+      msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">Fetching message history...</div>';
 
       try {
-        const data = await api(`/api/chats/${encodeURIComponent(jid)}/messages`);
-        titleEl.textContent = data.meta?.name || jid;
-        subEl.textContent = `${jid} ${data.isHandoff ? '• Human Takeover' : '• Bot Replying'}`;
+        const d = await api(`/api/chats/${encodeURIComponent(jid)}`);
+        nameEl.textContent = d.meta?.name || jid;
+        subEl.textContent = d.isHandoff ? 'Human takeover active' : 'AI bot active';
 
-        if (data.isHandoff) {
+        if (d.isHandoff) {
           btnTakeover.style.display = 'none';
           btnResume.style.display = 'inline-flex';
         } else {
@@ -1265,188 +1837,198 @@
           btnResume.style.display = 'none';
         }
 
-        // Update info bar with summary & facts
-        document.getElementById('info-summary').innerHTML = `<strong>Chat summary:</strong> ${data.summary || 'None recorded yet'}`;
-        const factsText = (data.facts && data.facts.length) ? data.facts.join('; ') : 'None yet';
-        document.getElementById('info-facts').innerHTML = `<strong>Known facts:</strong> ${factsText}`;
+        document.getElementById('detail-summary').innerHTML = `<strong>Summary:</strong> ${d.summary || 'None'}`;
+        const facts = (d.facts && d.facts.length) ? d.facts.join('; ') : 'None';
+        document.getElementById('detail-facts').innerHTML = `<strong>Facts:</strong> ${facts}`;
 
-        if (!data.messages || data.messages.length === 0) {
-          msgContainer.innerHTML = '<div style="margin: auto; text-align: center; color: var(--subtext); font-size: 13px;">No stored messages.</div>';
+        if (!d.messages || d.messages.length === 0) {
+          msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">No stored messages.</div>';
           return;
         }
 
-        msgContainer.innerHTML = data.messages.map(m => {
+        msgBox.innerHTML = d.messages.map(m => {
           const isBot = m.role === 'assistant';
-          const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-          const sender = m.senderName || (isBot ? 'Assistant' : 'Contact');
+          const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+          const sender = m.senderName || (isBot ? 'JTech Assistant' : 'Contact');
 
           return `
-            <div class="msg-bubble ${isBot ? 'assistant' : 'user'}">
-              <div style="font-size: 11px; font-weight: 600; margin-bottom: 2px; opacity: 0.8;">${sender}</div>
+            <div class="bubble ${isBot ? 'assistant' : 'user'}">
+              <div style="font-size: 11px; font-weight: 700; margin-bottom: 2px; opacity: 0.75;">${sender}</div>
               <div>${m.text}</div>
-              <div class="msg-meta">${time}</div>
+              <div class="bubble-meta">${time}</div>
             </div>
           `;
         }).join('');
 
-        msgContainer.scrollTop = msgContainer.scrollHeight;
+        msgBox.scrollTop = msgBox.scrollHeight;
       } catch (err) {
-        msgContainer.innerHTML = `<div style="color:var(--danger); padding:16px;">Error: ${err.message}</div>`;
+        msgBox.innerHTML = `<div style="color:var(--danger); padding:16px;">Error: ${err.message}</div>`;
       }
     };
 
-    // Take over button
-    document.getElementById('btn-takeover').addEventListener('click', async () => {
+    // Chat Detail: Back button
+    document.getElementById('btn-chat-back').addEventListener('click', () => {
+      chatDetail.classList.remove('open');
+      activeChatJid = null;
+      fetchChats();
+    });
+
+    // Chat Takeover / Resume buttons (POST /api/chats/:jid/takeover & /resume)
+    document.getElementById('btn-chat-takeover').addEventListener('click', async () => {
       if (!activeChatJid) return;
       try {
         await api(`/api/chats/${encodeURIComponent(activeChatJid)}/takeover`, { method: 'POST' });
-        showToast('Takeover active for this chat');
-        openChat(activeChatJid);
-      } catch (e) {
-        showToast(e.message, true);
-      }
+        showToast('Takeover active');
+        openChatDetail(activeChatJid);
+      } catch (e) { showToast(e.message, true); }
     });
 
-    // Resume button
-    document.getElementById('btn-resume-chat').addEventListener('click', async () => {
+    document.getElementById('btn-chat-resume').addEventListener('click', async () => {
       if (!activeChatJid) return;
       try {
         await api(`/api/chats/${encodeURIComponent(activeChatJid)}/resume`, { method: 'POST' });
         showToast('Bot resumed');
-        openChat(activeChatJid);
-      } catch (e) {
-        showToast(e.message, true);
-      }
+        openChatDetail(activeChatJid);
+      } catch (e) { showToast(e.message, true); }
     });
 
-    // Clear memory for single chat
-    document.getElementById('btn-clear-chat-mem').addEventListener('click', async () => {
-      if (!activeChatJid) return;
-      if (!confirm('Clear chat history, summary, and facts for this contact?')) return;
+    // Settings Screen: Fetch Settings (GET /api/cfg)
+    async function fetchSettings() {
+      if (!authToken || !API_BASE) return;
       try {
-        await api(`/api/chats/${encodeURIComponent(activeChatJid)}/clear-memory`, { method: 'POST' });
-        showToast('Memory cleared for contact');
-        openChat(activeChatJid);
-      } catch (e) {
-        showToast(e.message, true);
-      }
-    });
+        const s = await api('/api/cfg');
+        if (!s) return;
 
-    // Clear all memory button
-    document.getElementById('btn-clear-all-mem').addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to clear ALL chat history and summaries across all contacts?')) return;
-      try {
-        await api('/api/clear-all-memory', { method: 'POST' });
-        showToast('All contact memory cleared');
-        loadChats();
-        if (activeChatJid) openChat(activeChatJid);
-      } catch (e) {
-        showToast(e.message, true);
-      }
-    });
+        if (s.baseRules !== undefined) document.getElementById('set-base-rules').value = s.baseRules;
+        if (s.provider) document.getElementById('set-provider').value = s.provider;
+        if (s.geminiModel) document.getElementById('set-gemini-model').value = s.geminiModel;
+        if (s.groqModel) document.getElementById('set-groq-model').value = s.groqModel;
+        document.getElementById('set-min-delay').value = s.minDelay ?? 300;
+        document.getElementById('set-max-delay').value = s.maxDelay ?? 1200;
 
-    // Load Usage
-    async function loadUsage() {
-      try {
-        const u = await api('/api/usage');
-        if (!u) return;
-
-        document.getElementById('stat-replies-today').textContent = u.repliesToday ?? 0;
-        document.getElementById('stat-gemini-count').textContent = u.providers?.gemini ?? 0;
-        document.getElementById('stat-groq-count').textContent = u.providers?.groq ?? 0;
-        document.getElementById('stat-streak').textContent = `${u.consecutiveFailures || 0}/3`;
-
-        const errorEl = document.getElementById('error-list');
-        if (!u.recentErrors || u.recentErrors.length === 0) {
-          errorEl.innerHTML = '<div style="color: var(--subtext); font-size: 13px; text-align: center; padding: 12px;">No errors recorded. All systems operational.</div>';
-          return;
+        if (s.profile) {
+          document.getElementById('set-prof-name').value = s.profile.name || '';
+          document.getElementById('set-prof-about').value = s.profile.about || s.profile.facts || '';
+          document.getElementById('set-prof-languages').value = s.profile.languages || '';
+          document.getElementById('set-prof-style').value = s.profile.writingStyle || '';
+          document.getElementById('set-prof-city').value = s.profile.city || '';
+          document.getElementById('set-prof-s1').value = s.profile.sampleMessage1 || '';
+          document.getElementById('set-prof-s2').value = s.profile.sampleMessage2 || '';
+          document.getElementById('set-prof-s3').value = s.profile.sampleMessage3 || '';
         }
 
-        errorEl.innerHTML = u.recentErrors.map(e => {
-          const time = e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '';
-          return `
-            <div class="error-item">
-              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-                <strong>${e.provider || 'Provider'}</strong>
-                <span style="color:var(--subtext); font-size:11px;">${time}</span>
-              </div>
-              <div>${e.message || 'Error'}</div>
-            </div>
-          `;
-        }).join('');
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    // Pairing Code Request
-    document.getElementById('btn-get-pairing').addEventListener('click', async () => {
-      const phone = document.getElementById('device-phone').value.trim();
-      if (!phone) {
-        showToast('Please enter your phone number with country code', true);
-        return;
-      }
-
-      const btn = document.getElementById('btn-get-pairing');
-      btn.textContent = 'Requesting...';
-      btn.disabled = true;
-
-      try {
-        const res = await api('/api/pair', { method: 'POST', body: { phone } });
-        if (res.pairingCode) {
-          document.getElementById('pairing-box').style.display = 'block';
-          document.getElementById('pairing-code-val').textContent = res.pairingCode;
-          showToast('Pairing code ready!');
-        } else {
-          showToast(res.message || 'Connecting...');
+        if (s.contactRules) {
+          selectedMode = s.contactRules.mode || 'all';
+          document.querySelectorAll('.mode-btn').forEach(b => {
+            b.classList.toggle('selected', b.dataset.mode === selectedMode);
+          });
+          document.getElementById('set-allowlist').value = (s.contactRules.allowlist || []).join('\n');
+          document.getElementById('set-blocklist').value = (s.contactRules.blocklist || []).join('\n');
         }
-        refreshStatus();
-      } catch (e) {
-        showToast(e.message, true);
-      } finally {
-        btn.textContent = 'Generate pairing code';
-        btn.disabled = false;
-      }
-    });
-
-    // Copy Pairing Code
-    document.getElementById('btn-copy-pairing').addEventListener('click', () => {
-      const code = document.getElementById('pairing-code-val').textContent;
-      navigator.clipboard.writeText(code).then(() => showToast('Pairing code copied'));
-    });
-
-    // Logout WhatsApp
-    document.getElementById('btn-logout-wa').addEventListener('click', async () => {
-      if (!confirm('Logout and delete WhatsApp credentials from Redis?')) return;
-      try {
-        await api('/api/logout', { method: 'POST' });
-        document.getElementById('pairing-box').style.display = 'none';
-        showToast('Logged out');
-        refreshStatus();
-      } catch (e) {
-        showToast(e.message, true);
-      }
-    });
-
-    // Initial load & 8s polling
-    function loadAll() {
-      refreshStatus();
-      loadSettings();
-      loadChats();
-      loadUsage();
+      } catch (_) {}
     }
 
-    loadAll();
-    setInterval(() => {
-      refreshStatus();
-      const active = document.querySelector('.nav-btn.active')?.dataset.tab;
-      if (active === 'tab-chat') {
-        if (!activeChatJid) loadChats();
-        else openChat(activeChatJid);
-      } else if (active === 'tab-usage') {
-        loadUsage();
-      }
-    }, 8000);
+    // Settings Screen: Mode selector buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedMode = btn.dataset.mode;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
+
+    // Settings Screen: Save All Settings (POST /api/cfg)
+    document.getElementById('btn-save-settings').addEventListener('click', async () => {
+      const baseRules = document.getElementById('set-base-rules').value.trim();
+      const provider = document.getElementById('set-provider').value;
+      const geminiModel = document.getElementById('set-gemini-model').value.trim();
+      const groqModel = document.getElementById('set-groq-model').value.trim();
+      const minDelay = parseInt(document.getElementById('set-min-delay').value, 10);
+      const maxDelay = parseInt(document.getElementById('set-max-delay').value, 10);
+
+      const profile = {
+        name: document.getElementById('set-prof-name').value.trim(),
+        about: document.getElementById('set-prof-about').value.trim(),
+        languages: document.getElementById('set-prof-languages').value.trim(),
+        writingStyle: document.getElementById('set-prof-style').value.trim(),
+        city: document.getElementById('set-prof-city').value.trim(),
+        sampleMessage1: document.getElementById('set-prof-s1').value.trim(),
+        sampleMessage2: document.getElementById('set-prof-s2').value.trim(),
+        sampleMessage3: document.getElementById('set-prof-s3').value.trim()
+      };
+
+      const allowlist = document.getElementById('set-allowlist').value.split('\n').map(s => s.trim()).filter(Boolean);
+      const blocklist = document.getElementById('set-blocklist').value.split('\n').map(s => s.trim()).filter(Boolean);
+
+      try {
+        await api('/api/cfg', {
+          method: 'POST',
+          body: {
+            baseRules,
+            provider,
+            geminiModel,
+            groqModel,
+            minDelay,
+            maxDelay,
+            profile,
+            contactRules: { mode: selectedMode, allowlist, blocklist }
+          }
+        });
+        showToast('Settings saved successfully');
+        fetchState();
+      } catch (e) { showToast(e.message, true); }
+    });
+
+    // Session Actions: Clear Memory (POST /api/clear-memory)
+    document.getElementById('btn-action-clear-mem').addEventListener('click', async () => {
+      if (!confirm('Clear all conversation histories and summaries?')) return;
+      try {
+        await api('/api/clear-memory', { method: 'POST' });
+        showToast('All chat memory cleared');
+      } catch (e) { showToast(e.message, true); }
+    });
+
+    // Session Actions: Log out WhatsApp (POST /api/logout-wa)
+    document.getElementById('btn-action-logout-wa').addEventListener('click', async () => {
+      if (!confirm('Disconnect WhatsApp session and clear credentials?')) return;
+      try {
+        await api('/api/logout-wa', { method: 'POST' });
+        showToast('Logged out of WhatsApp');
+        fetchState();
+      } catch (e) { showToast(e.message, true); }
+    });
+
+    // Session Actions: Sign out of Dashboard
+    document.getElementById('btn-action-signout').addEventListener('click', () => {
+      sessionStorage.removeItem('auth_token');
+      authToken = '';
+      authSheet.classList.add('open');
+      showToast('Signed out');
+    });
+
+    // App Initialization
+    function initDashboard() {
+      route();
+      fetchState();
+
+      if (mainPollInterval) clearInterval(mainPollInterval);
+      mainPollInterval = setInterval(() => {
+        fetchState();
+        const hash = window.location.hash.slice(1);
+        if (hash === 'chats' && !activeChatJid) {
+          fetchChats();
+        } else if (activeChatJid) {
+          openChatDetail(activeChatJid);
+        } else if (hash === 'dashboard') {
+          fetchStats();
+        }
+      }, 5000);
+    }
+
+    // Start App Flow
+    if (verifyBackendUrl()) {
+      checkAuthentication();
+    }
   </script>
 </body>
 </html>
