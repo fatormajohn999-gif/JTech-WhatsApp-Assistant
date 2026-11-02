@@ -1083,36 +1083,78 @@
             </div>
           </div>
 
-          <div class="form-group" style="text-align: left;">
-            <label for="link-phone-input">Phone number (country code + digits, no + sign)</label>
-            <input type="text" id="link-phone-input" placeholder="e.g. 23276123456 or 15551234567" inputmode="numeric">
+          <!-- Toggle button between Pairing Code and QR Code -->
+          <div style="margin-bottom: 14px;">
+            <button class="btn btn-secondary btn-block" id="btn-toggle-qr" style="font-size: 13px;">
+              Use QR code instead
+            </button>
           </div>
 
-          <button class="btn btn-primary btn-block" id="btn-request-link">
-            Get pairing code
-          </button>
+          <!-- Pairing Code Section -->
+          <div id="section-pairing-code">
+            <div class="form-group" style="text-align: left;">
+              <label for="link-phone-input">Phone number (country code + digits, no + sign)</label>
+              <input type="text" id="link-phone-input" placeholder="e.g. 23276123456 or 15551234567" inputmode="numeric">
+            </div>
 
-          <!-- Pairing Code Box with 60-second Countdown -->
-          <div class="pairing-card" id="pairing-result-box" style="display: none;">
-            <div style="font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Your pairing code</div>
-            <div class="pairing-digits" id="pairing-code-label">----</div>
-            <div id="pairing-countdown" style="font-size: 12px; color: var(--accent-primary); font-weight: 700; margin-bottom: 4px;">Expires in 60s</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Tap to copy code</div>
+            <button class="btn btn-primary btn-block" id="btn-request-link">
+              Get pairing code
+            </button>
+
+            <!-- Pairing Code Box with 60-second Countdown -->
+            <div class="pairing-card" id="pairing-result-box" style="display: none;">
+              <div style="font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Your pairing code</div>
+              <div class="pairing-digits" id="pairing-code-label">----</div>
+              <div id="pairing-countdown" style="font-size: 12px; color: var(--accent-primary); font-weight: 700; margin-bottom: 4px;">Expires in 60s</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Tap to copy code</div>
+            </div>
+
+            <!-- 3 Short Steps -->
+            <div class="steps-list">
+              <div class="step-item">
+                <span class="step-num">1</span>
+                <span>Open <strong>WhatsApp</strong> on your phone</span>
+              </div>
+              <div class="step-item">
+                <span class="step-num">2</span>
+                <span>Go to <strong>Settings</strong> &gt; <strong>Linked devices</strong> &gt; <strong>Link a device</strong></span>
+              </div>
+              <div class="step-item">
+                <span class="step-num">3</span>
+                <span>Choose <strong>Link with phone number instead</strong> & enter code</span>
+              </div>
+            </div>
           </div>
 
-          <!-- 3 Short Steps -->
-          <div class="steps-list">
-            <div class="step-item">
-              <span class="step-num">1</span>
-              <span>Open <strong>WhatsApp</strong> on your phone</span>
+          <!-- QR Code Section -->
+          <div id="section-qr-code" style="display: none;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">Scan WhatsApp QR Code</div>
+              <div style="display: inline-block; background: #ffffff; padding: 10px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); min-height: 200px; min-width: 200px;">
+                <img id="qr-code-img" src="" alt="WhatsApp QR Code" style="display: none; width: 200px; height: 200px; image-rendering: pixelated; margin: 0 auto;">
+                <div id="qr-code-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; width: 200px; color: #4b5563; font-size: 12px; gap: 8px;">
+                  <span style="font-size: 24px;">⏳</span>
+                  <span id="qr-placeholder-text">Waiting for WhatsApp QR...</span>
+                </div>
+              </div>
+              <div id="qr-countdown" style="font-size: 12.5px; color: var(--accent-primary); font-weight: 700; margin-top: 10px;">Expires in 60s</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Point second phone camera at this QR code</div>
             </div>
-            <div class="step-item">
-              <span class="step-num">2</span>
-              <span>Go to <strong>Settings</strong> &gt; <strong>Linked devices</strong> &gt; <strong>Link a device</strong></span>
-            </div>
-            <div class="step-item">
-              <span class="step-num">3</span>
-              <span>Choose <strong>Link with phone number instead</strong> & enter code</span>
+
+            <!-- Steps for QR -->
+            <div class="steps-list">
+              <div class="step-item">
+                <span class="step-num">1</span>
+                <span>Open <strong>WhatsApp</strong> on your phone</span>
+              </div>
+              <div class="step-item">
+                <span class="step-num">2</span>
+                <span>Tap <strong>Settings</strong> &gt; <strong>Linked devices</strong> &gt; <strong>Link a device</strong></span>
+              </div>
+              <div class="step-item">
+                <span class="step-num">3</span>
+                <span>Scan the QR code displayed above</span>
+              </div>
             </div>
           </div>
 
@@ -1564,6 +1606,14 @@
     const linkErrorMsg = document.getElementById('link-error-msg');
     const linkErrorHint = document.getElementById('link-error-hint');
     const linkSuccessBanner = document.getElementById('link-success-banner');
+    const btnToggleQr = document.getElementById('btn-toggle-qr');
+    const sectionPairingCode = document.getElementById('section-pairing-code');
+    const sectionQrCode = document.getElementById('section-qr-code');
+    const qrCodeImg = document.getElementById('qr-code-img');
+    const qrCodePlaceholder = document.getElementById('qr-code-placeholder');
+    const qrPlaceholderText = document.getElementById('qr-placeholder-text');
+    const qrCountdown = document.getElementById('qr-countdown');
+    let isQrMode = false;
 
     // Toast helper: displays real messages and hints, never generic failures
     function showToast(text, isError = false, hint = '') {
@@ -1858,6 +1908,12 @@
           btnRequestLink.disabled = true;
           btnRequestLink.textContent = 'WhatsApp Connected';
           linkErrorBanner.style.display = 'none';
+          if (qrCodeImg) qrCodeImg.style.display = 'none';
+          if (qrCodePlaceholder) {
+            qrCodePlaceholder.style.display = 'flex';
+            if (qrPlaceholderText) qrPlaceholderText.textContent = 'WhatsApp is connected!';
+          }
+          if (qrCountdown) qrCountdown.textContent = 'Connected ✓';
         } else {
           linkSuccessBanner.style.display = 'none';
 
@@ -1880,6 +1936,30 @@
             linkErrorHint.textContent = s.lastError.hint || '';
           } else {
             linkErrorBanner.style.display = 'none';
+          }
+
+          // Update QR Code display
+          if (s.pairing?.qrDataUrl) {
+            if (qrCodeImg) {
+              qrCodeImg.src = s.pairing.qrDataUrl;
+              qrCodeImg.style.display = 'block';
+            }
+            if (qrCodePlaceholder) qrCodePlaceholder.style.display = 'none';
+            if (qrCountdown) {
+              const secs = s.pairing.qrSecondsLeft ?? 60;
+              qrCountdown.textContent = `Expires in ${secs}s`;
+            }
+          } else {
+            if (qrCodeImg) qrCodeImg.style.display = 'none';
+            if (qrCodePlaceholder) {
+              qrCodePlaceholder.style.display = 'flex';
+              if (qrPlaceholderText) {
+                qrPlaceholderText.textContent = s.lastError ? 'WhatsApp unreachable' : 'Waiting for WhatsApp QR...';
+              }
+            }
+            if (qrCountdown) {
+              qrCountdown.textContent = s.lastError ? 'Check error banner' : 'Connecting to WhatsApp...';
+            }
           }
         }
 
@@ -2048,6 +2128,23 @@
         navigator.clipboard.writeText(code).then(() => showToast('Pairing code copied!'));
       }
     });
+
+    // Toggle QR mode on Link screen
+    if (btnToggleQr) {
+      btnToggleQr.addEventListener('click', () => {
+        isQrMode = !isQrMode;
+        if (isQrMode) {
+          if (sectionPairingCode) sectionPairingCode.style.display = 'none';
+          if (sectionQrCode) sectionQrCode.style.display = 'block';
+          btnToggleQr.textContent = 'Use pairing code instead';
+          fetchState();
+        } else {
+          if (sectionPairingCode) sectionPairingCode.style.display = 'block';
+          if (sectionQrCode) sectionQrCode.style.display = 'none';
+          btnToggleQr.textContent = 'Use QR code instead';
+        }
+      });
+    }
 
     // Chats Screen: Fetch List (GET /api/chats)
     async function fetchChats() {

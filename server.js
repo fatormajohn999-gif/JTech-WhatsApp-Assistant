@@ -24,6 +24,7 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { Redis } from '@upstash/redis';
 import pino from 'pino';
+import QRCode from 'qrcode';
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -1060,42 +1061,18 @@ let pairingExpiresAt = 0;
 let activePhone = '';
 let lastError = null; // { code, message, hint, at }
 
-let reconnectAttempts = 0;
-let reconnectTimer = null;
-let isSocketOpenForPairing = false;
-let pairingWaiters = [];
+let latestQrString = null;
+let latestQrDataUrl = null;
+let latestQrExpiresAt = 0;
+let hasReceivedQrOrConnecting = false;
+let socketStartupWatchdog = null;
+let connectingSince = 0;
+let pairingCodeRequestedOnSocket = false;
+let activePairingRequest = null; // { phone, resolve, reject, timer, hasRetried }
 let isPairingInProgress = false;
 
-function notifyPairingWaiters() {
-  const waiters = pairingWaiters;
-  pairingWaiters = [];
-  for (const fn of waiters) {
-    try { fn(); } catch (_) {}
-  }
-}
-
-function waitForSocketOpenForPairing(timeoutMs = 30000) {
-  if (isSocketOpenForPairing && sock && !sock.authState?.creds?.registered) {
-    return Promise.resolve();
-  }
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error('Timed out waiting for WhatsApp socket to open for pairing'));
-      }
-    }, timeoutMs);
-
-    pairingWaiters.push(() => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-      }
-    });
-  });
-}
+let reconnectAttempts = 0;
+let reconnectTimer = null;
 
 const botSentMessageIds = new Set();
 const logger = pino({ level: 'silent' });
@@ -1146,12 +1123,115 @@ function scheduleReconnect() {
   }, delay);
 }
 
+async function triggerPairingCodeIfRequested(source) {
+  if (!activePairingRequest) return;
+  if (pairingCodeRequestedOnSocket) return;
+  if (!sock || sock.authState?.creds?.registered) return;
+
+  const phone = activePairingRequest.phone;
+  pairingCodeRequestedOnSocket = true;
+  logEvent('info', `Triggering requestPairingCode(+${phone}) via ${source}...`);
+
+  try {
+    const code = await sock.requestPairingCode(phone);
+    currentPairingCode = code;
+    pairingExpiresAt = Date.now() + 60000;
+    activePhone = phone;
+    setWhatsappState('code_ready');
+    lastError = null;
+    logEvent('info', `Pairing code generated successfully: ${code} (expires in 60s)`);
+
+    if (activePairingRequest) {
+      const p = activePairingRequest;
+      activePairingRequest = null;
+      if (p.timer) clearTimeout(p.timer);
+      p.resolve(code);
+    }
+  } catch (err) {
+    logEvent('error', `requestPairingCode failed: ${err.message}`);
+    const errText = `${err?.message || ''} ${err?.toString() || ''}`;
+    const isConnClosed = /connection closed/i.test(errText) || (err?.output?.statusCode === 428);
+
+    if (isConnClosed && !activePairingRequest?.hasRetried) {
+      logEvent('warn', 'requestPairingCode threw "Connection Closed". Waiting 15s to recreate socket and retry once...');
+      setWhatsappState('reconnecting');
+      if (activePairingRequest) activePairingRequest.hasRetried = true;
+
+      setTimeout(async () => {
+        try {
+          if (sock) {
+            try { sock.end(undefined); } catch (_) {}
+            sock = null;
+          }
+          await startWhatsApp();
+        } catch (rErr) {
+          logEvent('error', `Socket recreation failed: ${rErr.message}`);
+          if (activePairingRequest) {
+            const p = activePairingRequest;
+            activePairingRequest = null;
+            if (p.timer) clearTimeout(p.timer);
+            p.reject(rErr);
+          }
+        }
+      }, 15000);
+    } else {
+      lastError = {
+        code: 500,
+        message: err.message || 'WhatsApp pairing code request failed',
+        hint: 'Verify phone number format. If WhatsApp closed the connection, wait 2 minutes before retrying.',
+        at: Date.now()
+      };
+      setWhatsappState('error');
+      if (activePairingRequest) {
+        const p = activePairingRequest;
+        activePairingRequest = null;
+        if (p.timer) clearTimeout(p.timer);
+        p.reject(err);
+      }
+    }
+  }
+}
+
 async function startWhatsApp() {
   try {
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
+
+    pairingCodeRequestedOnSocket = false;
+    hasReceivedQrOrConnecting = false;
+    connectingSince = 0;
+
+    if (socketStartupWatchdog) {
+      clearTimeout(socketStartupWatchdog);
+      socketStartupWatchdog = null;
+    }
+
+    // 20-second watchdog: If no qr or connecting event arrives within 20s, show error and stop
+    socketStartupWatchdog = setTimeout(() => {
+      if (!hasReceivedQrOrConnecting && whatsappState !== 'connected') {
+        const errorMsg = 'WhatsApp is not answering from this server (network or blocked address)';
+        logEvent('error', errorMsg);
+        setWhatsappState('error');
+        lastError = {
+          code: 'NETWORK_BLOCKED',
+          message: errorMsg,
+          hint: 'The WhatsApp servers did not respond within 20 seconds. Outgoing connections to WhatsApp ports may be blocked.',
+          at: Date.now()
+        };
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        if (activePairingRequest) {
+          const p = activePairingRequest;
+          activePairingRequest = null;
+          if (p.timer) clearTimeout(p.timer);
+          p.reject(new Error(errorMsg));
+        }
+      }
+    }, 20000);
 
     const { state, saveCreds } = await useUpstashAuthState();
     const { version, isLatest } = await fetchLatestBaileysVersion();
@@ -1177,31 +1257,57 @@ async function startWhatsApp() {
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
+      const qrPresent = qr ? 'yes' : 'no';
+      const discCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode || 'none';
+      const discMsg = lastDisconnect?.error?.message || 'none';
 
+      // 3) Log every connection.update into the in-app event log
+      logEvent('info', `connection.update: connection=${connection || 'none'}, qr=${qrPresent}, lastDisconnect code=${discCode}, message="${discMsg}"`);
+
+      // 4) If qr or connecting event arrives within 20s, clear watchdog
+      if (qr || connection === 'connecting') {
+        hasReceivedQrOrConnecting = true;
+        if (socketStartupWatchdog) {
+          clearTimeout(socketStartupWatchdog);
+          socketStartupWatchdog = null;
+        }
+      }
+
+      // 2) Store latest qr string and generate data URL using qrcode package
       if (qr) {
-        logEvent('info', 'Received pairing challenge event (socket is open for pairing).');
-        isSocketOpenForPairing = true;
-        notifyPairingWaiters();
+        latestQrString = qr;
+        latestQrExpiresAt = Date.now() + 60000;
+        try {
+          latestQrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 6 });
+        } catch (qrErr) {
+          logEvent('warn', `Failed to generate QR data URL: ${qrErr.message}`);
+        }
+
+        // 1) Request pairing code on FIRST connection.update containing defined "qr" field
+        triggerPairingCodeIfRequested('first-qr-event');
       }
 
       if (connection === 'connecting') {
+        if (!connectingSince) connectingSince = Date.now();
         if (whatsappState !== 'reconnecting' && whatsappState !== 'code_ready') {
           setWhatsappState('connecting');
         }
-        if (!sock?.authState?.creds?.registered) {
-          isSocketOpenForPairing = true;
-          notifyPairingWaiters();
-        }
+
+        // 1) (or connection === 'connecting', after 2 seconds)
+        setTimeout(() => {
+          triggerPairingCodeIfRequested('connecting-2s');
+        }, 2000);
       } else if (connection === 'open') {
         setWhatsappState('connected');
         currentPairingCode = null;
         pairingExpiresAt = 0;
+        latestQrString = null;
+        latestQrDataUrl = null;
+        latestQrExpiresAt = 0;
         lastError = null;
         reconnectAttempts = 0;
-        isSocketOpenForPairing = false;
         logEvent('info', 'WhatsApp connection established successfully. JTech Assistant is online.');
       } else if (connection === 'close') {
-        isSocketOpenForPairing = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const isRegistered = Boolean(sock?.authState?.creds?.registered);
 
@@ -1270,7 +1376,6 @@ async function startWhatsApp() {
     });
 
   } catch (err) {
-    isSocketOpenForPairing = false;
     logEvent('error', `Critical WhatsApp startup error: ${err.message}`);
     setWhatsappState('error');
     lastError = {
@@ -1576,7 +1681,10 @@ app.get('/api/state', requireAuth, async (req, res) => {
       pairing: {
         code: currentPairingCode,
         expiresAt: pairingExpiresAt,
-        secondsLeft: pairingSecondsLeft
+        secondsLeft: pairingSecondsLeft,
+        qr: latestQrString,
+        qrDataUrl: latestQrDataUrl,
+        qrSecondsLeft: latestQrExpiresAt ? Math.max(0, Math.ceil((latestQrExpiresAt - Date.now()) / 1000)) : 0
       },
       lastError,
       currentModels: {
@@ -1626,8 +1734,8 @@ app.get('/api/state', requireAuth, async (req, res) => {
 
 async function executePairingRequest(phoneInput) {
   // 1. Strip every non-digit from the phone number
-  const cleanPhone = String(phoneInput || '').replace(/\D/g, '');
-  if (!cleanPhone || cleanPhone.length < 7 || cleanPhone.length > 15) {
+  const digitsOnlyPhone = String(phoneInput || '').replace(/\D/g, '');
+  if (!digitsOnlyPhone || digitsOnlyPhone.length < 7 || digitsOnlyPhone.length > 15) {
     const err = new Error('Invalid phone number. Enter full international number with country code (digits only).');
     err.code = 'INVALID_PHONE';
     err.hint = 'Example: 23276123456 or 15551234567. Do not include + or spaces.';
@@ -1641,98 +1749,48 @@ async function executePairingRequest(phoneInput) {
     throw err;
   }
 
-  // Ensure socket is initiated
-  if (!sock) {
-    logEvent('info', 'Starting WhatsApp socket for pairing request...');
-    isSocketOpenForPairing = false;
-    await startWhatsApp();
-  }
+  // Cancel any existing pending pairing request timer
+  if (activePairingRequest?.timer) clearTimeout(activePairingRequest.timer);
 
-  // Helper to wait until connection event shows socket is open for pairing, then wait 3s
-  async function waitForReadySocket() {
-    logEvent('info', 'Waiting for connection event showing socket is open for pairing...');
-    await waitForSocketOpenForPairing(30000);
-    logEvent('info', 'Connection event confirmed socket is open for pairing. Waiting at least 3 seconds...');
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-  }
+  return new Promise(async (resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (activePairingRequest) {
+        activePairingRequest = null;
+        reject(new Error('Timed out waiting for WhatsApp pairing response'));
+      }
+    }, 45000);
 
-  // Attempt 1
-  try {
-    await waitForReadySocket();
+    activePairingRequest = {
+      phone: digitsOnlyPhone,
+      resolve,
+      reject,
+      timer,
+      hasRetried: false
+    };
 
-    // Strip every non-digit right before calling requestPairingCode
-    const finalDigits = String(cleanPhone).replace(/\D/g, '');
-    logEvent('info', `Requesting pairing code for +${finalDigits}...`);
-    const code = await sock.requestPairingCode(finalDigits);
-
-    currentPairingCode = code;
-    pairingExpiresAt = Date.now() + 60000;
-    activePhone = finalDigits;
-    setWhatsappState('code_ready');
-    lastError = null;
-    logEvent('info', `Pairing code generated successfully: ${code} (expires in 60s)`);
-    return code;
-  } catch (err) {
-    const errText = `${err?.message || ''} ${err?.toString() || ''}`;
-    const isConnClosed = /connection closed/i.test(errText) || (err?.output?.statusCode === 428);
-
-    if (isConnClosed) {
-      logEvent('warn', 'requestPairingCode threw "Connection Closed". Waiting 15 seconds before recreating socket and retrying once...');
-      setWhatsappState('reconnecting');
-      await new Promise((resolve) => setTimeout(resolve, 15000));
-
+    // If socket is not running, or pairing code was already requested once on this socket, recreate socket
+    if (!sock || pairingCodeRequestedOnSocket) {
+      logEvent('info', `Starting fresh WhatsApp socket for pairing request (+${digitsOnlyPhone})...`);
+      if (sock) {
+        try { sock.end(undefined); } catch (_) {}
+        sock = null;
+      }
       try {
-        logEvent('info', 'Recreating WhatsApp socket for single pairing retry...');
-        if (sock) {
-          try { sock.end(undefined); } catch (_) {}
-          sock = null;
-        }
-        isSocketOpenForPairing = false;
         await startWhatsApp();
-
-        await waitForReadySocket();
-
-        // Strip every non-digit before requestPairingCode
-        const retryDigits = String(cleanPhone).replace(/\D/g, '');
-        logEvent('info', `Retrying requestPairingCode for +${retryDigits}...`);
-        const code = await sock.requestPairingCode(retryDigits);
-
-        currentPairingCode = code;
-        pairingExpiresAt = Date.now() + 60000;
-        activePhone = retryDigits;
-        setWhatsappState('code_ready');
-        lastError = null;
-        logEvent('info', `Pairing code generated on retry: ${code} (expires in 60s)`);
-        return code;
-      } catch (retryErr) {
-        logEvent('error', `Pairing code retry failed: ${retryErr.message}. Stopping retry loop.`);
-        lastError = {
-          code: 500,
-          message: 'WhatsApp connection closed during pairing attempt',
-          hint: 'WhatsApp closed the pairing connection. Please wait 1 to 2 minutes, verify your phone number format (country code + number, no +), and try once more.',
-          at: Date.now()
-        };
-        setWhatsappState('error');
-        const finalErr = new Error(lastError.message);
-        finalErr.code = 'PAIRING_CONNECTION_CLOSED';
-        finalErr.hint = lastError.hint;
-        throw finalErr;
+      } catch (err) {
+        activePairingRequest = null;
+        clearTimeout(timer);
+        return reject(err);
       }
     } else {
-      logEvent('error', `Pairing code request failed: ${err.message}`);
-      lastError = {
-        code: 500,
-        message: err.message,
-        hint: 'Verify phone number format. If rate-limited, wait 3 minutes before retrying.',
-        at: Date.now()
-      };
-      setWhatsappState('error');
-      const finalErr = new Error(err.message);
-      finalErr.code = 'PAIRING_FAILED';
-      finalErr.hint = lastError.hint;
-      throw finalErr;
+      // Socket is already open for pairing and hasn't called requestPairingCode yet
+      if (latestQrString) {
+        triggerPairingCodeIfRequested('immediate-qr-ready');
+      } else if (connectingSince && (Date.now() - connectingSince >= 2000)) {
+        triggerPairingCodeIfRequested('immediate-connecting-ready');
+      }
     }
-  }
+  });
 }
 
 // POST /api/link { phone, force }
