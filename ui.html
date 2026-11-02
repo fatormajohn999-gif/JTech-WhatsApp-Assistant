@@ -92,8 +92,8 @@
     header.app-header {
       height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
       padding-top: env(safe-area-inset-top, 0px);
-      padding-left: 16px;
-      padding-right: 16px;
+      padding-left: 12px;
+      padding-right: 12px;
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
@@ -101,84 +101,96 @@
       justify-content: space-between;
       flex-shrink: 0;
       z-index: 40;
+      gap: 8px;
     }
 
     .brand-wrap {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      min-width: 0;
+      flex-shrink: 1;
     }
 
     .brand-logo {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
       background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      border-radius: 9px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #0b0f17;
-      box-shadow: 0 2px 10px var(--accent-glow);
+      box-shadow: 0 2px 8px var(--accent-glow);
     }
 
     .brand-logo svg {
-      width: 18px;
-      height: 18px;
+      width: 17px;
+      height: 17px;
       stroke-width: 2.2;
     }
 
     .brand-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       letter-spacing: -0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .brand-time {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-muted);
       font-weight: 500;
+      white-space: nowrap;
     }
 
     .header-pills {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      flex-shrink: 0;
     }
 
-    /* Status Pill */
-    .status-pill {
+    /* Separate Status Chips in Header */
+    .status-chip {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 11.5px;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 16px;
+      font-size: 10.5px;
       font-weight: 600;
       border: 1px solid var(--border-subtle);
       background: var(--bg-card);
-      text-transform: capitalize;
+      white-space: nowrap;
     }
 
-    .status-dot {
-      width: 7px;
-      height: 7px;
+    .status-chip .status-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #888;
+      flex-shrink: 0;
     }
 
-    .status-pill.connected .status-dot { background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
-    .status-pill.waiting .status-dot { background: var(--warning); animation: pulse 1.4s infinite; }
-    .status-pill.offline .status-dot { background: var(--danger); }
+    .status-chip.server .status-dot { background: var(--accent-secondary); box-shadow: 0 0 6px var(--accent-secondary); }
+    .status-chip.connected .status-dot { background: var(--accent-secondary); box-shadow: 0 0 6px var(--accent-secondary); }
+    .status-chip.code_ready .status-dot { background: var(--accent-primary); box-shadow: 0 0 6px var(--accent-primary); animation: pulse 1.2s infinite; }
+    .status-chip.connecting .status-dot, .status-chip.reconnecting .status-dot { background: var(--warning); animation: pulse 1.4s infinite; }
+    .status-chip.not_connected .status-dot, .status-chip.offline .status-dot, .status-chip.logged_out .status-dot, .status-chip.error .status-dot { background: var(--danger); }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
+      50% { opacity: 0.35; transform: scale(0.85); }
     }
 
     .icon-btn {
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
       border-radius: 50%;
       border: 1px solid var(--border-subtle);
       background: var(--bg-card);
@@ -189,7 +201,7 @@
       cursor: pointer;
     }
 
-    .icon-btn svg { width: 17px; height: 17px; }
+    .icon-btn svg { width: 16px; height: 16px; }
 
     /* Screen Stage */
     #screen-viewport {
@@ -449,6 +461,12 @@
     .btn:active { transform: scale(0.98); opacity: 0.9; }
     .btn-block { width: 100%; }
 
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
     .btn-primary {
       background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
       color: #0b0f17;
@@ -543,7 +561,7 @@
       background: var(--bg-surface);
       border: 2px dashed var(--accent-primary);
       border-radius: var(--radius-md);
-      padding: 22px 16px;
+      padding: 20px 16px;
       text-align: center;
       margin-top: 14px;
       cursor: pointer;
@@ -555,7 +573,7 @@
       font-weight: 800;
       letter-spacing: 6px;
       color: var(--accent-primary);
-      margin: 10px 0;
+      margin: 8px 0;
       text-shadow: 0 0 12px var(--accent-glow);
     }
 
@@ -856,7 +874,7 @@
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      padding: 8px 18px;
+      padding: 10px 18px;
       border-radius: 30px;
       font-size: 13px;
       font-weight: 600;
@@ -865,6 +883,7 @@
       gap: 8px;
       z-index: 1000;
       opacity: 0;
+      max-width: 90vw;
       pointer-events: none;
       transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
     }
@@ -917,21 +936,27 @@
     <header class="app-header">
       <div class="brand-wrap">
         <div class="brand-logo">
-          <!-- Sparkle / Brain Icon -->
+          <!-- Sparkle / Lightning Icon -->
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
         </div>
-        <div>
+        <div style="min-width: 0;">
           <div class="brand-title">JTech Assistant</div>
           <div class="brand-time" id="app-freetown-time">Freetown: --:--</div>
         </div>
       </div>
 
       <div class="header-pills">
-        <div class="status-pill offline" id="pill-conn-status">
+        <!-- Separate Server chip -->
+        <div class="status-chip server" id="pill-server" title="Backend Server Status">
           <span class="status-dot"></span>
-          <span id="pill-conn-text">Offline</span>
+          <span id="pill-server-text">Server: Live</span>
+        </div>
+        <!-- Separate WhatsApp chip -->
+        <div class="status-chip not_connected" id="pill-whatsapp" title="WhatsApp Connection Status">
+          <span class="status-dot"></span>
+          <span id="pill-whatsapp-text">WhatsApp: Not connected</span>
         </div>
         <button class="icon-btn" id="btn-theme" title="Toggle theme">
           <!-- Sun/Moon icon -->
@@ -1014,7 +1039,7 @@
         </div>
       </section>
 
-      <!-- SCREEN 3: LINK (#link) - The ONLY place for WhatsApp Login -->
+      <!-- SCREEN 3: LINK (#link) - WhatsApp Login with Live Countdown & Error Banner -->
       <section class="app-screen" id="screen-link">
         <div class="card" style="text-align: center;">
           <div style="width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: rgba(0, 242, 254, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
@@ -1025,7 +1050,13 @@
 
           <div class="card-title" style="justify-content: center; font-size: 17px;">Link WhatsApp account</div>
           <div class="card-desc" style="max-width: 280px; margin: 4px auto 16px;">
-            Enter your WhatsApp phone number to generate an official 8-digit pairing code.
+            Enter your phone number with country code to generate an 8-character pairing code.
+          </div>
+
+          <!-- Exact Error & Hint Banner -->
+          <div id="link-error-banner" style="display: none; margin-bottom: 14px; padding: 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid var(--danger); border-radius: var(--radius-sm); text-align: left;">
+            <div style="font-weight: 700; font-size: 13px; color: var(--danger);" id="link-error-msg">Error message</div>
+            <div style="font-size: 11.5px; color: var(--text-main); margin-top: 4px; line-height: 1.4;" id="link-error-hint">Hint</div>
           </div>
 
           <div class="form-group" style="text-align: left;">
@@ -1037,11 +1068,12 @@
             Get pairing code
           </button>
 
-          <!-- Pairing Code Box -->
+          <!-- Pairing Code Box with 60-second Countdown -->
           <div class="pairing-card" id="pairing-result-box" style="display: none;">
             <div style="font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Your pairing code</div>
             <div class="pairing-digits" id="pairing-code-label">----</div>
-            <div style="font-size: 12px; color: var(--accent-primary); font-weight: 600;">Tap to copy code</div>
+            <div id="pairing-countdown" style="font-size: 12px; color: var(--accent-primary); font-weight: 700; margin-bottom: 4px;">Expires in 60s</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Tap to copy code</div>
           </div>
 
           <!-- 3 Short Steps -->
@@ -1095,8 +1127,8 @@
           <div class="card-title">Environment status</div>
           <div class="card-desc">Read-only status reported securely by backend /api/state.</div>
           <div class="chips-row" style="margin-top: 10px;">
-            <span class="chip" id="chip-key-gemini">Gemini key: checking...</span>
-            <span class="chip" id="chip-key-groq">Groq key: checking...</span>
+            <span class="chip" id="chip-key-gemini">Gemini: checking...</span>
+            <span class="chip" id="chip-key-groq">Groq: checking...</span>
             <span class="chip" id="chip-key-redis">Upstash Redis: checking...</span>
           </div>
         </div>
@@ -1117,6 +1149,56 @@
       <!-- SCREEN 5: SETTINGS (#settings) -->
       <section class="app-screen" id="screen-settings">
         <div class="card-title" style="margin-bottom: 12px;">Assistant settings</div>
+
+        <!-- NEW: System Status Section -->
+        <div class="card" id="settings-sys-status-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">System status</div>
+              <div class="card-desc">Runtime diagnostics, service health & event log.</div>
+            </div>
+            <button class="btn btn-sm btn-secondary" id="btn-refresh-sys">Refresh</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Server</div>
+              <div id="sys-server-val" style="font-size: 13px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px;">Live</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">WhatsApp</div>
+              <div id="sys-wa-val" style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 2px;">Not connected</div>
+            </div>
+          </div>
+
+          <div class="chips-row" style="margin-top: 10px;">
+            <span class="chip" id="sys-chip-redis">Upstash: checking...</span>
+            <span class="chip" id="sys-chip-gemini">Gemini: checking...</span>
+            <span class="chip" id="sys-chip-groq">Groq: checking...</span>
+          </div>
+
+          <!-- Diagnostics Actions: Test AI & Reconnect WhatsApp -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
+            <button class="btn btn-secondary btn-sm" id="btn-test-ai">Test AI</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reconnect-wa">Reconnect WhatsApp</button>
+          </div>
+
+          <!-- Test AI Output Box -->
+          <div id="test-ai-box" style="display: none; margin-top: 10px; padding: 10px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px;">
+            <div id="test-ai-output" style="font-weight: 600; word-break: break-word;"></div>
+            <div id="test-ai-hint" style="color: var(--text-muted); font-size: 11px; margin-top: 4px; line-height: 1.4;"></div>
+          </div>
+
+          <!-- Last 20 Events Log -->
+          <div style="margin-top: 14px;">
+            <div style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              Recent events (last 20)
+            </div>
+            <div id="sys-events-container" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); max-height: 170px; overflow-y: auto; padding: 8px; font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
+              <div style="color: var(--text-muted); text-align: center; padding: 6px;">No events recorded yet.</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Base Instructions (Default Bot Behavior) -->
         <div class="card">
@@ -1360,7 +1442,6 @@
 
   <script type="module">
     // Determine Backend URL
-    // In Vite, import.meta.env.VITE_API_URL is replaced at build time with the actual repository variable.
     let buildApiUrl = '';
     try {
       if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
@@ -1380,24 +1461,37 @@
     let selectedMode = 'all';
     let linkPollInterval = null;
     let mainPollInterval = null;
+    let localCountdownTimer = null;
+    let currentSecondsLeft = 0;
 
     // Elements
     const toast = document.getElementById('toast');
     const toastMsg = document.getElementById('toast-msg');
     const toastIcon = document.getElementById('toast-icon');
-    const pillConn = document.getElementById('pill-conn-status');
-    const pillText = document.getElementById('pill-conn-text');
+    const pillServer = document.getElementById('pill-server');
+    const pillServerText = document.getElementById('pill-server-text');
+    const pillWhatsApp = document.getElementById('pill-whatsapp');
+    const pillWhatsAppText = document.getElementById('pill-whatsapp-text');
     const authSheet = document.getElementById('auth-sheet');
     const missingApiOverlay = document.getElementById('missing-api-overlay');
     const chatDetail = document.getElementById('chat-detail-view');
+    const btnRequestLink = document.getElementById('btn-request-link');
+    const pairingBox = document.getElementById('pairing-result-box');
+    const pairingLabel = document.getElementById('pairing-code-label');
+    const pairingCountdown = document.getElementById('pairing-countdown');
+    const linkErrorBanner = document.getElementById('link-error-banner');
+    const linkErrorMsg = document.getElementById('link-error-msg');
+    const linkErrorHint = document.getElementById('link-error-hint');
+    const linkSuccessBanner = document.getElementById('link-success-banner');
 
-    // Toast helper
-    function showToast(text, isError = false) {
-      toastMsg.textContent = text;
+    // Toast helper: displays real messages and hints, never generic failures
+    function showToast(text, isError = false, hint = '') {
+      const fullText = hint ? `${text} — ${hint}` : text;
+      toastMsg.textContent = fullText;
       toast.style.borderColor = isError ? 'var(--danger)' : 'var(--accent-primary)';
       toastIcon.textContent = isError ? '✕' : '✓';
       toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2400);
+      setTimeout(() => toast.classList.remove('show'), 3200);
     }
 
     // Verify Backend URL presence
@@ -1449,16 +1543,22 @@
         authToken = '';
         sessionStorage.removeItem('auth_token');
         authSheet.classList.add('open');
-        throw new Error('Authentication required');
+        const err = new Error('Session expired or unauthorized');
+        err.hint = 'Please enter your dashboard password.';
+        throw err;
       }
 
       if (!res.ok) {
         let errMsg = `Request failed (${res.status})`;
+        let errHint = '';
         try {
           const errData = await res.json();
           if (errData.error) errMsg = errData.error;
+          if (errData.hint) errHint = errData.hint;
         } catch (_) {}
-        throw new Error(errMsg);
+        const error = new Error(errMsg);
+        error.hint = errHint;
+        throw error;
       }
 
       return await res.json();
@@ -1474,7 +1574,7 @@
       }
     }
 
-    // Password Login Handler: POST /api/login { password } returns { token }
+    // Password Login Handler
     document.getElementById('btn-auth-unlock').addEventListener('click', async () => {
       const p = document.getElementById('auth-pass-val').value.trim();
       if (!p) {
@@ -1498,7 +1598,9 @@
         const data = await res.json();
 
         if (!res.ok || !data.token) {
-          throw new Error(data.error || 'Incorrect password');
+          const err = new Error(data.error || 'Incorrect password');
+          err.hint = data.hint || '';
+          throw err;
         }
 
         authToken = data.token;
@@ -1508,7 +1610,7 @@
         showToast('Signed in successfully');
         initDashboard();
       } catch (err) {
-        showToast(err.message, true);
+        showToast(err.message, true, err.hint);
       } finally {
         btn.textContent = 'Unlock app';
         btn.disabled = false;
@@ -1576,7 +1678,7 @@
       if (hash === 'home') { fetchHomeActivity(); fetchState(); }
       if (hash === 'chats') { fetchChats(); }
       if (hash === 'dashboard') { fetchStats(); fetchState(); }
-      if (hash === 'settings') { fetchSettings(); }
+      if (hash === 'settings') { fetchSettings(); fetchState(); }
     }
 
     window.addEventListener('hashchange', route);
@@ -1588,10 +1690,30 @@
         const s = await api('/api/state');
         if (!s) return;
 
-        // Header status pill (Connected / Waiting / Offline)
-        const pill = (s.connectionPill || 'Offline').toLowerCase();
-        pillConn.className = 'status-pill ' + pill;
-        pillText.textContent = s.connectionPill || 'Offline';
+        // 1. Header: Server Live Chip
+        const uptimeMins = Math.floor((s.server?.uptimeSec ?? s.uptime ?? 0) / 60);
+        pillServerText.textContent = `Server: Live (${uptimeMins}m)`;
+
+        // 2. Header: WhatsApp Status Chip (No "Waiting" allowed)
+        const waState = s.whatsapp?.state || (s.status === 'open' ? 'connected' : 'not_linked');
+        currentSecondsLeft = s.pairing?.secondsLeft ?? 0;
+
+        pillWhatsApp.className = 'status-chip ' + waState;
+        if (waState === 'connected') {
+          pillWhatsAppText.textContent = 'Connected';
+        } else if (waState === 'code_ready') {
+          pillWhatsAppText.textContent = currentSecondsLeft > 0 ? `Enter code (${currentSecondsLeft}s)` : 'Code expired';
+        } else if (waState === 'connecting') {
+          pillWhatsAppText.textContent = 'Connecting...';
+        } else if (waState === 'reconnecting') {
+          pillWhatsAppText.textContent = 'Reconnecting...';
+        } else if (waState === 'logged_out') {
+          pillWhatsAppText.textContent = 'WhatsApp: Logged out';
+        } else if (waState === 'error') {
+          pillWhatsAppText.textContent = 'WhatsApp: Error';
+        } else {
+          pillWhatsAppText.textContent = 'WhatsApp: Not connected';
+        }
 
         // Freetown Clock in header
         if (s.freetownTime) {
@@ -1602,18 +1724,22 @@
         // Home screen cards
         document.getElementById('home-stat-today').textContent = s.repliesToday ?? 0;
         document.getElementById('home-stat-provider').textContent = s.activeProvider || 'Gemini';
-        document.getElementById('chip-phone').textContent = s.activePhone ? `Number: +${s.activePhone}` : 'Number: Not linked';
-        document.getElementById('chip-uptime').textContent = `Uptime: ${Math.floor((s.uptime || 0) / 60)}m`;
+        const activePhoneNum = s.whatsapp?.phone || s.activePhone;
+        document.getElementById('chip-phone').textContent = activePhoneNum ? `Number: +${activePhoneNum}` : 'Number: Not linked';
+        document.getElementById('chip-uptime').textContent = `Uptime: ${uptimeMins}m`;
 
         const homeDesc = document.getElementById('home-conn-desc');
         const homeCta = document.getElementById('home-link-cta');
-        if (pill === 'connected') {
+        if (waState === 'connected') {
           homeDesc.textContent = 'Linked and listening for incoming messages.';
           homeCta.style.display = 'none';
-        } else if (pill === 'waiting') {
-          homeDesc.textContent = 'Pairing code generated. Waiting for WhatsApp verification.';
-          homeCta.textContent = 'View code';
+        } else if (waState === 'code_ready') {
+          homeDesc.textContent = `Pairing code active (${currentSecondsLeft}s left). Enter code in WhatsApp.`;
+          homeCta.textContent = 'Enter code';
           homeCta.style.display = 'inline-flex';
+        } else if (waState === 'connecting' || waState === 'reconnecting') {
+          homeDesc.textContent = 'Connecting to WhatsApp network...';
+          homeCta.style.display = 'none';
         } else {
           homeDesc.textContent = 'WhatsApp is not linked. Tap Link to connect.';
           homeCta.textContent = 'Link now';
@@ -1625,35 +1751,94 @@
         pauseToggle.checked = !s.isManualPaused;
         document.getElementById('pause-status-sub').textContent = s.isManualPaused ? 'Automated replies are paused' : 'Bot replies are currently active';
 
-        // Link screen status
-        const linkSuccess = document.getElementById('link-success-banner');
-        if (pill === 'connected') {
-          linkSuccess.style.display = 'block';
-          document.getElementById('pairing-result-box').style.display = 'none';
+        // 3. Link Screen Management
+        if (waState === 'connected') {
+          linkSuccessBanner.style.display = 'block';
+          pairingBox.style.display = 'none';
+          btnRequestLink.disabled = true;
+          btnRequestLink.textContent = 'WhatsApp Connected';
+          linkErrorBanner.style.display = 'none';
         } else {
-          linkSuccess.style.display = 'none';
+          linkSuccessBanner.style.display = 'none';
+
+          if (s.pairing?.code && currentSecondsLeft > 0) {
+            pairingBox.style.display = 'block';
+            pairingLabel.textContent = s.pairing.code;
+            pairingCountdown.textContent = `Expires in ${currentSecondsLeft}s`;
+            btnRequestLink.disabled = true;
+            btnRequestLink.textContent = `Code active (${currentSecondsLeft}s)`;
+          } else {
+            pairingBox.style.display = 'none';
+            btnRequestLink.disabled = false;
+            btnRequestLink.textContent = 'Get pairing code';
+          }
+
+          // Error & Hint banner on Link screen
+          if (s.lastError) {
+            linkErrorBanner.style.display = 'block';
+            linkErrorMsg.textContent = `${s.lastError.message || 'Pairing error'}`;
+            linkErrorHint.textContent = s.lastError.hint || '';
+          } else {
+            linkErrorBanner.style.display = 'none';
+          }
         }
 
-        if (s.pairingCode) {
-          document.getElementById('pairing-result-box').style.display = 'block';
-          document.getElementById('pairing-code-label').textContent = s.pairingCode;
+        if (activePhoneNum && !document.getElementById('link-phone-input').value) {
+          document.getElementById('link-phone-input').value = activePhoneNum;
         }
 
-        if (s.activePhone && !document.getElementById('link-phone-input').value) {
-          document.getElementById('link-phone-input').value = s.activePhone;
-        }
+        // 4. Settings Screen: System Status Section
+        document.getElementById('sys-server-val').textContent = `Live (${uptimeMins}m)`;
+        const sysWa = document.getElementById('sys-wa-val');
+        sysWa.textContent = waState === 'connected' ? 'Connected' : (waState === 'code_ready' ? `Code Ready (${currentSecondsLeft}s)` : (waState === 'connecting' ? 'Connecting...' : (waState === 'reconnecting' ? 'Reconnecting...' : 'Not connected')));
+        sysWa.style.color = waState === 'connected' ? 'var(--accent-secondary)' : (waState === 'code_ready' ? 'var(--accent-primary)' : (waState === 'connecting' || waState === 'reconnecting' ? 'var(--warning)' : 'var(--danger)'));
 
-        // Read-only secret chips from /api/state
         const setChip = (id, label, ok) => {
           const el = document.getElementById(id);
           if (el) {
-            el.textContent = `${label}: ${ok ? 'set ✓' : 'missing ✕'}`;
+            el.textContent = `${label}: ${ok ? 'Set ✓' : 'Missing ✕'}`;
             el.classList.toggle('active', Boolean(ok));
           }
         };
-        setChip('chip-key-gemini', 'Gemini key', s.keys?.gemini);
-        setChip('chip-key-groq', 'Groq key', s.keys?.groq);
-        setChip('chip-key-redis', 'Upstash Redis', s.keys?.redis);
+
+        const redisOk = s.services?.upstash === 'ok';
+        const redisChip = document.getElementById('sys-chip-redis');
+        if (redisChip) {
+          redisChip.textContent = `Upstash: ${redisOk ? 'OK ✓' : 'Error ✕'}`;
+          redisChip.classList.toggle('active', redisOk);
+        }
+
+        setChip('sys-chip-gemini', 'Gemini', s.services?.gemini);
+        setChip('sys-chip-groq', 'Groq', s.services?.groq);
+
+        // Dashboard environment chips
+        setChip('chip-key-gemini', 'Gemini', s.services?.gemini);
+        setChip('chip-key-groq', 'Groq', s.services?.groq);
+        const dashRedis = document.getElementById('chip-key-redis');
+        if (dashRedis) {
+          dashRedis.textContent = `Upstash Redis: ${redisOk ? 'Set ✓' : 'Error ✕'}`;
+          dashRedis.classList.toggle('active', redisOk);
+        }
+
+        // Render Recent Events in System Status
+        const eventsContainer = document.getElementById('sys-events-container');
+        if (eventsContainer && Array.isArray(s.events)) {
+          if (s.events.length === 0) {
+            eventsContainer.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:6px;">No events recorded yet.</div>';
+          } else {
+            eventsContainer.innerHTML = s.events.map(e => {
+              const time = new Date(e.time).toLocaleTimeString();
+              const levelColor = e.level === 'error' ? 'var(--danger)' : (e.level === 'warn' ? 'var(--warning)' : 'var(--accent-primary)');
+              return `
+                <div style="display:flex; gap:6px; align-items:baseline; margin-bottom:3px; line-height:1.35;">
+                  <span style="color:var(--text-muted); font-size:10px; flex-shrink:0;">${time}</span>
+                  <span style="font-weight:700; font-size:10px; color:${levelColor}; flex-shrink:0;">[${(e.level || 'info').toUpperCase()}]</span>
+                  <span style="color:var(--text-main); flex:1; word-break:break-word;">${e.message}</span>
+                </div>
+              `;
+            }).join('');
+          }
+        }
 
       } catch (_) {}
     }
@@ -1696,7 +1881,7 @@
         showToast(isPaused ? 'Auto-reply paused' : 'Auto-reply resumed');
         fetchState();
       } catch (err) {
-        showToast(err.message, true);
+        showToast(err.message, true, err.hint);
       }
     });
 
@@ -1727,39 +1912,38 @@
     }
 
     // Link screen: Get Pairing Code (POST /api/link {phone})
-    document.getElementById('btn-request-link').addEventListener('click', async () => {
+    btnRequestLink.addEventListener('click', async () => {
       const phoneInput = document.getElementById('link-phone-input').value.trim();
       const cleanPhone = phoneInput.replace(/\D/g, '');
       if (!cleanPhone) {
-        showToast('Please enter your phone number with country code', true);
+        showToast('Please enter your phone number with country code', true, 'Example: 23276123456');
         return;
       }
 
-      const btn = document.getElementById('btn-request-link');
-      btn.textContent = 'Requesting code...';
-      btn.disabled = true;
+      btnRequestLink.textContent = 'Requesting code...';
+      btnRequestLink.disabled = true;
 
       try {
         const res = await api('/api/link', { method: 'POST', body: { phone: cleanPhone } });
         if (res.pairingCode) {
-          document.getElementById('pairing-result-box').style.display = 'block';
-          document.getElementById('pairing-code-label').textContent = res.pairingCode;
+          pairingBox.style.display = 'block';
+          pairingLabel.textContent = res.pairingCode;
+          currentSecondsLeft = res.secondsLeft || 60;
+          pairingCountdown.textContent = `Expires in ${currentSecondsLeft}s`;
           showToast('Pairing code ready!');
         } else {
           showToast(res.message || 'Connecting to WhatsApp...');
         }
         fetchState();
       } catch (e) {
-        showToast(e.message, true);
-      } finally {
-        btn.textContent = 'Get pairing code';
-        btn.disabled = false;
+        showToast(e.message, true, e.hint);
+        fetchState();
       }
     });
 
     // Tap Pairing Code to copy
-    document.getElementById('pairing-result-box').addEventListener('click', () => {
-      const code = document.getElementById('pairing-code-label').textContent;
+    pairingBox.addEventListener('click', () => {
+      const code = pairingLabel.textContent;
       if (code && code !== '----') {
         navigator.clipboard.writeText(code).then(() => showToast('Pairing code copied!'));
       }
@@ -1873,14 +2057,14 @@
       fetchChats();
     });
 
-    // Chat Takeover / Resume buttons (POST /api/chats/:jid/takeover & /resume)
+    // Chat Takeover / Resume buttons
     document.getElementById('btn-chat-takeover').addEventListener('click', async () => {
       if (!activeChatJid) return;
       try {
         await api(`/api/chats/${encodeURIComponent(activeChatJid)}/takeover`, { method: 'POST' });
         showToast('Takeover active');
         openChatDetail(activeChatJid);
-      } catch (e) { showToast(e.message, true); }
+      } catch (e) { showToast(e.message, true, e.hint); }
     });
 
     document.getElementById('btn-chat-resume').addEventListener('click', async () => {
@@ -1889,7 +2073,7 @@
         await api(`/api/chats/${encodeURIComponent(activeChatJid)}/resume`, { method: 'POST' });
         showToast('Bot resumed');
         openChatDetail(activeChatJid);
-      } catch (e) { showToast(e.message, true); }
+      } catch (e) { showToast(e.message, true, e.hint); }
     });
 
     // Settings Screen: Fetch Settings (GET /api/cfg)
@@ -1907,9 +2091,9 @@
         document.getElementById('set-max-delay').value = s.maxDelay ?? 1200;
 
         if (s.profile) {
-          document.getElementById('set-prof-name').value = s.profile.name || '';
-          document.getElementById('set-prof-about').value = s.profile.about || s.profile.facts || '';
-          document.getElementById('set-prof-languages').value = s.profile.languages || '';
+          document.getElementById('set-prof-name').value = s.profile.ownerName || s.profile.name || '';
+          document.getElementById('set-prof-about').value = s.profile.ownerAbout || s.profile.about || s.profile.facts || '';
+          document.getElementById('set-prof-languages').value = s.profile.ownerLanguages || s.profile.languages || '';
           document.getElementById('set-prof-style').value = s.profile.writingStyle || '';
           document.getElementById('set-prof-city').value = s.profile.city || '';
           document.getElementById('set-prof-s1').value = s.profile.sampleMessage1 || '';
@@ -1947,8 +2131,11 @@
       const maxDelay = parseInt(document.getElementById('set-max-delay').value, 10);
 
       const profile = {
+        ownerName: document.getElementById('set-prof-name').value.trim(),
         name: document.getElementById('set-prof-name').value.trim(),
+        ownerAbout: document.getElementById('set-prof-about').value.trim(),
         about: document.getElementById('set-prof-about').value.trim(),
+        ownerLanguages: document.getElementById('set-prof-languages').value.trim(),
         languages: document.getElementById('set-prof-languages').value.trim(),
         writingStyle: document.getElementById('set-prof-style').value.trim(),
         city: document.getElementById('set-prof-city').value.trim(),
@@ -1976,7 +2163,64 @@
         });
         showToast('Settings saved successfully');
         fetchState();
-      } catch (e) { showToast(e.message, true); }
+      } catch (e) { showToast(e.message, true, e.hint); }
+    });
+
+    // System Status Actions: Refresh
+    document.getElementById('btn-refresh-sys').addEventListener('click', () => {
+      fetchState();
+      showToast('System status refreshed');
+    });
+
+    // System Status Actions: Test AI
+    const btnTestAi = document.getElementById('btn-test-ai');
+    const testAiBox = document.getElementById('test-ai-box');
+    const testAiOutput = document.getElementById('test-ai-output');
+    const testAiHint = document.getElementById('test-ai-hint');
+
+    btnTestAi.addEventListener('click', async () => {
+      btnTestAi.disabled = true;
+      btnTestAi.textContent = 'Testing AI...';
+      testAiBox.style.display = 'block';
+      testAiOutput.textContent = 'Calling AI model...';
+      testAiOutput.style.color = 'var(--text-muted)';
+      testAiHint.textContent = '';
+
+      try {
+        const res = await api('/api/test-ai', { method: 'POST' });
+        testAiOutput.textContent = `✓ [${res.provider.toUpperCase()}] ${res.reply} (${res.durationMs}ms)`;
+        testAiOutput.style.color = 'var(--accent-secondary)';
+        testAiHint.textContent = `Provider responded successfully at ${new Date(res.testedAt).toLocaleTimeString()}.`;
+        showToast('AI Test Passed');
+      } catch (err) {
+        testAiOutput.textContent = `✕ [${err.code || 'AI_ERROR'}] ${err.message}`;
+        testAiOutput.style.color = 'var(--danger)';
+        testAiHint.textContent = err.hint || 'Check API keys and provider quotas in Render.';
+        showToast(err.message, true, err.hint);
+      } finally {
+        btnTestAi.disabled = false;
+        btnTestAi.textContent = 'Test AI';
+        fetchState();
+      }
+    });
+
+    // System Status Actions: Reconnect WhatsApp
+    const btnReconnectWa = document.getElementById('btn-reconnect-wa');
+    btnReconnectWa.addEventListener('click', async () => {
+      btnReconnectWa.disabled = true;
+      btnReconnectWa.textContent = 'Reconnecting...';
+      try {
+        const res = await api('/api/reconnect-wa', { method: 'POST' });
+        showToast(res.message || 'Reconnecting WhatsApp socket...');
+        fetchState();
+      } catch (err) {
+        showToast(err.message, true, err.hint);
+      } finally {
+        setTimeout(() => {
+          btnReconnectWa.disabled = false;
+          btnReconnectWa.textContent = 'Reconnect WhatsApp';
+        }, 3000);
+      }
     });
 
     // Session Actions: Clear Memory (POST /api/clear-memory)
@@ -1985,7 +2229,7 @@
       try {
         await api('/api/clear-memory', { method: 'POST' });
         showToast('All chat memory cleared');
-      } catch (e) { showToast(e.message, true); }
+      } catch (e) { showToast(e.message, true, e.hint); }
     });
 
     // Session Actions: Log out WhatsApp (POST /api/logout-wa)
@@ -1995,7 +2239,7 @@
         await api('/api/logout-wa', { method: 'POST' });
         showToast('Logged out of WhatsApp');
         fetchState();
-      } catch (e) { showToast(e.message, true); }
+      } catch (e) { showToast(e.message, true, e.hint); }
     });
 
     // Session Actions: Sign out of Dashboard

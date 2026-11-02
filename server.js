@@ -9,10 +9,10 @@
  * - Sensitive topics guardrail (money, passwords, appointments, promises -> personal handoff)
  * - Owner human reply detection (silences bot for 10 minutes when owner replies personally)
  * - Multi-turn conversational history: alternating user/assistant turns sent to Gemini & Groq
- * - Rolling summary (every 20 messages, merged up to 600 chars) & background fact extraction
- * - Per-contact profile (last seen timing, preferred language, typical message length)
- * - 30-day rolling TTL on all contact memory keys
- * - Token-based authentication (POST /api/login, Authorization: Bearer <token>, x-pass header)
+ * - Robust pairing flow: unexpired 60s pairing code, no auto-requests, no 401 loop
+ * - Differentiated 401 & 408 handling: clears keys only on genuine logout, exponential backoff on timeouts
+ * - Clear status model: server, whatsapp, pairing, lastError, services, events
+ * - Self-ping keep-awake to RENDER_EXTERNAL_URL every 4 minutes
  */
 
 import express from 'express';
@@ -29,7 +29,8 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   initAuthCreds,
-  BufferJSON
+  BufferJSON,
+  Browsers
 } from '@whiskeysockets/baileys';
 
 dotenv.config();
@@ -40,6 +41,7 @@ const __dirname = path.dirname(__filename);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || '';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || '';
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -57,6 +59,20 @@ if (!DASHBOARD_PASSWORD) {
 // 30-day contact key TTL in seconds (refreshes on every message)
 const CONTACT_TTL_SECONDS = 30 * 24 * 60 * 60; // 2,592,000 seconds
 
+// Ring buffer for last 20 log events
+const MAX_EVENTS = 20;
+const eventLog = [];
+
+function logEvent(level, message) {
+  const item = { time: Date.now(), level, message };
+  eventLog.push(item);
+  if (eventLog.length > MAX_EVENTS) {
+    eventLog.shift();
+  }
+  const prefix = level.toUpperCase().padEnd(5);
+  console.log(`[${prefix}] ${message}`);
+}
+
 // ---------------------------------------------------------------------------
 // 1. Resilient Redis REST Layer (automaticDeserialization: false)
 // ---------------------------------------------------------------------------
@@ -70,17 +86,29 @@ class UpstashStore {
           token: UPSTASH_TOKEN,
           automaticDeserialization: false
         });
-        console.log('[Redis] Connected to Upstash Redis REST (automaticDeserialization: false)');
+        logEvent('info', 'Connected to Upstash Redis REST (automaticDeserialization: false)');
       } catch (err) {
-        console.error('[Redis] Upstash init error, falling back to local memory store:', err.message);
+        logEvent('error', `Upstash init error, falling back to local memory store: ${err.message}`);
         this.client = null;
         this.isUpstash = false;
       }
     } else {
-      console.warn('[Redis] No valid UPSTASH_REDIS_REST_URL / TOKEN. Running with in-memory store.');
+      logEvent('warn', 'No valid UPSTASH_REDIS_REST_URL / TOKEN. Running with in-memory store.');
       this.client = null;
     }
     this.memory = new Map();
+  }
+
+  async ping() {
+    try {
+      if (this.isUpstash && this.client) {
+        await this.client.get('__ping__');
+        return 'ok';
+      }
+      return this.isUpstash ? 'error' : 'ok';
+    } catch (_) {
+      return 'error';
+    }
   }
 
   async get(key) {
@@ -244,7 +272,7 @@ function timingSafeEqualStr(a, b) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. 30-Second In-Memory Settings Cache & Clean Defaults
+// 3. Settings Cache & Identity Defaults
 // ---------------------------------------------------------------------------
 let cachedSettings = null;
 let lastSettingsFetch = 0;
@@ -350,7 +378,7 @@ async function useUpstashAuthState() {
       creds = JSON.parse(rawCreds, BufferJSON.reviver);
     }
   } catch (err) {
-    console.warn('[Auth] Failed to parse wa:creds, initializing fresh creds:', err.message);
+    logEvent('warn', `Failed to parse wa:creds, initializing fresh creds: ${err.message}`);
   }
 
   if (!creds) {
@@ -401,7 +429,7 @@ async function useUpstashAuthState() {
         const serialized = JSON.stringify(creds, BufferJSON.replacer);
         await redis.set('wa:creds', serialized);
       } catch (err) {
-        console.error('[Auth] Failed to save wa:creds:', err.message);
+        logEvent('error', `Failed to save wa:creds: ${err.message}`);
       }
     }
   };
@@ -410,9 +438,9 @@ async function useUpstashAuthState() {
 async function clearWhatsAppAuth() {
   try {
     await redis.del('wa:creds');
-    console.log('[Auth] Cleared wa:creds from Redis');
+    logEvent('info', 'Cleared wa:creds from Redis');
   } catch (e) {
-    console.error('[Auth] Error clearing wa:creds:', e.message);
+    logEvent('error', `Error clearing wa:creds: ${e.message}`);
   }
 }
 
@@ -511,7 +539,7 @@ CRITICAL RULES:
 }
 
 // ---------------------------------------------------------------------------
-// 6. Multi-Turn Conversation History (Alternating Turns for Gemini & Groq)
+// 6. Multi-Turn Conversation History
 // ---------------------------------------------------------------------------
 function buildAlternatingTurns(messages, latestUserText) {
   const mapped = [];
@@ -739,13 +767,13 @@ CRITICAL INSTRUCTIONS:
     if (res && res.text) {
       const trimmed = res.text.slice(0, 600);
       await redis.set(`sum:${jid}`, trimmed, { ex: CONTACT_TTL_SECONDS });
-      console.log(`[Summary] Updated sum:${jid} (${trimmed.length} chars)`);
+      logEvent('info', `Updated sum:${jid} (${trimmed.length} chars)`);
     }
 
     // Also extract facts during the summary step
     await extractContactFacts(jid, chatLines);
   } catch (err) {
-    console.warn(`[Summary] Rolling summary failed for ${jid}:`, err.message);
+    logEvent('warn', `Rolling summary failed for ${jid}: ${err.message}`);
   }
 }
 
@@ -776,7 +804,6 @@ Instructions:
       if (match) {
         const parsed = JSON.parse(match[0]);
         if (Array.isArray(parsed)) {
-          // Deduplicate and keep up to 10
           const set = new Set();
           for (const item of parsed) {
             const clean = String(item).trim();
@@ -784,7 +811,7 @@ Instructions:
           }
           const finalFacts = Array.from(set).slice(-10);
           await redis.set(`contact:${jid}:facts`, JSON.stringify(finalFacts), { ex: CONTACT_TTL_SECONDS });
-          console.log(`[Facts] Saved ${finalFacts.length} facts for ${jid}`);
+          logEvent('info', `Saved ${finalFacts.length} facts for ${jid}`);
         }
       }
     }
@@ -796,6 +823,7 @@ Instructions:
 // ---------------------------------------------------------------------------
 let consecutiveFailures = 0;
 let autoPauseUntil = 0;
+let lastAiTest = null;
 
 async function checkAutoPause() {
   const until = await redis.get('autopause:until');
@@ -819,12 +847,12 @@ async function recordAiFailure(provider, errorMsg) {
 
 async function handleBothProvidersFailed(summary) {
   consecutiveFailures += 1;
-  console.warn(`[Auto-Pause] Consecutive failure count: ${consecutiveFailures}/3`);
+  logEvent('warn', `Consecutive AI failure count: ${consecutiveFailures}/3`);
   if (consecutiveFailures >= 3) {
     autoPauseUntil = Date.now() + 10 * 60 * 1000;
     await redis.set('autopause:until', String(autoPauseUntil));
     await recordAiFailure('System (Auto-Pause)', `Paused replies for 10 min after 3 dual-failures: ${summary}`);
-    console.error(`[Auto-Pause] Triggered! Replies paused until ${new Date(autoPauseUntil).toLocaleTimeString()}`);
+    logEvent('error', `Auto-pause triggered! Replies paused until ${new Date(autoPauseUntil).toLocaleTimeString()}`);
   }
 }
 
@@ -849,7 +877,6 @@ async function callGeminiWithTimeout(turnsOrText, systemInstruction, modelName =
     geminiClient = new GoogleGenAI({ apiKey });
   }
 
-  // Format turns for Gemini: array of { role: 'user' | 'model', parts: [{ text }] }
   const turns = Array.isArray(turnsOrText)
     ? turnsOrText
     : [{ role: 'user', text: String(turnsOrText) }];
@@ -887,7 +914,6 @@ async function callGroqWithTimeout(turnsOrText, systemInstruction, modelName = '
     throw new Error('GROQ_API_KEY is not configured');
   }
 
-  // Format turns for Groq: array of { role: 'system' | 'user' | 'assistant', content }
   const turns = Array.isArray(turnsOrText)
     ? turnsOrText
     : [{ role: 'user', text: String(turnsOrText) }];
@@ -976,7 +1002,7 @@ async function generateAiReply(turns, promptBuilderArgs) {
     await handleAiSuccess(primary);
     return { text: result.text, provider: primary, fallbackUsed: false };
   } catch (primaryErr) {
-    console.warn(`[AI] Primary ${primary} failed:`, primaryErr.message);
+    logEvent('warn', `Primary ${primary} failed: ${primaryErr.message}`);
     await recordAiFailure(primary, primaryErr.message);
 
     try {
@@ -989,7 +1015,7 @@ async function generateAiReply(turns, promptBuilderArgs) {
       await handleAiSuccess(fallback);
       return { text: fallbackResult.text, provider: fallback, fallbackUsed: true };
     } catch (fallbackErr) {
-      console.error(`[AI] Fallback ${fallback} failed:`, fallbackErr.message);
+      logEvent('error', `Fallback ${fallback} failed: ${fallbackErr.message}`);
       await recordAiFailure(fallback, fallbackErr.message);
       await handleBothProvidersFailed(`${primary}: ${primaryErr.message} | ${fallback}: ${fallbackErr.message}`);
       throw new Error(`Both AI providers failed. ${primary}: ${primaryErr.message}. ${fallback}: ${fallbackErr.message}`);
@@ -998,15 +1024,30 @@ async function generateAiReply(turns, promptBuilderArgs) {
 }
 
 // ---------------------------------------------------------------------------
-// 9. Baileys WhatsApp Connection
+// 9. Baileys WhatsApp Connection & Pairing Flow
 // ---------------------------------------------------------------------------
 let sock = null;
-let connectionStatus = 'disconnected';
+let whatsappState = 'not_linked'; // 'not_linked' | 'connecting' | 'code_ready' | 'connected' | 'reconnecting' | 'logged_out' | 'error'
+let whatsappStateSince = Date.now();
 let currentPairingCode = null;
+let pairingExpiresAt = 0;
 let activePhone = '';
+let lastError = null; // { code, message, hint, at }
+
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let pendingPairingRequest = null; // { phone, resolve, reject, timer }
 
 const botSentMessageIds = new Set();
 const logger = pino({ level: 'silent' });
+
+function setWhatsappState(newState) {
+  if (whatsappState !== newState) {
+    whatsappState = newState;
+    whatsappStateSince = Date.now();
+    logEvent('info', `WhatsApp state changed: ${newState}`);
+  }
+}
 
 function cleanDigits(val) {
   if (!val) return '';
@@ -1035,8 +1076,24 @@ function matchesContactRule(jid, list, knownPhone = '') {
   return false;
 }
 
-async function startWhatsApp(pairingPhone = '') {
+function scheduleReconnect() {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  const delay = Math.min(60000, 5000 * Math.pow(2, reconnectAttempts));
+  reconnectAttempts++;
+  setWhatsappState('reconnecting');
+  logEvent('warn', `Recoverable disconnect. Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
+  reconnectTimer = setTimeout(() => {
+    startWhatsApp();
+  }, delay);
+}
+
+async function startWhatsApp() {
   try {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     const { state, saveCreds } = await useUpstashAuthState();
     const { version } = await fetchLatestBaileysVersion();
 
@@ -1048,37 +1105,115 @@ async function startWhatsApp(pairingPhone = '') {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
-      browser: ['JTech Assistant', 'Chrome', '124.0.0'],
+      browser: Browsers.ubuntu('Chrome'),
+      keepAliveIntervalMs: 25000,
+      connectTimeoutMs: 60000,
+      markOnlineOnConnect: false,
+      syncFullHistory: false,
       generateHighQualityLinkPreview: false
     });
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect } = update;
+      const { connection, lastDisconnect, qr } = update;
 
       if (connection === 'connecting') {
-        connectionStatus = 'connecting';
-        console.log('[WhatsApp] Connecting...');
+        if (whatsappState !== 'reconnecting' && whatsappState !== 'code_ready') {
+          setWhatsappState('connecting');
+        }
       } else if (connection === 'open') {
-        connectionStatus = 'open';
+        setWhatsappState('connected');
         currentPairingCode = null;
-        console.log('[WhatsApp] Connection opened successfully! JTech Assistant is active.');
+        pairingExpiresAt = 0;
+        lastError = null;
+        reconnectAttempts = 0;
+        logEvent('info', 'WhatsApp connection established successfully. JTech Assistant is online.');
       } else if (connection === 'close') {
-        connectionStatus = 'disconnected';
-        currentPairingCode = null;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const loggedOut = statusCode === DisconnectReason.loggedOut;
-        console.log(`[WhatsApp] Connection closed (status: ${statusCode}). Logged out: ${loggedOut}`);
+        const isRegistered = Boolean(sock?.authState?.creds?.registered);
 
-        if (loggedOut) {
-          console.warn('[WhatsApp] Session logged out. Clearing wa:* keys from Redis...');
-          await clearWhatsAppAuth();
-          if (activePhone) {
-            setTimeout(() => startWhatsApp(activePhone), 4000);
+        logEvent('warn', `WhatsApp connection closed. Status code: ${statusCode}, registered: ${isRegistered}`);
+
+        if (statusCode === DisconnectReason.loggedOut) { // 401
+          if (isRegistered) {
+            // Real logout from phone
+            logEvent('warn', 'Session logged out from device. Wiping credentials.');
+            await clearWhatsAppAuth();
+            setWhatsappState('logged_out');
+            lastError = {
+              code: 401,
+              message: 'WhatsApp session was unlinked from phone',
+              hint: 'Go to the Link screen to pair your WhatsApp account again.',
+              at: Date.now()
+            };
+            currentPairingCode = null;
+            pairingExpiresAt = 0;
+          } else {
+            // 401 during pairing (never registered) MUST NOT wipe anything and MUST NOT retry!
+            logEvent('error', 'WhatsApp rejected the pairing attempt (401). Stopping retry loop.');
+            setWhatsappState('error');
+            lastError = {
+              code: 401,
+              message: 'WhatsApp rejected the pairing attempt (401)',
+              hint: 'Wait a few minutes, remove old linked devices in WhatsApp Settings > Linked devices, then try once.',
+              at: Date.now()
+            };
+            currentPairingCode = null;
+            pairingExpiresAt = 0;
+            if (pendingPairingRequest) {
+              pendingPairingRequest.reject(new Error(lastError.message));
+              clearTimeout(pendingPairingRequest.timer);
+              pendingPairingRequest = null;
+            }
+          }
+        } else if (statusCode === 408 || statusCode === DisconnectReason.timedOut || statusCode === DisconnectReason.connectionLost || statusCode === DisconnectReason.restartRequired) {
+          // Recoverable close: reconnect with exponential backoff if registered
+          if (isRegistered) {
+            scheduleReconnect();
+          } else {
+            if (currentPairingCode && pairingExpiresAt > Date.now()) {
+              logEvent('info', 'Recoverable timeout while pairing code is pending. Waiting for user code entry.');
+              setWhatsappState('code_ready');
+            } else {
+              setWhatsappState('not_linked');
+            }
           }
         } else {
-          setTimeout(() => startWhatsApp(activePhone), 5000);
+          // Other close reason
+          if (isRegistered) {
+            scheduleReconnect();
+          } else {
+            setWhatsappState('not_linked');
+          }
+        }
+      }
+
+      // Handle pending pairing code request from connection.update (when qr or connecting)
+      if (pendingPairingRequest && (qr || connection === 'connecting' || !sock.authState.creds.registered)) {
+        const req = pendingPairingRequest;
+        pendingPairingRequest = null;
+        clearTimeout(req.timer);
+
+        try {
+          logEvent('info', `Requesting pairing code from connection event for +${req.phone}...`);
+          const code = await sock.requestPairingCode(req.phone);
+          currentPairingCode = code;
+          pairingExpiresAt = Date.now() + 60000;
+          setWhatsappState('code_ready');
+          lastError = null;
+          logEvent('info', `Pairing code generated: ${code} (expires in 60s)`);
+          req.resolve(code);
+        } catch (pairErr) {
+          logEvent('error', `Pairing code error: ${pairErr.message}`);
+          setWhatsappState('error');
+          lastError = {
+            code: 500,
+            message: pairErr.message,
+            hint: 'Ensure phone number includes country code. If rate-limited, wait 3 minutes before trying again.',
+            at: Date.now()
+          };
+          req.reject(pairErr);
         }
       }
     });
@@ -1095,27 +1230,15 @@ async function startWhatsApp(pairingPhone = '') {
       }
     });
 
-    const phoneToPair = pairingPhone || activePhone;
-    if (!sock.authState.creds.registered && phoneToPair) {
-      setTimeout(async () => {
-        try {
-          const digits = cleanDigits(phoneToPair);
-          if (digits && sock && !sock.authState.creds.registered) {
-            console.log(`[WhatsApp] Requesting pairing code for: ${digits}`);
-            const code = await sock.requestPairingCode(digits);
-            currentPairingCode = code;
-            activePhone = digits;
-            console.log(`[WhatsApp] Pairing code generated: ${code}`);
-          }
-        } catch (err) {
-          console.error('[WhatsApp] Pairing code generation error:', err.message);
-          currentPairingCode = null;
-        }
-      }, 3500);
-    }
   } catch (err) {
-    console.error('[WhatsApp] Critical startup error:', err.message);
-    connectionStatus = 'disconnected';
+    logEvent('error', `Critical WhatsApp startup error: ${err.message}`);
+    setWhatsappState('error');
+    lastError = {
+      code: 500,
+      message: err.message,
+      hint: 'Check server logs or restart WhatsApp from Settings.',
+      at: Date.now()
+    };
   }
 }
 
@@ -1140,7 +1263,7 @@ async function handleIncomingMessage(m) {
 
     const silenceUntil = Date.now() + 10 * 60 * 1000;
     await redis.set(`handoff:${senderJid}`, String(silenceUntil), { ex: 600 });
-    console.log(`[Human Reply] Owner replied directly to ${senderJid}. Silencing bot for 10 minutes.`);
+    logEvent('info', `Owner replied directly to ${senderJid}. Silencing bot for 10 minutes.`);
     
     const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Owner sent media]';
     await recordMessage(senderJid, 'assistant', text, true, 'Owner (You)');
@@ -1153,12 +1276,10 @@ async function handleIncomingMessage(m) {
     const until = parseInt(handoffVal, 10);
     if (!isNaN(until) && Date.now() < until) {
       const remainingMins = Math.ceil((until - Date.now()) / 60000);
-      console.log(`[Handoff] Active silence for ${senderJid} (${remainingMins}m remaining).`);
       const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Media]';
       await recordMessage(senderJid, 'user', text, false, m.pushName || 'Contact');
       return;
     } else if (isNaN(until)) {
-      console.log(`[Handoff] Manual takeover active for ${senderJid}.`);
       const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Media]';
       await recordMessage(senderJid, 'user', text, false, m.pushName || 'Contact');
       return;
@@ -1266,11 +1387,11 @@ async function handleIncomingMessage(m) {
       }
 
       await recordMessage(senderJid, 'assistant', aiResult.text, true, `JTech Assistant (${aiResult.provider})`);
-      console.log(`[Reply] Sent AI reply to ${senderJid} via ${aiResult.provider} (delay ${delay}ms)`);
+      logEvent('info', `Sent AI reply to ${senderJid} via ${aiResult.provider} (${delay}ms delay)`);
     }
   } catch (err) {
     await sock.sendPresenceUpdate('paused', senderJid);
-    console.error(`[Reply] Error answering ${senderJid}:`, err.message);
+    logEvent('error', `Error answering ${senderJid}: ${err.message}`);
   }
 }
 
@@ -1298,14 +1419,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Public health check route for uptime pingers
+// Public health check route for uptime pingers & self-ping keep-awake
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     app: 'JTech Assistant',
     uptime: Math.floor(process.uptime()),
     timestamp: Date.now(),
-    whatsapp: connectionStatus
+    whatsapp: whatsappState
   });
 });
 
@@ -1328,27 +1449,44 @@ async function requireAuth(req, res, next) {
     return next();
   }
 
-  return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+  return res.status(401).json({
+    error: 'Unauthorized: Invalid or expired token',
+    code: 'UNAUTHORIZED',
+    hint: 'Please sign in with your DASHBOARD_PASSWORD to continue.'
+  });
 }
 
 // POST /api/login { password } returns { token }
 app.post('/api/login', async (req, res) => {
   try {
     if (!DASHBOARD_PASSWORD) {
-      console.warn('[Auth] Login attempt rejected: DASHBOARD_PASSWORD is not set in server environment.');
-      return res.status(500).json({ error: 'Server authentication unconfigured: DASHBOARD_PASSWORD missing' });
+      logEvent('warn', 'Login attempt rejected: DASHBOARD_PASSWORD is not set in server environment.');
+      return res.status(500).json({
+        error: 'Server authentication unconfigured: DASHBOARD_PASSWORD missing',
+        code: 'AUTH_UNCONFIGURED',
+        hint: 'Configure the DASHBOARD_PASSWORD variable in your Render dashboard Environment settings.'
+      });
     }
 
     const { password } = req.body;
     if (!password || !timingSafeEqualStr(String(password), String(DASHBOARD_PASSWORD))) {
-      return res.status(401).json({ error: 'Incorrect dashboard password' });
+      return res.status(401).json({
+        error: 'Incorrect dashboard password',
+        code: 'INVALID_CREDENTIALS',
+        hint: 'Please re-enter your DASHBOARD_PASSWORD exactly as set in Render.'
+      });
     }
 
     const token = crypto.randomBytes(24).toString('hex');
     await redis.set('session:' + token, '1', { ex: 86400 * 14 }); // 14 days TTL
+    logEvent('info', 'Dashboard authenticated successfully via password.');
     res.json({ success: true, token });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'LOGIN_FAILED',
+      hint: 'An unexpected error occurred during sign in. Check system logs.'
+    });
   }
 });
 
@@ -1359,18 +1497,24 @@ app.get('/api/state', requireAuth, async (req, res) => {
     const remainingPauseSecs = isPaused ? Math.max(0, Math.ceil((autoPauseUntil - Date.now()) / 1000)) : 0;
     const settings = await getSettings();
     const today = new Date().toISOString().slice(0, 10);
-    const [repliesToday, geminiCount, groqCount, rawErrors] = await Promise.all([
+    const [repliesToday, geminiCount, groqCount, rawErrors, upstashStatus] = await Promise.all([
       redis.get(`stats:replies:${today}`),
       redis.get('stats:provider:gemini'),
       redis.get('stats:provider:groq'),
-      redis.lrange('stats:ai_errors', 0, 4)
+      redis.lrange('stats:ai_errors', 0, 4),
+      redis.ping()
     ]);
 
-    let connPill = 'Offline';
-    if (connectionStatus === 'open') {
-      connPill = 'Connected';
-    } else if (connectionStatus === 'connecting' || currentPairingCode) {
-      connPill = 'Waiting';
+    const pairingSecondsLeft = pairingExpiresAt > Date.now()
+      ? Math.max(0, Math.ceil((pairingExpiresAt - Date.now()) / 1000))
+      : 0;
+
+    // Clear expired code
+    if (currentPairingCode && pairingSecondsLeft === 0) {
+      currentPairingCode = null;
+      if (whatsappState === 'code_ready') {
+        setWhatsappState('not_linked');
+      }
     }
 
     const recentErrors = [];
@@ -1379,9 +1523,32 @@ app.get('/api/state', requireAuth, async (req, res) => {
     }
 
     res.json({
-      connectionPill: connPill,
-      status: connectionStatus,
-      pairingCode: currentPairingCode,
+      server: {
+        live: true,
+        uptimeSec: Math.floor(process.uptime())
+      },
+      whatsapp: {
+        state: whatsappState,
+        phone: activePhone,
+        since: whatsappStateSince
+      },
+      pairing: {
+        code: currentPairingCode,
+        expiresAt: pairingExpiresAt,
+        secondsLeft: pairingSecondsLeft
+      },
+      lastError,
+      services: {
+        gemini: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
+        groq: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
+        upstash: upstashStatus,
+        lastAiTest
+      },
+      events: eventLog.slice().reverse(),
+      // Backward-compatible fields:
+      uptime: Math.floor(process.uptime()),
+      status: whatsappState,
+      connectionPill: whatsappState === 'connected' ? 'Connected' : (whatsappState === 'connecting' || whatsappState === 'reconnecting' ? 'Connecting' : (whatsappState === 'code_ready' ? 'Code Ready' : 'Offline')),
       activePhone,
       isAutoPaused: isPaused,
       remainingPauseSecs,
@@ -1390,7 +1557,6 @@ app.get('/api/state', requireAuth, async (req, res) => {
       activeProvider: settings.provider,
       geminiModel: settings.geminiModel,
       groqModel: settings.groqModel,
-      uptime: Math.floor(process.uptime()),
       freetownTime: getFreetownTime(),
       repliesToday: parseInt(repliesToday || '0', 10),
       providers: {
@@ -1401,38 +1567,190 @@ app.get('/api/state', requireAuth, async (req, res) => {
       keys: {
         gemini: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
         groq: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
-        redis: Boolean(redis.isUpstash)
+        redis: upstashStatus === 'ok'
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'STATE_FETCH_FAILED',
+      hint: 'Unable to retrieve status. Ensure Upstash Redis credentials are functioning.'
+    });
   }
 });
 
-// POST /api/link { phone }
+// POST /api/link { phone, force }
 app.post('/api/link', requireAuth, async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, force } = req.body;
     const digits = cleanDigits(phone);
     if (!digits) {
-      return res.status(400).json({ error: 'Please enter a valid phone number (digits only, e.g. 23276123456)' });
+      return res.status(400).json({
+        error: 'Please enter a valid phone number (country code + digits, no + sign)',
+        code: 'INVALID_PHONE',
+        hint: 'Example: 23276123456 or 15551234567 (digits only).'
+      });
+    }
+
+    // Check if an unexpired code is already pending
+    if (!force && currentPairingCode && pairingExpiresAt > Date.now()) {
+      const secondsLeft = Math.max(0, Math.ceil((pairingExpiresAt - Date.now()) / 1000));
+      return res.json({
+        success: true,
+        pairingCode: currentPairingCode,
+        expiresAt: pairingExpiresAt,
+        secondsLeft,
+        phone: activePhone
+      });
     }
 
     activePhone = digits;
-    if (sock && sock.authState && !sock.authState.creds.registered) {
+    lastError = null;
+
+    // If socket exists and is already initialized without registered creds, request immediately
+    if (sock && !sock.authState?.creds?.registered) {
       try {
+        logEvent('info', `Requesting pairing code for +${digits}...`);
         const code = await sock.requestPairingCode(digits);
         currentPairingCode = code;
-        return res.json({ success: true, pairingCode: code, phone: digits });
+        pairingExpiresAt = Date.now() + 60000;
+        setWhatsappState('code_ready');
+        logEvent('info', `Pairing code generated: ${code} (expires in 60s)`);
+        return res.json({
+          success: true,
+          pairingCode: code,
+          expiresAt: pairingExpiresAt,
+          secondsLeft: 60,
+          phone: digits
+        });
       } catch (pairErr) {
-        return res.status(500).json({ error: `Pairing error: ${pairErr.message}` });
+        logEvent('error', `Pairing code request error: ${pairErr.message}`);
+        lastError = {
+          code: 500,
+          message: pairErr.message,
+          hint: 'Verify phone number format. If rate-limited, wait 3 minutes before retrying.',
+          at: Date.now()
+        };
+        return res.status(500).json({
+          error: `Pairing error: ${pairErr.message}`,
+          code: 'PAIRING_FAILED',
+          hint: lastError.hint
+        });
       }
-    } else {
-      startWhatsApp(digits);
-      return res.json({ success: true, message: 'Initiating pairing... check pairing code in 3 seconds', phone: digits });
     }
+
+    // Otherwise, initialize fresh socket and request code from connection event
+    if (sock) {
+      try { sock.end(undefined); } catch (_) {}
+    }
+
+    const code = await new Promise((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          pendingPairingRequest = null;
+          reject(new Error('Pairing code generation timed out after 15s. Try again.'));
+        }
+      }, 15000);
+
+      pendingPairingRequest = {
+        phone: digits,
+        resolve: (c) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            resolve(c);
+          }
+        },
+        reject: (e) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            reject(e);
+          }
+        },
+        timer: timeout
+      };
+
+      startWhatsApp();
+    });
+
+    res.json({
+      success: true,
+      pairingCode: code,
+      expiresAt: pairingExpiresAt,
+      secondsLeft: 60,
+      phone: digits
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'PAIRING_ERROR',
+      hint: lastError?.hint || 'Check that your phone number is correct and that WhatsApp is active on your device.'
+    });
+  }
+});
+
+// POST /api/test-ai
+app.post('/api/test-ai', requireAuth, async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const settings = await getSettings();
+    const primary = (settings.provider || 'gemini').toLowerCase();
+    const prompt = 'Please reply with exactly: "JTech Assistant AI test successful."';
+    const system = 'You are a test probe. Return the exact requested text.';
+
+    let result;
+    if (primary === 'gemini') {
+      result = await callGeminiWithTimeout(prompt, system, settings.geminiModel, 12000);
+    } else {
+      result = await callGroqWithTimeout(prompt, system, settings.groqModel, 12000);
+    }
+
+    lastAiTest = Date.now();
+    const durationMs = Date.now() - startTime;
+    logEvent('info', `AI Test passed on ${result.provider} in ${durationMs}ms`);
+
+    res.json({
+      success: true,
+      provider: result.provider,
+      reply: result.text,
+      durationMs,
+      testedAt: lastAiTest
+    });
+  } catch (err) {
+    logEvent('error', `AI Test failed: ${err.message}`);
+    res.status(500).json({
+      error: err.message,
+      code: 'AI_TEST_FAILED',
+      hint: 'Verify GEMINI_API_KEY and GROQ_API_KEY in Render environment settings. Check quota limits and API access.'
+    });
+  }
+});
+
+// POST /api/reconnect-wa
+app.post('/api/reconnect-wa', requireAuth, async (req, res) => {
+  try {
+    logEvent('info', 'Manual reconnect requested from dashboard.');
+    reconnectAttempts = 0;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (sock) {
+      try { sock.end(undefined); } catch (_) {}
+    }
+    setWhatsappState('connecting');
+    startWhatsApp();
+    res.json({
+      success: true,
+      message: 'Reconnecting WhatsApp socket...',
+      state: whatsappState
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      code: 'RECONNECT_FAILED',
+      hint: 'Try again in a few seconds or check server logs in Settings.'
+    });
   }
 });
 
@@ -1442,7 +1760,11 @@ app.get('/api/cfg', requireAuth, async (req, res) => {
     const settings = await getSettings(true);
     res.json(settings);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'CONFIG_FETCH_FAILED',
+      hint: 'Could not load configuration from Redis.'
+    });
   }
 });
 
@@ -1476,9 +1798,14 @@ app.post('/api/cfg', requireAuth, async (req, res) => {
     }
 
     invalidateSettingsCache();
+    logEvent('info', 'Configuration updated successfully.');
     res.json({ success: true, message: 'Configuration saved successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'CONFIG_SAVE_FAILED',
+      hint: 'Unable to write settings to Redis. Check database connection.'
+    });
   }
 });
 
@@ -1523,7 +1850,11 @@ app.get('/api/chats', requireAuth, async (req, res) => {
 
     res.json({ conversations });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'CHATS_FETCH_FAILED',
+      hint: 'Failed to retrieve active chat list.'
+    });
   }
 });
 
@@ -1548,7 +1879,11 @@ app.get('/api/chats/:jid', requireAuth, async (req, res) => {
       messages: memory.messages.slice(-12)
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'CHAT_DETAIL_FAILED',
+      hint: 'Failed to retrieve conversation details.'
+    });
   }
 });
 
@@ -1557,9 +1892,14 @@ app.post('/api/chats/:jid/takeover', requireAuth, async (req, res) => {
   try {
     const { jid } = req.params;
     await redis.set(`handoff:${jid}`, 'manual_takeover');
+    logEvent('info', `Human takeover activated for ${jid}`);
     res.json({ success: true, message: `Bot paused for ${jid}. Human takeover active.` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'TAKEOVER_FAILED',
+      hint: 'Unable to update handoff status in Redis.'
+    });
   }
 });
 
@@ -1568,9 +1908,14 @@ app.post('/api/chats/:jid/resume', requireAuth, async (req, res) => {
   try {
     const { jid } = req.params;
     await redis.del(`handoff:${jid}`);
+    logEvent('info', `Bot resumed for ${jid}`);
     res.json({ success: true, message: `Bot resumed for ${jid}.` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'RESUME_FAILED',
+      hint: 'Unable to remove handoff status in Redis.'
+    });
   }
 });
 
@@ -1600,7 +1945,11 @@ app.get('/api/stats', requireAuth, async (req, res) => {
       recentErrors
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'STATS_FAILED',
+      hint: 'Could not fetch telemetry stats.'
+    });
   }
 });
 
@@ -1624,9 +1973,14 @@ app.post('/api/clear-memory', requireAuth, async (req, res) => {
       ]);
     }
     await redis.del('chats:recent');
+    logEvent('info', 'All contact chat memory and summaries cleared.');
     res.json({ success: true, message: 'All contact chat memory and summaries cleared.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'CLEAR_MEMORY_FAILED',
+      hint: 'Error deleting keys from Redis.'
+    });
   }
 });
 
@@ -1637,11 +1991,18 @@ app.post('/api/logout-wa', requireAuth, async (req, res) => {
       await sock.logout();
     }
     await clearWhatsAppAuth();
-    connectionStatus = 'disconnected';
+    setWhatsappState('not_linked');
     currentPairingCode = null;
+    pairingExpiresAt = 0;
+    lastError = null;
+    logEvent('info', 'WhatsApp session disconnected and credentials wiped by user request.');
     res.json({ success: true, message: 'Logged out and wa:* keys cleared from Redis' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      code: 'LOGOUT_FAILED',
+      hint: 'Could not gracefully log out socket. Try reconnecting.'
+    });
   }
 });
 
@@ -1667,6 +2028,43 @@ app.get('/ui.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'ui.html'));
 });
 
+// Keep-Awake Self-Ping every 4 minutes if RENDER_EXTERNAL_URL is set
+if (RENDER_EXTERNAL_URL) {
+  const pingUrl = `${RENDER_EXTERNAL_URL.replace(/\/+$/, '')}/health`;
+  logEvent('info', `Keep-awake initialized: self-pinging ${pingUrl} every 4 minutes.`);
+  setInterval(async () => {
+    try {
+      const resp = await fetch(pingUrl);
+      if (!resp.ok) {
+        logEvent('warn', `Keep-awake self-ping returned status ${resp.status}`);
+      }
+    } catch (e) {
+      logEvent('warn', `Keep-awake self-ping failed: ${e.message}`);
+    }
+  }, 4 * 60 * 1000);
+}
+
+// Startup: check if registered session exists before connecting
+async function initWhatsAppOnStartup() {
+  try {
+    const rawCreds = await redis.get('wa:creds');
+    if (rawCreds) {
+      const parsed = JSON.parse(rawCreds, BufferJSON.reviver);
+      if (parsed?.registered) {
+        logEvent('info', 'Found existing registered WhatsApp session. Connecting...');
+        setWhatsappState('connecting');
+        startWhatsApp();
+        return;
+      }
+    }
+    logEvent('info', 'No registered WhatsApp session found in Redis. Awaiting user pairing.');
+    setWhatsappState('not_linked');
+  } catch (e) {
+    logEvent('warn', `Startup session check error: ${e.message}`);
+    setWhatsappState('not_linked');
+  }
+}
+
 // Start Express and WhatsApp
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
@@ -1676,7 +2074,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(` CORS Allowed Origin: ${ALLOWED_ORIGIN}`);
   console.log(`====================================================`);
 
-  startWhatsApp().catch((err) => {
-    console.error('[WhatsApp] Background start error:', err.message);
+  initWhatsAppOnStartup().catch((err) => {
+    logEvent('error', `Background startup error: ${err.message}`);
   });
 });
