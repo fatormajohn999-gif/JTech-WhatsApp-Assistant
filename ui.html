@@ -88,9 +88,9 @@
       overflow: hidden;
     }
 
-    /* Fixed Top App Header */
+    /* Fixed Top App Header - Strict 1 Row with Safe-Area */
     header.app-header {
-      height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+      height: calc(52px + env(safe-area-inset-top, 0px));
       padding-top: env(safe-area-inset-top, 0px);
       padding-left: 12px;
       padding-right: 12px;
@@ -109,25 +109,27 @@
       align-items: center;
       gap: 8px;
       min-width: 0;
-      flex-shrink: 1;
+      flex: 1 1 auto;
+      overflow: hidden;
     }
 
     .brand-logo {
-      width: 30px;
-      height: 30px;
-      min-width: 30px;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
       background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      border-radius: 8px;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #0b0f17;
       box-shadow: 0 2px 8px var(--accent-glow);
+      flex-shrink: 0;
     }
 
     .brand-logo svg {
-      width: 17px;
-      height: 17px;
+      width: 16px;
+      height: 16px;
       stroke-width: 2.2;
     }
 
@@ -138,30 +140,24 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      flex-shrink: 1;
     }
 
-    .brand-time {
-      font-size: 10px;
-      color: var(--text-muted);
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .header-pills {
+    .header-right {
       display: flex;
       align-items: center;
       gap: 6px;
       flex-shrink: 0;
     }
 
-    /* Separate Status Chips in Header */
+    /* Single Compact Status Chip in Header */
     .status-chip {
       display: inline-flex;
       align-items: center;
       gap: 5px;
       padding: 3px 8px;
       border-radius: 16px;
-      font-size: 10.5px;
+      font-size: 11px;
       font-weight: 600;
       border: 1px solid var(--border-subtle);
       background: var(--bg-card);
@@ -181,6 +177,12 @@
     .status-chip.code_ready .status-dot { background: var(--accent-primary); box-shadow: 0 0 6px var(--accent-primary); animation: pulse 1.2s infinite; }
     .status-chip.connecting .status-dot, .status-chip.reconnecting .status-dot { background: var(--warning); animation: pulse 1.4s infinite; }
     .status-chip.not_connected .status-dot, .status-chip.offline .status-dot, .status-chip.logged_out .status-dot, .status-chip.error .status-dot { background: var(--danger); }
+
+    /* Copyable Text and Error Styles */
+    .selectable, .selectable-text, .toast, .event-line, [id*="error"], #sys-events-container, .pairing-digits, .probe-output, #dash-error-list {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -933,6 +935,7 @@
   <div id="app-container">
 
     <!-- Fixed Top Header -->
+    <!-- Fixed Top Header (Strict 1 Row) -->
     <header class="app-header">
       <div class="brand-wrap">
         <div class="brand-logo">
@@ -941,22 +944,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
         </div>
-        <div style="min-width: 0;">
-          <div class="brand-title">JTech Assistant</div>
-          <div class="brand-time" id="app-freetown-time">Freetown: --:--</div>
-        </div>
+        <span class="brand-title">JTech Assistant</span>
       </div>
 
-      <div class="header-pills">
-        <!-- Separate Server chip -->
-        <div class="status-chip server" id="pill-server" title="Backend Server Status">
+      <div class="header-right">
+        <!-- Single Compact Status Chip -->
+        <div class="status-chip not_connected" id="pill-compact" title="Connection Status">
           <span class="status-dot"></span>
-          <span id="pill-server-text">Server: Live</span>
-        </div>
-        <!-- Separate WhatsApp chip -->
-        <div class="status-chip not_connected" id="pill-whatsapp" title="WhatsApp Connection Status">
-          <span class="status-dot"></span>
-          <span id="pill-whatsapp-text">WhatsApp: Not connected</span>
+          <span id="pill-compact-text">Live</span>
         </div>
         <button class="icon-btn" id="btn-theme" title="Toggle theme">
           <!-- Sun/Moon icon -->
@@ -973,6 +968,30 @@
       <!-- SCREEN 1: HOME (#home) -->
       <section class="app-screen active" id="screen-home">
         
+        <!-- Status & Freetown Overview Card (Below Header) -->
+        <div class="card" id="home-status-card" style="margin-bottom: 12px; padding: 12px 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg style="width: 15px; height: 15px; color: var(--accent-primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);" id="home-freetown-time">Freetown: --:--</span>
+            </div>
+            <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-subtle);">Africa/Freetown</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="background: var(--bg-surface); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Server Runtime</div>
+              <div style="font-size: 12px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="home-server-full">Server: Live (0m)</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">WhatsApp Connection</div>
+              <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="home-wa-full">WhatsApp: Not connected</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Connection Card -->
         <div class="card" id="home-conn-card">
           <div class="card-header">
@@ -1053,10 +1072,15 @@
             Enter your phone number with country code to generate an 8-character pairing code.
           </div>
 
-          <!-- Exact Error & Hint Banner -->
+          <!-- Exact Error & Hint Banner with Copy Button -->
           <div id="link-error-banner" style="display: none; margin-bottom: 14px; padding: 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid var(--danger); border-radius: var(--radius-sm); text-align: left;">
-            <div style="font-weight: 700; font-size: 13px; color: var(--danger);" id="link-error-msg">Error message</div>
-            <div style="font-size: 11.5px; color: var(--text-main); margin-top: 4px; line-height: 1.4;" id="link-error-hint">Hint</div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--danger); word-break: break-word;" id="link-error-msg">Error message</div>
+                <div style="font-size: 11.5px; color: var(--text-main); margin-top: 4px; line-height: 1.4; word-break: break-word;" id="link-error-hint">Hint</div>
+              </div>
+              <button class="btn btn-sm btn-secondary" id="btn-copy-link-error" style="flex-shrink: 0; padding: 4px 10px; font-size: 11px;">Copy</button>
+            </div>
           </div>
 
           <div class="form-group" style="text-align: left;">
@@ -1157,7 +1181,10 @@
               <div class="card-title">System status</div>
               <div class="card-desc">Runtime diagnostics, service health & event log.</div>
             </div>
-            <button class="btn btn-sm btn-secondary" id="btn-refresh-sys">Refresh</button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-sm btn-secondary" id="btn-copy-diagnostics">Copy diagnostics</button>
+              <button class="btn btn-sm btn-secondary" id="btn-refresh-sys">Refresh</button>
+            </div>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
@@ -1183,10 +1210,35 @@
             <button class="btn btn-secondary btn-sm" id="btn-reconnect-wa">Reconnect WhatsApp</button>
           </div>
 
-          <!-- Test AI Output Box -->
-          <div id="test-ai-box" style="display: none; margin-top: 10px; padding: 10px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px;">
-            <div id="test-ai-output" style="font-weight: 600; word-break: break-word;"></div>
-            <div id="test-ai-hint" style="color: var(--text-muted); font-size: 11px; margin-top: 4px; line-height: 1.4;"></div>
+          <!-- Test AI Output: 2 Separate Cards for Gemini & Groq -->
+          <div id="test-ai-container" style="display: none; margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Gemini Card -->
+            <div class="card" id="card-gemini-probe" style="margin-bottom: 0; background: var(--bg-surface); padding: 12px; border: 1px solid var(--border-subtle);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-weight: 700; font-size: 13px;">Google Gemini Probe</span>
+                  <span class="chat-tag" id="badge-gemini-probe">Checking...</span>
+                </div>
+                <button class="btn btn-sm btn-secondary" id="btn-copy-gemini-probe" style="padding: 2px 8px; font-size: 10.5px;">Copy</button>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="gemini-probe-model">Model: --</div>
+              <div class="probe-output" style="font-size: 12px; margin-top: 6px; word-break: break-word; font-family: monospace;" id="gemini-probe-output"></div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;" id="gemini-probe-hint"></div>
+            </div>
+
+            <!-- Groq Card -->
+            <div class="card" id="card-groq-probe" style="margin-bottom: 0; background: var(--bg-surface); padding: 12px; border: 1px solid var(--border-subtle);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-weight: 700; font-size: 13px;">Groq Probe</span>
+                  <span class="chat-tag" id="badge-groq-probe">Checking...</span>
+                </div>
+                <button class="btn btn-sm btn-secondary" id="btn-copy-groq-probe" style="padding: 2px 8px; font-size: 10.5px;">Copy</button>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="groq-probe-model">Model: --</div>
+              <div class="probe-output" style="font-size: 12px; margin-top: 6px; word-break: break-word; font-family: monospace;" id="groq-probe-output"></div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;" id="groq-probe-hint"></div>
+            </div>
           </div>
 
           <!-- Last 20 Events Log -->
@@ -1210,9 +1262,19 @@
           </div>
         </div>
 
-        <!-- AI Provider Switch -->
+        <!-- AI Provider Switch & Dynamic Models -->
         <div class="card">
-          <div class="card-title">AI engine & models</div>
+          <div class="card-header">
+            <div>
+              <div class="card-title">AI engine & models</div>
+              <div class="card-desc">Dynamic model selection populated live from providers.</div>
+            </div>
+            <button class="btn btn-sm btn-secondary" id="btn-refresh-models">Refresh models</button>
+          </div>
+
+          <div id="models-warning-banner" style="display: none; margin-top: 8px; padding: 8px 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); border-radius: var(--radius-sm); font-size: 11.5px; color: var(--warning); line-height: 1.4;">
+          </div>
+
           <div class="form-group" style="margin-top: 10px;">
             <label for="set-provider">Primary provider</label>
             <select id="set-provider">
@@ -1220,13 +1282,29 @@
               <option value="groq">Groq (Fallback: Gemini)</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label for="set-gemini-model">Gemini model</label>
-            <input type="text" id="set-gemini-model" placeholder="gemini-2.5-flash">
+            <label for="set-gemini-model-select">Gemini model</label>
+            <select id="set-gemini-model-select">
+              <option value="gemini-flash-latest">gemini-flash-latest (Default)</option>
+              <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Fast & light)</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+              <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+              <option value="__custom__">Custom model name...</option>
+            </select>
+            <input type="text" id="set-gemini-model-custom" placeholder="Enter custom Gemini model" style="display: none; margin-top: 6px;">
           </div>
+
           <div class="form-group">
-            <label for="set-groq-model">Groq model</label>
-            <input type="text" id="set-groq-model" placeholder="llama-3.3-70b-versatile">
+            <label for="set-groq-model-select">Groq model</label>
+            <select id="set-groq-model-select">
+              <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Default)</option>
+              <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fast)</option>
+              <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+              <option value="gemma2-9b-it">gemma2-9b-it</option>
+              <option value="__custom__">Custom model name...</option>
+            </select>
+            <input type="text" id="set-groq-model-custom" placeholder="Enter custom Groq model" style="display: none; margin-top: 6px;">
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -1468,10 +1546,13 @@
     const toast = document.getElementById('toast');
     const toastMsg = document.getElementById('toast-msg');
     const toastIcon = document.getElementById('toast-icon');
-    const pillServer = document.getElementById('pill-server');
-    const pillServerText = document.getElementById('pill-server-text');
-    const pillWhatsApp = document.getElementById('pill-whatsapp');
-    const pillWhatsAppText = document.getElementById('pill-whatsapp-text');
+    const pillCompact = document.getElementById('pill-compact');
+    const pillCompactText = document.getElementById('pill-compact-text');
+    const homeFreetownTime = document.getElementById('home-freetown-time');
+    const homeServerFull = document.getElementById('home-server-full');
+    const homeWaFull = document.getElementById('home-wa-full');
+    let latestState = null;
+    let liveModelsData = null;
     const authSheet = document.getElementById('auth-sheet');
     const missingApiOverlay = document.getElementById('missing-api-overlay');
     const chatDetail = document.getElementById('chat-detail-view');
@@ -1689,42 +1770,61 @@
       try {
         const s = await api('/api/state');
         if (!s) return;
+        latestState = s;
 
-        // 1. Header: Server Live Chip
         const uptimeMins = Math.floor((s.server?.uptimeSec ?? s.uptime ?? 0) / 60);
-        pillServerText.textContent = `Server: Live (${uptimeMins}m)`;
-
-        // 2. Header: WhatsApp Status Chip (No "Waiting" allowed)
+        const nodeVer = s.server?.nodeVersion || '22.x';
         const waState = s.whatsapp?.state || (s.status === 'open' ? 'connected' : 'not_linked');
         currentSecondsLeft = s.pairing?.secondsLeft ?? 0;
+        const activePhoneNum = s.whatsapp?.phone || s.activePhone;
 
-        pillWhatsApp.className = 'status-chip ' + waState;
-        if (waState === 'connected') {
-          pillWhatsAppText.textContent = 'Connected';
-        } else if (waState === 'code_ready') {
-          pillWhatsAppText.textContent = currentSecondsLeft > 0 ? `Enter code (${currentSecondsLeft}s)` : 'Code expired';
-        } else if (waState === 'connecting') {
-          pillWhatsAppText.textContent = 'Connecting...';
-        } else if (waState === 'reconnecting') {
-          pillWhatsAppText.textContent = 'Reconnecting...';
-        } else if (waState === 'logged_out') {
-          pillWhatsAppText.textContent = 'WhatsApp: Logged out';
-        } else if (waState === 'error') {
-          pillWhatsAppText.textContent = 'WhatsApp: Error';
-        } else {
-          pillWhatsAppText.textContent = 'WhatsApp: Not connected';
+        // 1. Header: Single Compact Status Chip (Live / Connected / Code / Connecting / Offline)
+        if (pillCompact && pillCompactText) {
+          pillCompact.className = 'status-chip compact ' + waState;
+          if (waState === 'connected') {
+            pillCompactText.textContent = 'Connected';
+          } else if (waState === 'code_ready') {
+            pillCompactText.textContent = currentSecondsLeft > 0 ? `Code (${currentSecondsLeft}s)` : 'Code expired';
+          } else if (waState === 'connecting') {
+            pillCompactText.textContent = 'Connecting...';
+          } else if (waState === 'reconnecting') {
+            pillCompactText.textContent = 'Reconnecting...';
+          } else if (waState === 'logged_out') {
+            pillCompactText.textContent = 'Logged out';
+          } else if (waState === 'error') {
+            pillCompactText.textContent = 'Error';
+          } else {
+            pillCompactText.textContent = 'Live';
+          }
         }
 
-        // Freetown Clock in header
-        if (s.freetownTime) {
+        // 2. Home Screen Status Card: Freetown Time, Server Details, WhatsApp Connection
+        if (s.freetownTime && homeFreetownTime) {
           const parts = s.freetownTime.split(',');
-          document.getElementById('app-freetown-time').textContent = 'Freetown: ' + (parts[1] || s.freetownTime).trim();
+          homeFreetownTime.textContent = 'Freetown: ' + (parts[1] || s.freetownTime).trim();
+        }
+        if (homeServerFull) {
+          homeServerFull.textContent = `Server: Live (${uptimeMins}m, Node ${nodeVer})`;
+        }
+        if (homeWaFull) {
+          if (waState === 'connected') {
+            homeWaFull.textContent = activePhoneNum ? `Connected (+${activePhoneNum})` : 'Connected';
+            homeWaFull.style.color = 'var(--accent-secondary)';
+          } else if (waState === 'code_ready') {
+            homeWaFull.textContent = `Code Active (${currentSecondsLeft}s)`;
+            homeWaFull.style.color = 'var(--accent-primary)';
+          } else if (waState === 'connecting' || waState === 'reconnecting') {
+            homeWaFull.textContent = 'Connecting...';
+            homeWaFull.style.color = 'var(--warning)';
+          } else {
+            homeWaFull.textContent = 'Not connected';
+            homeWaFull.style.color = 'var(--text-muted)';
+          }
         }
 
         // Home screen cards
         document.getElementById('home-stat-today').textContent = s.repliesToday ?? 0;
         document.getElementById('home-stat-provider').textContent = s.activeProvider || 'Gemini';
-        const activePhoneNum = s.whatsapp?.phone || s.activePhone;
         document.getElementById('chip-phone').textContent = activePhoneNum ? `Number: +${activePhoneNum}` : 'Number: Not linked';
         document.getElementById('chip-uptime').textContent = `Uptime: ${uptimeMins}m`;
 
@@ -2076,17 +2176,157 @@
       } catch (e) { showToast(e.message, true, e.hint); }
     });
 
+    // Copy button on Link error banner
+    const btnCopyLinkError = document.getElementById('btn-copy-link-error');
+    if (btnCopyLinkError) {
+      btnCopyLinkError.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const msg = document.getElementById('link-error-msg').textContent;
+        const hint = document.getElementById('link-error-hint').textContent;
+        const text = `WhatsApp Pairing Error:\n${msg}\n${hint}`;
+        navigator.clipboard.writeText(text).then(() => showToast('Error text copied'));
+      });
+    }
+
+    // Copy Diagnostics block (Never contains secrets)
+    const btnCopyDiag = document.getElementById('btn-copy-diagnostics');
+    if (btnCopyDiag) {
+      btnCopyDiag.addEventListener('click', () => {
+        if (!latestState) {
+          showToast('No diagnostics data available yet', true);
+          return;
+        }
+        const s = latestState;
+        const freetownTime = s.freetownTime || new Date().toLocaleString();
+        const uptimeSec = s.server?.uptimeSec ?? s.uptime ?? 0;
+        const nodeVer = s.server?.nodeVersion || '22.x';
+        const waState = s.whatsapp?.state || s.status || 'not_linked';
+        const waPhone = s.whatsapp?.phone || s.activePhone || 'None';
+        const lastErr = s.lastError ? `[Code ${s.lastError.code || 'N/A'}] ${s.lastError.message || ''} (Hint: ${s.lastError.hint || 'None'})` : 'None';
+        const redisStatus = s.services?.upstash || 'unknown';
+        const geminiKeySet = Boolean(s.services?.gemini || s.keys?.gemini);
+        const groqKeySet = Boolean(s.services?.groq || s.keys?.groq);
+        const activeGeminiModel = s.currentModels?.gemini || s.geminiModel || 'gemini-flash-latest';
+        const activeGroqModel = s.currentModels?.groq || s.groqModel || 'llama-3.3-70b-versatile';
+
+        const events = (s.events || []).map(e => `[${new Date(e.time).toLocaleTimeString()}] [${(e.level || 'info').toUpperCase()}] ${e.message}`).join('\n');
+
+        const diagText = [
+          `=== JTech Assistant Diagnostics ===`,
+          `Time: ${freetownTime} (Africa/Freetown)`,
+          `Server: Live, Uptime: ${uptimeSec}s (${Math.floor(uptimeSec / 60)}m)`,
+          `Node Version: ${nodeVer}`,
+          `WhatsApp State: ${waState} (Phone: ${waPhone})`,
+          `Last Error: ${lastErr}`,
+          `Upstash Redis: ${redisStatus}`,
+          `Gemini Key Configured: ${geminiKeySet}`,
+          `Groq Key Configured: ${groqKeySet}`,
+          `Configured Models: Gemini=${activeGeminiModel}, Groq=${activeGroqModel}`,
+          `--- Recent Events (Last 20) ---`,
+          events || 'No events recorded.'
+        ].join('\n');
+
+        navigator.clipboard.writeText(diagText).then(() => {
+          showToast('Diagnostics copied to clipboard');
+        }).catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = diagText;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          showToast('Diagnostics copied to clipboard');
+        });
+      });
+    }
+
+    // Dynamic Live Models Handling (GET /api/models)
+    async function fetchModels(force = false) {
+      if (!authToken || !API_BASE) return;
+      try {
+        const data = await api(`/api/models${force ? '?refresh=true' : ''}`);
+        liveModelsData = data;
+        populateModelDropdowns();
+        if (force) showToast('Live models refreshed');
+      } catch (e) {
+        console.warn('Failed to fetch live models:', e.message);
+      }
+    }
+
+    function populateModelDropdowns() {
+      if (!liveModelsData) return;
+      const geminiSelect = document.getElementById('set-gemini-model-select');
+      const groqSelect = document.getElementById('set-groq-model-select');
+      const curG = geminiSelect.value;
+      const curQ = groqSelect.value;
+
+      const gModels = liveModelsData.gemini || ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+      geminiSelect.innerHTML = gModels.map(m => `<option value="${m}">${m}${m === 'gemini-flash-latest' ? ' (Default)' : ''}</option>`).join('') + `<option value="__custom__">Custom model name...</option>`;
+
+      const qModels = liveModelsData.groq || ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+      groqSelect.innerHTML = qModels.map(m => `<option value="${m}">${m}${m === 'llama-3.3-70b-versatile' ? ' (Default)' : ''}</option>`).join('') + `<option value="__custom__">Custom model name...</option>`;
+
+      if (curG && curG !== '__custom__') setModelValue('gemini', curG);
+      if (curQ && curQ !== '__custom__') setModelValue('groq', curQ);
+    }
+
+    function setModelValue(provider, modelName) {
+      const select = document.getElementById(`set-${provider}-model-select`);
+      const customInput = document.getElementById(`set-${provider}-model-custom`);
+      if (!select || !modelName) return;
+
+      let found = false;
+      for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === modelName) {
+          select.selectedIndex = i;
+          found = true;
+          break;
+        }
+      }
+
+      const warnBanner = document.getElementById('models-warning-banner');
+      if (found) {
+        customInput.style.display = 'none';
+      } else {
+        select.value = '__custom__';
+        customInput.value = modelName;
+        customInput.style.display = 'block';
+
+        if (warnBanner && liveModelsData) {
+          warnBanner.textContent = `Warning: Configured ${provider} model "${modelName}" is not in the live provider list. The default model will be used if unavailable.`;
+          warnBanner.style.display = 'block';
+        }
+      }
+    }
+
+    document.getElementById('set-gemini-model-select').addEventListener('change', (e) => {
+      const custom = document.getElementById('set-gemini-model-custom');
+      custom.style.display = e.target.value === '__custom__' ? 'block' : 'none';
+      if (e.target.value === '__custom__') custom.focus();
+    });
+
+    document.getElementById('set-groq-model-select').addEventListener('change', (e) => {
+      const custom = document.getElementById('set-groq-model-custom');
+      custom.style.display = e.target.value === '__custom__' ? 'block' : 'none';
+      if (e.target.value === '__custom__') custom.focus();
+    });
+
+    document.getElementById('btn-refresh-models').addEventListener('click', () => {
+      fetchModels(true);
+    });
+
     // Settings Screen: Fetch Settings (GET /api/cfg)
     async function fetchSettings() {
       if (!authToken || !API_BASE) return;
       try {
+        await fetchModels(false);
         const s = await api('/api/cfg');
         if (!s) return;
 
         if (s.baseRules !== undefined) document.getElementById('set-base-rules').value = s.baseRules;
         if (s.provider) document.getElementById('set-provider').value = s.provider;
-        if (s.geminiModel) document.getElementById('set-gemini-model').value = s.geminiModel;
-        if (s.groqModel) document.getElementById('set-groq-model').value = s.groqModel;
+        if (s.geminiModel) setModelValue('gemini', s.geminiModel);
+        if (s.groqModel) setModelValue('groq', s.groqModel);
         document.getElementById('set-min-delay').value = s.minDelay ?? 300;
         document.getElementById('set-max-delay').value = s.maxDelay ?? 1200;
 
@@ -2125,8 +2365,17 @@
     document.getElementById('btn-save-settings').addEventListener('click', async () => {
       const baseRules = document.getElementById('set-base-rules').value.trim();
       const provider = document.getElementById('set-provider').value;
-      const geminiModel = document.getElementById('set-gemini-model').value.trim();
-      const groqModel = document.getElementById('set-groq-model').value.trim();
+      
+      const gSelect = document.getElementById('set-gemini-model-select');
+      const geminiModel = gSelect.value === '__custom__'
+        ? document.getElementById('set-gemini-model-custom').value.trim()
+        : gSelect.value;
+
+      const qSelect = document.getElementById('set-groq-model-select');
+      const groqModel = qSelect.value === '__custom__'
+        ? document.getElementById('set-groq-model-custom').value.trim()
+        : qSelect.value;
+
       const minDelay = parseInt(document.getElementById('set-min-delay').value, 10);
       const maxDelay = parseInt(document.getElementById('set-max-delay').value, 10);
 
@@ -2172,36 +2421,102 @@
       showToast('System status refreshed');
     });
 
-    // System Status Actions: Test AI
+    // System Status Actions: Test AI (Separate 2-Card Probes with 25s Timeout)
     const btnTestAi = document.getElementById('btn-test-ai');
-    const testAiBox = document.getElementById('test-ai-box');
-    const testAiOutput = document.getElementById('test-ai-output');
-    const testAiHint = document.getElementById('test-ai-hint');
+    const testAiContainer = document.getElementById('test-ai-container');
 
     btnTestAi.addEventListener('click', async () => {
       btnTestAi.disabled = true;
-      btnTestAi.textContent = 'Testing AI...';
-      testAiBox.style.display = 'block';
-      testAiOutput.textContent = 'Calling AI model...';
-      testAiOutput.style.color = 'var(--text-muted)';
-      testAiHint.textContent = '';
+      btnTestAi.textContent = 'Testing AI (25s max)...';
+      testAiContainer.style.display = 'flex';
+
+      // Set initial probe state
+      const gBadge = document.getElementById('badge-gemini-probe');
+      gBadge.textContent = 'Probing...';
+      gBadge.className = 'chat-tag human';
+      gBadge.style.color = '';
+      gBadge.style.background = '';
+      document.getElementById('gemini-probe-output').textContent = 'Waiting for Gemini response (25s timeout)...';
+      document.getElementById('gemini-probe-output').style.color = 'var(--text-muted)';
+      document.getElementById('gemini-probe-hint').textContent = '';
+
+      const qBadge = document.getElementById('badge-groq-probe');
+      qBadge.textContent = 'Probing...';
+      qBadge.className = 'chat-tag human';
+      qBadge.style.color = '';
+      qBadge.style.background = '';
+      document.getElementById('groq-probe-output').textContent = 'Waiting for Groq response (25s timeout)...';
+      document.getElementById('groq-probe-output').style.color = 'var(--text-muted)';
+      document.getElementById('groq-probe-hint').textContent = '';
 
       try {
         const res = await api('/api/test-ai', { method: 'POST' });
-        testAiOutput.textContent = `✓ [${res.provider.toUpperCase()}] ${res.reply} (${res.durationMs}ms)`;
-        testAiOutput.style.color = 'var(--accent-secondary)';
-        testAiHint.textContent = `Provider responded successfully at ${new Date(res.testedAt).toLocaleTimeString()}.`;
-        showToast('AI Test Passed');
+
+        // Gemini Probe Result
+        const g = res.gemini;
+        document.getElementById('gemini-probe-model').textContent = `Model: ${g?.model || 'gemini-flash-latest'}`;
+        if (g?.ok) {
+          gBadge.textContent = `OK (${g.latencyMs}ms)`;
+          gBadge.className = 'chat-tag bot';
+          gBadge.style.color = '';
+          gBadge.style.background = '';
+          document.getElementById('gemini-probe-output').textContent = `✓ Response: ${g.reply || 'OK'}`;
+          document.getElementById('gemini-probe-output').style.color = 'var(--accent-secondary)';
+          document.getElementById('gemini-probe-hint').textContent = `Latency: ${g.latencyMs}ms. Status: HTTP 200.`;
+        } else {
+          gBadge.textContent = `Failed (${g?.status || 500})`;
+          gBadge.className = 'chat-tag';
+          gBadge.style.color = 'var(--danger)';
+          gBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          document.getElementById('gemini-probe-output').textContent = `✕ [HTTP ${g?.status || 500}] ${g?.error || 'Probe failed'}`;
+          document.getElementById('gemini-probe-output').style.color = 'var(--danger)';
+          document.getElementById('gemini-probe-hint').textContent = `Hint: ${g?.hint || 'Check GEMINI_API_KEY in Render environment.'}`;
+        }
+
+        // Groq Probe Result
+        const q = res.groq;
+        document.getElementById('groq-probe-model').textContent = `Model: ${q?.model || 'llama-3.3-70b-versatile'}`;
+        if (q?.ok) {
+          qBadge.textContent = `OK (${q.latencyMs}ms)`;
+          qBadge.className = 'chat-tag bot';
+          qBadge.style.color = '';
+          qBadge.style.background = '';
+          document.getElementById('groq-probe-output').textContent = `✓ Response: ${q.reply || 'OK'}`;
+          document.getElementById('groq-probe-output').style.color = 'var(--accent-secondary)';
+          document.getElementById('groq-probe-hint').textContent = `Latency: ${q.latencyMs}ms. Status: HTTP 200.`;
+        } else {
+          qBadge.textContent = `Failed (${q?.status || 500})`;
+          qBadge.className = 'chat-tag';
+          qBadge.style.color = 'var(--danger)';
+          qBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          document.getElementById('groq-probe-output').textContent = `✕ [HTTP ${q?.status || 500}] ${q?.error || 'Probe failed'}`;
+          document.getElementById('groq-probe-output').style.color = 'var(--danger)';
+          document.getElementById('groq-probe-hint').textContent = `Hint: ${q?.hint || 'Check GROQ_API_KEY in Render environment.'}`;
+        }
+
+        showToast('AI Probes Finished');
       } catch (err) {
-        testAiOutput.textContent = `✕ [${err.code || 'AI_ERROR'}] ${err.message}`;
-        testAiOutput.style.color = 'var(--danger)';
-        testAiHint.textContent = err.hint || 'Check API keys and provider quotas in Render.';
         showToast(err.message, true, err.hint);
       } finally {
         btnTestAi.disabled = false;
         btnTestAi.textContent = 'Test AI';
         fetchState();
       }
+    });
+
+    // Individual Copy Probe Buttons
+    document.getElementById('btn-copy-gemini-probe').addEventListener('click', () => {
+      const model = document.getElementById('gemini-probe-model').textContent;
+      const output = document.getElementById('gemini-probe-output').textContent;
+      const hint = document.getElementById('gemini-probe-hint').textContent;
+      navigator.clipboard.writeText(`Google Gemini Probe Result:\n${model}\n${output}\n${hint}`).then(() => showToast('Gemini probe copied'));
+    });
+
+    document.getElementById('btn-copy-groq-probe').addEventListener('click', () => {
+      const model = document.getElementById('groq-probe-model').textContent;
+      const output = document.getElementById('groq-probe-output').textContent;
+      const hint = document.getElementById('groq-probe-hint').textContent;
+      navigator.clipboard.writeText(`Groq Probe Result:\n${model}\n${output}\n${hint}`).then(() => showToast('Groq probe copied'));
     });
 
     // System Status Actions: Reconnect WhatsApp

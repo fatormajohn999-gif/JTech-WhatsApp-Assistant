@@ -278,6 +278,10 @@ let cachedSettings = null;
 let lastSettingsFetch = 0;
 const SETTINGS_CACHE_TTL = 30 * 1000;
 
+const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+const FALLBACK_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+
 const DEFAULT_PROFILE = {
   ownerName: 'JTech',
   ownerFirstName: '',
@@ -337,8 +341,8 @@ async function getSettings(forceRefresh = false) {
       profile,
       baseRules: rawRules || DEFAULT_BASE_RULES,
       provider: provider || 'gemini',
-      geminiModel: geminiModel || 'gemini-2.5-flash',
-      groqModel: groqModel || 'llama-3.3-70b-versatile',
+      geminiModel: geminiModel || DEFAULT_GEMINI_MODEL,
+      groqModel: groqModel || DEFAULT_GROQ_MODEL,
       minDelay: parseInt(minDelay || '300', 10),
       maxDelay: parseInt(maxDelay || '1200', 10),
       isPaused: isPaused === 'true',
@@ -352,8 +356,8 @@ async function getSettings(forceRefresh = false) {
       profile: DEFAULT_PROFILE,
       baseRules: DEFAULT_BASE_RULES,
       provider: 'gemini',
-      geminiModel: 'gemini-2.5-flash',
-      groqModel: 'llama-3.3-70b-versatile',
+      geminiModel: DEFAULT_GEMINI_MODEL,
+      groqModel: DEFAULT_GROQ_MODEL,
       minDelay: 300,
       maxDelay: 1200,
       isPaused: false,
@@ -763,7 +767,9 @@ CRITICAL INSTRUCTIONS:
 2. Cover: topics discussed, any promises made or deferred, open/pending questions, and the person's mood, tone, and preferences.
 3. Be concise, factual, and cohesive.`;
 
-    const res = await callGeminiWithTimeout(prompt, 'Summarize concisely under 600 characters. Output summary text only.', 'gemini-2.5-flash', 12000);
+    const settings = await getSettings();
+    const model = settings.geminiModel || DEFAULT_GEMINI_MODEL;
+    const res = await callGeminiWithTimeout(prompt, 'Summarize concisely under 600 characters. Output summary text only.', model, 12000);
     if (res && res.text) {
       const trimmed = res.text.slice(0, 600);
       await redis.set(`sum:${jid}`, trimmed, { ex: CONTACT_TTL_SECONDS });
@@ -798,7 +804,9 @@ Instructions:
 3. Return ONLY a valid JSON array of strings (e.g. ["Lives in Aberdeen", "Prefers WhatsApp for quotes"]).
 4. Keep at most 10 facts total. If more than 10, drop the oldest/least relevant.`;
 
-    const res = await callGeminiWithTimeout(prompt, 'Output JSON array only.', 'gemini-2.5-flash', 8000);
+    const settings = await getSettings();
+    const model = settings.geminiModel || DEFAULT_GEMINI_MODEL;
+    const res = await callGeminiWithTimeout(prompt, 'Output JSON array only.', model, 8000);
     if (res && res.text) {
       const match = res.text.match(/\[[\s\S]*\]/);
       if (match) {
@@ -965,6 +973,29 @@ async function callGroqWithTimeout(turnsOrText, systemInstruction, modelName = '
   }
 }
 
+let isFirstAiCall = true;
+
+async function callProviderWithTimeoutRetry(provider, turns, systemInstruction, modelName, timeoutMs) {
+  try {
+    if (provider === 'gemini') {
+      return await callGeminiWithTimeout(turns, systemInstruction, modelName, timeoutMs);
+    } else {
+      return await callGroqWithTimeout(turns, systemInstruction, modelName, timeoutMs);
+    }
+  } catch (err) {
+    const isTimeout = /timeout|aborterror/i.test(err.message || '');
+    if (isTimeout) {
+      logEvent('warn', `${provider} timed out after ${timeoutMs}ms. Retrying once before fallback...`);
+      if (provider === 'gemini') {
+        return await callGeminiWithTimeout(turns, systemInstruction, modelName, timeoutMs);
+      } else {
+        return await callGroqWithTimeout(turns, systemInstruction, modelName, timeoutMs);
+      }
+    }
+    throw err;
+  }
+}
+
 async function generateAiReply(turns, promptBuilderArgs) {
   const settings = await getSettings();
 
@@ -991,27 +1022,22 @@ async function generateAiReply(turns, promptBuilderArgs) {
 
   const primary = (settings.provider || 'gemini').toLowerCase();
   const fallback = primary === 'gemini' ? 'groq' : 'gemini';
+  const primaryModel = primary === 'gemini' ? (settings.geminiModel || DEFAULT_GEMINI_MODEL) : (settings.groqModel || DEFAULT_GROQ_MODEL);
+  const fallbackModel = fallback === 'gemini' ? (settings.geminiModel || DEFAULT_GEMINI_MODEL) : (settings.groqModel || DEFAULT_GROQ_MODEL);
+
+  const callTimeout = isFirstAiCall ? 20000 : 12000;
+  isFirstAiCall = false;
 
   try {
-    let result;
-    if (primary === 'gemini') {
-      result = await callGeminiWithTimeout(turns, systemInstruction, settings.geminiModel, 12000);
-    } else {
-      result = await callGroqWithTimeout(turns, systemInstruction, settings.groqModel, 12000);
-    }
+    const result = await callProviderWithTimeoutRetry(primary, turns, systemInstruction, primaryModel, callTimeout);
     await handleAiSuccess(primary);
     return { text: result.text, provider: primary, fallbackUsed: false };
   } catch (primaryErr) {
-    logEvent('warn', `Primary ${primary} failed: ${primaryErr.message}`);
+    logEvent('warn', `Primary ${primary} failed after retry/timeout: ${primaryErr.message}`);
     await recordAiFailure(primary, primaryErr.message);
 
     try {
-      let fallbackResult;
-      if (fallback === 'gemini') {
-        fallbackResult = await callGeminiWithTimeout(turns, systemInstruction, settings.geminiModel, 12000);
-      } else {
-        fallbackResult = await callGroqWithTimeout(turns, systemInstruction, settings.groqModel, 12000);
-      }
+      const fallbackResult = await callProviderWithTimeoutRetry(fallback, turns, systemInstruction, fallbackModel, 12000);
       await handleAiSuccess(fallback);
       return { text: fallbackResult.text, provider: fallback, fallbackUsed: true };
     } catch (fallbackErr) {
@@ -1036,7 +1062,40 @@ let lastError = null; // { code, message, hint, at }
 
 let reconnectAttempts = 0;
 let reconnectTimer = null;
-let pendingPairingRequest = null; // { phone, resolve, reject, timer }
+let isSocketOpenForPairing = false;
+let pairingWaiters = [];
+let isPairingInProgress = false;
+
+function notifyPairingWaiters() {
+  const waiters = pairingWaiters;
+  pairingWaiters = [];
+  for (const fn of waiters) {
+    try { fn(); } catch (_) {}
+  }
+}
+
+function waitForSocketOpenForPairing(timeoutMs = 30000) {
+  if (isSocketOpenForPairing && sock && !sock.authState?.creds?.registered) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error('Timed out waiting for WhatsApp socket to open for pairing'));
+      }
+    }, timeoutMs);
+
+    pairingWaiters.push(() => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  });
+}
 
 const botSentMessageIds = new Set();
 const logger = pino({ level: 'silent' });
@@ -1095,7 +1154,8 @@ async function startWhatsApp() {
     }
 
     const { state, saveCreds } = await useUpstashAuthState();
-    const { version } = await fetchLatestBaileysVersion();
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    logEvent('info', `Fetched Baileys version: ${Array.isArray(version) ? version.join('.') : version} (isLatest: ${isLatest})`);
 
     sock = makeWASocket({
       version,
@@ -1118,9 +1178,19 @@ async function startWhatsApp() {
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
+      if (qr) {
+        logEvent('info', 'Received pairing challenge event (socket is open for pairing).');
+        isSocketOpenForPairing = true;
+        notifyPairingWaiters();
+      }
+
       if (connection === 'connecting') {
         if (whatsappState !== 'reconnecting' && whatsappState !== 'code_ready') {
           setWhatsappState('connecting');
+        }
+        if (!sock?.authState?.creds?.registered) {
+          isSocketOpenForPairing = true;
+          notifyPairingWaiters();
         }
       } else if (connection === 'open') {
         setWhatsappState('connected');
@@ -1128,8 +1198,10 @@ async function startWhatsApp() {
         pairingExpiresAt = 0;
         lastError = null;
         reconnectAttempts = 0;
+        isSocketOpenForPairing = false;
         logEvent('info', 'WhatsApp connection established successfully. JTech Assistant is online.');
       } else if (connection === 'close') {
+        isSocketOpenForPairing = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const isRegistered = Boolean(sock?.authState?.creds?.registered);
 
@@ -1161,11 +1233,6 @@ async function startWhatsApp() {
             };
             currentPairingCode = null;
             pairingExpiresAt = 0;
-            if (pendingPairingRequest) {
-              pendingPairingRequest.reject(new Error(lastError.message));
-              clearTimeout(pendingPairingRequest.timer);
-              pendingPairingRequest = null;
-            }
           }
         } else if (statusCode === 408 || statusCode === DisconnectReason.timedOut || statusCode === DisconnectReason.connectionLost || statusCode === DisconnectReason.restartRequired) {
           // Recoverable close: reconnect with exponential backoff if registered
@@ -1188,34 +1255,6 @@ async function startWhatsApp() {
           }
         }
       }
-
-      // Handle pending pairing code request from connection.update (when qr or connecting)
-      if (pendingPairingRequest && (qr || connection === 'connecting' || !sock.authState.creds.registered)) {
-        const req = pendingPairingRequest;
-        pendingPairingRequest = null;
-        clearTimeout(req.timer);
-
-        try {
-          logEvent('info', `Requesting pairing code from connection event for +${req.phone}...`);
-          const code = await sock.requestPairingCode(req.phone);
-          currentPairingCode = code;
-          pairingExpiresAt = Date.now() + 60000;
-          setWhatsappState('code_ready');
-          lastError = null;
-          logEvent('info', `Pairing code generated: ${code} (expires in 60s)`);
-          req.resolve(code);
-        } catch (pairErr) {
-          logEvent('error', `Pairing code error: ${pairErr.message}`);
-          setWhatsappState('error');
-          lastError = {
-            code: 500,
-            message: pairErr.message,
-            hint: 'Ensure phone number includes country code. If rate-limited, wait 3 minutes before trying again.',
-            at: Date.now()
-          };
-          req.reject(pairErr);
-        }
-      }
     });
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -1231,6 +1270,7 @@ async function startWhatsApp() {
     });
 
   } catch (err) {
+    isSocketOpenForPairing = false;
     logEvent('error', `Critical WhatsApp startup error: ${err.message}`);
     setWhatsappState('error');
     lastError = {
@@ -1525,7 +1565,8 @@ app.get('/api/state', requireAuth, async (req, res) => {
     res.json({
       server: {
         live: true,
-        uptimeSec: Math.floor(process.uptime())
+        uptimeSec: Math.floor(process.uptime()),
+        nodeVersion: process.version
       },
       whatsapp: {
         state: whatsappState,
@@ -1538,6 +1579,10 @@ app.get('/api/state', requireAuth, async (req, res) => {
         secondsLeft: pairingSecondsLeft
       },
       lastError,
+      currentModels: {
+        gemini: settings.geminiModel || DEFAULT_GEMINI_MODEL,
+        groq: settings.groqModel || DEFAULT_GROQ_MODEL
+      },
       services: {
         gemini: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
         groq: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
@@ -1579,154 +1624,412 @@ app.get('/api/state', requireAuth, async (req, res) => {
   }
 });
 
+async function executePairingRequest(phoneInput) {
+  // 1. Strip every non-digit from the phone number
+  const cleanPhone = String(phoneInput || '').replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 7 || cleanPhone.length > 15) {
+    const err = new Error('Invalid phone number. Enter full international number with country code (digits only).');
+    err.code = 'INVALID_PHONE';
+    err.hint = 'Example: 23276123456 or 15551234567. Do not include + or spaces.';
+    throw err;
+  }
+
+  if (sock?.authState?.creds?.registered) {
+    const err = new Error('WhatsApp is already linked to a registered device.');
+    err.code = 'ALREADY_LINKED';
+    err.hint = 'To pair a new device or number, first unlink WhatsApp in Settings.';
+    throw err;
+  }
+
+  // Ensure socket is initiated
+  if (!sock) {
+    logEvent('info', 'Starting WhatsApp socket for pairing request...');
+    isSocketOpenForPairing = false;
+    await startWhatsApp();
+  }
+
+  // Helper to wait until connection event shows socket is open for pairing, then wait 3s
+  async function waitForReadySocket() {
+    logEvent('info', 'Waiting for connection event showing socket is open for pairing...');
+    await waitForSocketOpenForPairing(30000);
+    logEvent('info', 'Connection event confirmed socket is open for pairing. Waiting at least 3 seconds...');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+
+  // Attempt 1
+  try {
+    await waitForReadySocket();
+
+    // Strip every non-digit right before calling requestPairingCode
+    const finalDigits = String(cleanPhone).replace(/\D/g, '');
+    logEvent('info', `Requesting pairing code for +${finalDigits}...`);
+    const code = await sock.requestPairingCode(finalDigits);
+
+    currentPairingCode = code;
+    pairingExpiresAt = Date.now() + 60000;
+    activePhone = finalDigits;
+    setWhatsappState('code_ready');
+    lastError = null;
+    logEvent('info', `Pairing code generated successfully: ${code} (expires in 60s)`);
+    return code;
+  } catch (err) {
+    const errText = `${err?.message || ''} ${err?.toString() || ''}`;
+    const isConnClosed = /connection closed/i.test(errText) || (err?.output?.statusCode === 428);
+
+    if (isConnClosed) {
+      logEvent('warn', 'requestPairingCode threw "Connection Closed". Waiting 15 seconds before recreating socket and retrying once...');
+      setWhatsappState('reconnecting');
+      await new Promise((resolve) => setTimeout(resolve, 15000));
+
+      try {
+        logEvent('info', 'Recreating WhatsApp socket for single pairing retry...');
+        if (sock) {
+          try { sock.end(undefined); } catch (_) {}
+          sock = null;
+        }
+        isSocketOpenForPairing = false;
+        await startWhatsApp();
+
+        await waitForReadySocket();
+
+        // Strip every non-digit before requestPairingCode
+        const retryDigits = String(cleanPhone).replace(/\D/g, '');
+        logEvent('info', `Retrying requestPairingCode for +${retryDigits}...`);
+        const code = await sock.requestPairingCode(retryDigits);
+
+        currentPairingCode = code;
+        pairingExpiresAt = Date.now() + 60000;
+        activePhone = retryDigits;
+        setWhatsappState('code_ready');
+        lastError = null;
+        logEvent('info', `Pairing code generated on retry: ${code} (expires in 60s)`);
+        return code;
+      } catch (retryErr) {
+        logEvent('error', `Pairing code retry failed: ${retryErr.message}. Stopping retry loop.`);
+        lastError = {
+          code: 500,
+          message: 'WhatsApp connection closed during pairing attempt',
+          hint: 'WhatsApp closed the pairing connection. Please wait 1 to 2 minutes, verify your phone number format (country code + number, no +), and try once more.',
+          at: Date.now()
+        };
+        setWhatsappState('error');
+        const finalErr = new Error(lastError.message);
+        finalErr.code = 'PAIRING_CONNECTION_CLOSED';
+        finalErr.hint = lastError.hint;
+        throw finalErr;
+      }
+    } else {
+      logEvent('error', `Pairing code request failed: ${err.message}`);
+      lastError = {
+        code: 500,
+        message: err.message,
+        hint: 'Verify phone number format. If rate-limited, wait 3 minutes before retrying.',
+        at: Date.now()
+      };
+      setWhatsappState('error');
+      const finalErr = new Error(err.message);
+      finalErr.code = 'PAIRING_FAILED';
+      finalErr.hint = lastError.hint;
+      throw finalErr;
+    }
+  }
+}
+
 // POST /api/link { phone, force }
 app.post('/api/link', requireAuth, async (req, res) => {
   try {
-    const { phone, force } = req.body;
-    const digits = cleanDigits(phone);
-    if (!digits) {
+    const rawPhone = req.body.phone || req.body.phoneNumber || '';
+    const digits = String(rawPhone).replace(/\D/g, '');
+
+    if (!digits || digits.length < 7 || digits.length > 15) {
       return res.status(400).json({
         error: 'Please enter a valid phone number (country code + digits, no + sign)',
         code: 'INVALID_PHONE',
-        hint: 'Example: 23276123456 or 15551234567 (digits only).'
+        hint: 'Example: 23276123456 or 15551234567 (digits only, no + sign, dashes, or spaces).'
       });
     }
 
     // Check if an unexpired code is already pending
-    if (!force && currentPairingCode && pairingExpiresAt > Date.now()) {
+    if (!req.body.force && currentPairingCode && pairingExpiresAt > Date.now()) {
       const secondsLeft = Math.max(0, Math.ceil((pairingExpiresAt - Date.now()) / 1000));
       return res.json({
         success: true,
         pairingCode: currentPairingCode,
         expiresAt: pairingExpiresAt,
         secondsLeft,
-        phone: activePhone
+        phone: activePhone || digits
       });
     }
 
-    activePhone = digits;
-    lastError = null;
-
-    // If socket exists and is already initialized without registered creds, request immediately
-    if (sock && !sock.authState?.creds?.registered) {
-      try {
-        logEvent('info', `Requesting pairing code for +${digits}...`);
-        const code = await sock.requestPairingCode(digits);
-        currentPairingCode = code;
-        pairingExpiresAt = Date.now() + 60000;
-        setWhatsappState('code_ready');
-        logEvent('info', `Pairing code generated: ${code} (expires in 60s)`);
-        return res.json({
-          success: true,
-          pairingCode: code,
-          expiresAt: pairingExpiresAt,
-          secondsLeft: 60,
-          phone: digits
-        });
-      } catch (pairErr) {
-        logEvent('error', `Pairing code request error: ${pairErr.message}`);
-        lastError = {
-          code: 500,
-          message: pairErr.message,
-          hint: 'Verify phone number format. If rate-limited, wait 3 minutes before retrying.',
-          at: Date.now()
-        };
-        return res.status(500).json({
-          error: `Pairing error: ${pairErr.message}`,
-          code: 'PAIRING_FAILED',
-          hint: lastError.hint
-        });
-      }
+    if (isPairingInProgress) {
+      return res.status(429).json({
+        error: 'Pairing request is already in progress. Please wait a moment...',
+        code: 'PAIRING_IN_PROGRESS',
+        hint: 'Please wait for the current pairing attempt to complete.'
+      });
     }
 
-    // Otherwise, initialize fresh socket and request code from connection event
-    if (sock) {
-      try { sock.end(undefined); } catch (_) {}
+    isPairingInProgress = true;
+    try {
+      const code = await executePairingRequest(digits);
+      const secondsLeft = Math.max(0, Math.ceil((pairingExpiresAt - Date.now()) / 1000));
+      res.json({
+        success: true,
+        pairingCode: code,
+        expiresAt: pairingExpiresAt,
+        secondsLeft,
+        phone: digits
+      });
+    } finally {
+      isPairingInProgress = false;
     }
-
-    const code = await new Promise((resolve, reject) => {
-      let settled = false;
-      const timeout = setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          pendingPairingRequest = null;
-          reject(new Error('Pairing code generation timed out after 15s. Try again.'));
-        }
-      }, 15000);
-
-      pendingPairingRequest = {
-        phone: digits,
-        resolve: (c) => {
-          if (!settled) {
-            settled = true;
-            clearTimeout(timeout);
-            resolve(c);
-          }
-        },
-        reject: (e) => {
-          if (!settled) {
-            settled = true;
-            clearTimeout(timeout);
-            reject(e);
-          }
-        },
-        timer: timeout
-      };
-
-      startWhatsApp();
-    });
-
-    res.json({
-      success: true,
-      pairingCode: code,
-      expiresAt: pairingExpiresAt,
-      secondsLeft: 60,
-      phone: digits
-    });
   } catch (err) {
     res.status(500).json({
       error: err.message,
-      code: 'PAIRING_ERROR',
-      hint: lastError?.hint || 'Check that your phone number is correct and that WhatsApp is active on your device.'
+      code: err.code || 'PAIRING_ERROR',
+      hint: err.hint || lastError?.hint || 'Check that your phone number is correct and that WhatsApp is active on your device.'
     });
   }
 });
 
-// POST /api/test-ai
+function getAiErrorHint(status, message) {
+  const msg = (message || '').toLowerCase();
+  if (status === 400 || msg.includes('400') || msg.includes('invalid argument')) {
+    return 'Bad model or request parameters (400). Check model name.';
+  }
+  if (status === 401 || status === 403 || msg.includes('401') || msg.includes('403') || msg.includes('api_key_invalid') || msg.includes('unauthorized') || msg.includes('permission denied')) {
+    return 'Invalid or unauthorized API key (401/403). Check environment variable.';
+  }
+  if (status === 404 || msg.includes('404') || msg.includes('not found')) {
+    return 'Model not found (404). Model name may be outdated or unavailable.';
+  }
+  if (status === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('rate limit')) {
+    return 'Quota or rate limit reached (429). Check account quota and billing.';
+  }
+  if (msg.includes('timeout') || msg.includes('aborterror')) {
+    return 'Timeout after 25s = no response received from provider.';
+  }
+  return 'Provider error. Check server logs for details.';
+}
+
+function parseHttpError(err) {
+  let status = err.status || err.statusCode || null;
+  let message = err.message || String(err);
+
+  if (!status) {
+    const match = message.match(/\b(400|401|403|404|429|500|502|503)\b/);
+    if (match) status = parseInt(match[1], 10);
+  }
+
+  try {
+    const jsonMatch = message.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.error?.message) message = parsed.error.message;
+      if (parsed.error?.code && typeof parsed.error.code === 'number') status = parsed.error.code;
+    }
+  } catch (_) {}
+
+  return { status: status || 500, message, hint: getAiErrorHint(status, message) };
+}
+
+async function testGeminiProbe(modelName, timeout = 25000) {
+  const start = Date.now();
+  const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      model: modelName,
+      latencyMs: Date.now() - start,
+      status: 401,
+      error: 'GEMINI_API_KEY is not configured in environment',
+      hint: getAiErrorHint(401, 'GEMINI_API_KEY is not configured')
+    };
+  }
+
+  try {
+    const res = await callGeminiWithTimeout('Test probe. Please reply with "OK".', 'You are a test probe.', modelName, timeout);
+    return {
+      ok: true,
+      model: modelName,
+      latencyMs: Date.now() - start,
+      reply: res.text,
+      status: 200
+    };
+  } catch (err) {
+    const parsed = parseHttpError(err);
+    return {
+      ok: false,
+      model: modelName,
+      latencyMs: Date.now() - start,
+      status: parsed.status,
+      error: parsed.message,
+      hint: parsed.hint
+    };
+  }
+}
+
+async function testGroqProbe(modelName, timeout = 25000) {
+  const start = Date.now();
+  const apiKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      model: modelName,
+      latencyMs: Date.now() - start,
+      status: 401,
+      error: 'GROQ_API_KEY is not configured in environment',
+      hint: getAiErrorHint(401, 'GROQ_API_KEY is not configured')
+    };
+  }
+
+  try {
+    const res = await callGroqWithTimeout('Test probe. Please reply with "OK".', 'You are a test probe.', modelName, timeout);
+    return {
+      ok: true,
+      model: modelName,
+      latencyMs: Date.now() - start,
+      reply: res.text,
+      status: 200
+    };
+  } catch (err) {
+    const parsed = parseHttpError(err);
+    return {
+      ok: false,
+      model: modelName,
+      latencyMs: Date.now() - start,
+      status: parsed.status,
+      error: parsed.message,
+      hint: parsed.hint
+    };
+  }
+}
+
+// POST /api/test-ai - Tests Gemini and Groq separately with 25s timeout
 app.post('/api/test-ai', requireAuth, async (req, res) => {
-  const startTime = Date.now();
   try {
     const settings = await getSettings();
-    const primary = (settings.provider || 'gemini').toLowerCase();
-    const prompt = 'Please reply with exactly: "JTech Assistant AI test successful."';
-    const system = 'You are a test probe. Return the exact requested text.';
+    const geminiModel = settings.geminiModel || DEFAULT_GEMINI_MODEL;
+    const groqModel = settings.groqModel || DEFAULT_GROQ_MODEL;
 
-    let result;
-    if (primary === 'gemini') {
-      result = await callGeminiWithTimeout(prompt, system, settings.geminiModel, 12000);
-    } else {
-      result = await callGroqWithTimeout(prompt, system, settings.groqModel, 12000);
-    }
+    logEvent('info', `Running separate AI probe tests (25s timeout) for Gemini (${geminiModel}) and Groq (${groqModel})...`);
 
-    lastAiTest = Date.now();
-    const durationMs = Date.now() - startTime;
-    logEvent('info', `AI Test passed on ${result.provider} in ${durationMs}ms`);
+    const [geminiResult, groqResult] = await Promise.all([
+      testGeminiProbe(geminiModel, 25000),
+      testGroqProbe(groqModel, 25000)
+    ]);
+
+    lastAiTest = {
+      gemini: geminiResult,
+      groq: groqResult,
+      testedAt: Date.now()
+    };
+
+    logEvent('info', `AI probe tests finished. Gemini: ${geminiResult.ok ? 'OK' : 'FAIL'} (${geminiResult.latencyMs}ms), Groq: ${groqResult.ok ? 'OK' : 'FAIL'} (${groqResult.latencyMs}ms)`);
 
     res.json({
       success: true,
-      provider: result.provider,
-      reply: result.text,
-      durationMs,
-      testedAt: lastAiTest
+      gemini: geminiResult,
+      groq: groqResult,
+      testedAt: lastAiTest.testedAt
     });
   } catch (err) {
-    logEvent('error', `AI Test failed: ${err.message}`);
     res.status(500).json({
       error: err.message,
-      code: 'AI_TEST_FAILED',
-      hint: 'Verify GEMINI_API_KEY and GROQ_API_KEY in Render environment settings. Check quota limits and API access.'
+      code: 'TEST_AI_ERROR',
+      hint: 'Could not complete AI probe tests.'
     });
   }
+});
+
+// GET /api/models - Dynamic Live Model Listing with 10min Cache
+let cachedModels = null;
+let lastModelsFetch = 0;
+const MODELS_CACHE_TTL = 10 * 60 * 1000;
+
+app.get('/api/models', requireAuth, async (req, res) => {
+  const force = req.query.refresh === 'true';
+  const now = Date.now();
+  if (!force && cachedModels && (now - lastModelsFetch < MODELS_CACHE_TTL)) {
+    return res.json(cachedModels);
+  }
+
+  let geminiModels = [];
+  let groqModels = [];
+  let geminiWarning = null;
+  let groqWarning = null;
+
+  // Google Models
+  const gKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
+  if (gKey) {
+    try {
+      const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${gKey}`, {
+        headers: { 'x-goog-api-key': gKey }
+      });
+      if (gRes.ok) {
+        const data = await gRes.json();
+        if (Array.isArray(data.models)) {
+          geminiModels = data.models
+            .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => (m.name || '').replace(/^models\//, ''))
+            .filter(name => name.startsWith('gemini') && !name.includes('embedding') && !name.includes('aqa') && !name.includes('imagen'));
+        }
+      } else {
+        geminiWarning = `Google returned status ${gRes.status}`;
+      }
+    } catch (e) {
+      geminiWarning = e.message;
+    }
+  }
+
+  const defaultGemini = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+  for (const m of defaultGemini) {
+    if (!geminiModels.includes(m)) geminiModels.push(m);
+  }
+
+  // Groq Models
+  const qKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
+  if (qKey) {
+    try {
+      const qRes = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${qKey}` }
+      });
+      if (qRes.ok) {
+        const data = await qRes.json();
+        if (Array.isArray(data.data)) {
+          groqModels = data.data
+            .filter(m => m.active !== false)
+            .map(m => m.id)
+            .filter(id => !id.includes('whisper') && !id.includes('embed') && !id.includes('tts') && !id.includes('guard'));
+        }
+      } else {
+        groqWarning = `Groq returned status ${qRes.status}`;
+      }
+    } catch (e) {
+      groqWarning = e.message;
+    }
+  }
+
+  const defaultGroq = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
+  for (const m of defaultGroq) {
+    if (!groqModels.includes(m)) groqModels.push(m);
+  }
+
+  cachedModels = {
+    gemini: geminiModels,
+    groq: groqModels,
+    defaultGemini: DEFAULT_GEMINI_MODEL,
+    fallbackGemini: FALLBACK_GEMINI_MODEL,
+    defaultGroq: DEFAULT_GROQ_MODEL,
+    cachedAt: now,
+    warnings: {
+      gemini: geminiWarning,
+      groq: groqWarning
+    }
+  };
+  lastModelsFetch = now;
+
+  res.json(cachedModels);
 });
 
 // POST /api/reconnect-wa
@@ -2072,9 +2375,36 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(` Dashboard URL: http://localhost:${PORT}`);
   console.log(` Health check URL: http://localhost:${PORT}/health`);
   console.log(` CORS Allowed Origin: ${ALLOWED_ORIGIN}`);
+  console.log(` Node Runtime: ${process.version}`);
   console.log(`====================================================`);
 
+  logEvent('info', `Node runtime version: ${process.version}`);
+  logEvent('info', `Startup API Keys configured: Gemini=${Boolean(GEMINI_API_KEY)}, Groq=${Boolean(GROQ_API_KEY)}, Upstash=${Boolean(UPSTASH_URL && UPSTASH_TOKEN)}`);
+
   initWhatsAppOnStartup().catch((err) => {
-    logEvent('error', `Background startup error: ${err.message}`);
+    logEvent('error', `Background WhatsApp startup error: ${err.message}`);
+  });
+
+  // Run quick Gemini and Groq probe tests in background so the first error appears in logs right away
+  setImmediate(async () => {
+    try {
+      const settings = await getSettings();
+      const [gRes, qRes] = await Promise.all([
+        testGeminiProbe(settings.geminiModel || DEFAULT_GEMINI_MODEL, 12000),
+        testGroqProbe(settings.groqModel || DEFAULT_GROQ_MODEL, 12000)
+      ]);
+      if (gRes.ok) {
+        logEvent('info', `Startup Gemini probe OK (${gRes.model}, ${gRes.latencyMs}ms)`);
+      } else {
+        logEvent('error', `Startup Gemini probe FAILED (${gRes.status}): ${gRes.error} — ${gRes.hint}`);
+      }
+      if (qRes.ok) {
+        logEvent('info', `Startup Groq probe OK (${qRes.model}, ${qRes.latencyMs}ms)`);
+      } else {
+        logEvent('error', `Startup Groq probe FAILED (${qRes.status}): ${qRes.error} — ${qRes.hint}`);
+      }
+    } catch (e) {
+      logEvent('warn', `Startup AI probe check error: ${e.message}`);
+    }
   });
 });
