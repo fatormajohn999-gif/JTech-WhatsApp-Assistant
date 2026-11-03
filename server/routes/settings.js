@@ -36,7 +36,10 @@ router.post('/cfg', requireAuth, async (req, res) => {
       isPaused,
       notifyOwnerOnWhatsApp,
       contactRules,
-      pacing
+      pacing,
+      learnFromReplies,
+      dailySummaryEnabled,
+      dailySummaryTime
     } = req.body;
 
     if (profile && typeof profile === 'object') {
@@ -65,6 +68,9 @@ router.post('/cfg', requireAuth, async (req, res) => {
     if (maxDelay !== undefined) await redis.set('config:max_delay', String(maxDelay));
     if (isPaused !== undefined) await redis.set('config:is_paused', isPaused ? 'true' : 'false');
     if (notifyOwnerOnWhatsApp !== undefined) await redis.set('config:notify_owner', notifyOwnerOnWhatsApp ? 'true' : 'false');
+    if (learnFromReplies !== undefined) await redis.set('config:learn_from_replies', learnFromReplies ? 'true' : 'false');
+    if (dailySummaryEnabled !== undefined) await redis.set('config:daily_summary_enabled', dailySummaryEnabled ? 'true' : 'false');
+    if (dailySummaryTime) await redis.set('config:daily_summary_time', String(dailySummaryTime).trim());
 
     if (contactRules && typeof contactRules === 'object') {
       const mode = ['all', 'allowlist', 'blocklist'].includes(contactRules.mode) ? contactRules.mode : 'all';

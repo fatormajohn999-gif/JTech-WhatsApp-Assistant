@@ -1318,6 +1318,32 @@
           </div>
         </div>
 
+        <!-- Teach-Me Attention Card on Home -->
+        <div class="card" id="home-teachme-card" style="display: none; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.06); padding: 12px 14px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 20px;">💡</span>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text-main);"><span id="home-teachme-count">1</span> question waiting in Teach me</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">The assistant was asked something it didn't know.</div>
+              </div>
+            </div>
+            <a href="#teachme" class="btn btn-sm btn-primary" style="flex-shrink: 0;">Teach me</a>
+          </div>
+        </div>
+
+        <!-- Latest Daily Briefing Card on Home -->
+        <div class="card" id="home-summary-card" style="display: none; margin-bottom: 12px;">
+          <div class="card-header" style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 16px;">📋</span>
+              <div class="card-title" style="font-size: 13.5px;">Latest Daily Briefing</div>
+            </div>
+            <span id="home-summary-date" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Today</span>
+          </div>
+          <div id="home-summary-text" style="font-size: 12px; line-height: 1.5; color: var(--text-main); white-space: pre-wrap; user-select: text; -webkit-user-select: text; background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);"></div>
+        </div>
+
         <!-- Last 5 Activity Items -->
         <div class="card">
           <div class="card-header">
@@ -1342,6 +1368,72 @@
           <div class="skeleton skeleton-chat"></div>
           <div class="skeleton skeleton-chat"></div>
           <div class="skeleton skeleton-chat"></div>
+        </div>
+      </section>
+
+      <!-- SCREEN: TEACH ME (#teachme) -->
+      <section class="app-screen" id="screen-teachme">
+        <div style="margin-bottom: 12px;">
+          <div class="card-title">Teach me & knowledge</div>
+          <div class="card-desc">Answer questions the assistant didn't know and manage permanent facts.</div>
+        </div>
+
+        <!-- Mode selector: Pending Questions vs Knowledge Base -->
+        <div class="mode-bar" style="margin-bottom: 14px;">
+          <button class="mode-btn selected" id="tab-btn-teachme-pending" style="font-size: 12.5px;">
+            Questions waiting (<span id="teachme-pending-badge">0</span>)
+          </button>
+          <button class="mode-btn" id="tab-btn-teachme-kb" style="font-size: 12.5px;">
+            Knowledge base (<span id="teachme-kb-badge">0</span>)
+          </button>
+        </div>
+
+        <!-- View 1: Pending Questions -->
+        <div id="teachme-view-pending">
+          <div id="teachme-pending-list" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="empty-state" id="teachme-empty-state">
+              <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <div class="empty-title">All caught up!</div>
+              <div class="empty-desc">When someone asks a question the assistant doesn't know, it will appear here so you can teach it.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Knowledge Base -->
+        <div id="teachme-view-kb" style="display: none;">
+          <!-- Add Knowledge Form -->
+          <div class="card" style="margin-bottom: 14px;">
+            <div class="card-title" style="font-size: 13.5px;">Add new knowledge</div>
+            <div class="form-group" style="margin-top: 10px;">
+              <label for="kb-input-question">Question or topic</label>
+              <input type="text" id="kb-input-question" placeholder="e.g. What are your opening hours?">
+            </div>
+            <div class="form-group">
+              <label for="kb-input-answer">Confirmed answer</label>
+              <textarea id="kb-input-answer" rows="2" placeholder="e.g. We are open Monday to Saturday from 9:00 AM to 6:00 PM."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="kb-select-scope">Who can receive this answer?</label>
+              <select id="kb-select-scope">
+                <option value="everyone" selected>Everyone (public knowledge)</option>
+                <option value="this contact">Only for a specific contact</option>
+              </select>
+            </div>
+            <div class="form-group" id="kb-contact-group" style="display: none;">
+              <label for="kb-input-contact">Contact Phone or @lid ID</label>
+              <input type="text" id="kb-input-contact" placeholder="e.g. 23276123456 or 120363028392@lid">
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-add-kb-item">
+              Save to knowledge base
+            </button>
+          </div>
+
+          <!-- Existing Knowledge Items List -->
+          <div id="kb-items-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 12px;">Loading knowledge base...</div>
+          </div>
         </div>
       </section>
 
@@ -2005,12 +2097,25 @@
               </div>
             </div>
 
-            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px;">
               <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
                 AI Discovered Facts
               </div>
               <div id="cp-facts-list" style="font-size: 11.5px; line-height: 1.4; color: var(--text-main); display: flex; flex-direction: column; gap: 4px;">
                 <div style="color: var(--text-muted);">No facts discovered yet.</div>
+              </div>
+            </div>
+
+            <!-- Learned from you: Reply examples -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                  Learned from you
+                </div>
+                <span style="font-size: 10.5px; color: var(--text-muted);" id="cp-learned-count">0 examples</span>
+              </div>
+              <div id="cp-learned-examples-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="color: var(--text-muted); font-size: 11.5px;">No learned replies for this contact yet.</div>
               </div>
             </div>
           </div>
@@ -2035,6 +2140,15 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
         <span>Chats</span>
+      </a>
+
+      <a href="#teachme" class="nav-item" data-target="screen-teachme" style="position: relative;">
+        <!-- Teach Me SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span>Teach me</span>
+        <span class="teachme-nav-badge" id="nav-teachme-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--accent-primary); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px var(--accent-glow);">0</span>
       </a>
 
       <!-- Large Raised Center Link Button -->

@@ -36,7 +36,17 @@ export function sanitizeOutboundText(text) {
     .replace(/\[SPLIT\]/gi, '')
     .replace(/\[NO_REPLY\]/gi, '')
     .replace(/\[FOR_OWNER\]/gi, '')
+    .replace(/\[UNKNOWN:\s*[^\]]+\]/gi, '')
     .trim();
+}
+
+/**
+ * Extract question from [UNKNOWN: question]
+ */
+export function parseUnknownMarker(text) {
+  if (!text) return null;
+  const match = text.match(/\[UNKNOWN:\s*([^\]]+)\]/i);
+  return match ? match[1].trim() : null;
 }
 
 /**

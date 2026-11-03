@@ -21,13 +21,39 @@ router.get('/state', requireAuth, async (req, res) => {
     const remainingPauseSecs = isPaused ? Math.max(0, Math.ceil((state.autoPauseUntil - Date.now()) / 1000)) : 0;
     const settings = await getSettings();
     const today = new Date().toISOString().slice(0, 10);
-    const [repliesToday, geminiCount, groqCount, rawErrors, upstashStatus] = await Promise.all([
+    const [
+      repliesToday,
+      geminiCount,
+      groqCount,
+      rawErrors,
+      upstashStatus,
+      rawTeachMe,
+      rawSummary,
+      rawLearnedStyle
+    ] = await Promise.all([
       redis.get(`stats:replies:${today}`),
       redis.get('stats:provider:gemini'),
       redis.get('stats:provider:groq'),
       redis.lrange('stats:ai_errors', 0, 4),
-      redis.ping()
+      redis.ping(),
+      redis.hgetall('teachme:items'),
+      redis.get('summary:latest'),
+      redis.get('owner:style:global')
     ]);
+
+    let teachMeCount = 0;
+    if (rawTeachMe) {
+      for (const val of Object.values(rawTeachMe)) {
+        try {
+          if (JSON.parse(val).status === 'pending') teachMeCount++;
+        } catch (_) {}
+      }
+    }
+
+    let latestDailySummary = null;
+    if (rawSummary) {
+      try { latestDailySummary = JSON.parse(rawSummary); } catch (_) {}
+    }
 
     const pairingSecondsLeft = state.pairingExpiresAt > Date.now()
       ? Math.max(0, Math.ceil((state.pairingExpiresAt - Date.now()) / 1000))
@@ -81,6 +107,9 @@ router.get('/state', requireAuth, async (req, res) => {
         isLimited: state.isGlobalRateLimited && (state.globalRateLimitResetAt > Date.now()),
         resetAt: state.globalRateLimitResetAt
       },
+      teachMeCount,
+      latestDailySummary,
+      learnedStyle: rawLearnedStyle || '',
       // Backward-compatible fields:
       uptime: Math.floor(process.uptime()),
       status: state.whatsappState,

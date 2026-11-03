@@ -40,7 +40,10 @@ export function buildPrompt({
   contactName = '',
   contactProfile = null,
   contactSettings = null,
-  lastSpokeText = ''
+  lastSpokeText = '',
+  ownerLearnedStyle = null,
+  learnedExamples = [],
+  ownerKnowledge = ''
 }) {
   const timeNow = getFreetownTime();
 
@@ -67,6 +70,30 @@ export function buildPrompt({
   const targetRelationship = contactSettings?.relationship || 'Not specified';
   const contactCustomPrompt = (contactSettings?.prompt || '').trim();
 
+  // Learned style section
+  let styleSection = '';
+  if (ownerLearnedStyle) {
+    const parts = [];
+    if (ownerLearnedStyle.globalStyle) {
+      parts.push(`General texting voice:\n${ownerLearnedStyle.globalStyle}`);
+    }
+    if (ownerLearnedStyle.contactStyle) {
+      parts.push(`How the owner texts this specific person:\n${ownerLearnedStyle.contactStyle}`);
+    }
+    if (parts.length > 0) {
+      styleSection = `\n=== HOW THE OWNER TEXTS (LEARNED STYLE) ===\n${parts.join('\n\n')}\n`;
+    }
+  }
+
+  // Learned examples section (3 to 5 real reply pairs)
+  let examplesSection = '';
+  if (Array.isArray(learnedExamples) && learnedExamples.length > 0) {
+    const formattedPairs = learnedExamples.slice(0, 5).map((ex, i) => 
+      `Example ${i + 1}:\nContact: "${ex.contactMessage || '(incoming message)'}"\nOwner: "${ex.ownerReply}"`
+    ).join('\n\n');
+    examplesSection = `\n=== EXAMPLES OF HOW THE OWNER ACTUALLY ANSWERED ===\n(Follow the spirit, tone, and brevity of these answers; do not copy them word-for-word unless identical situation)\n${formattedPairs}\n`;
+  }
+
   return `
 ${CORE_BRAIN}
 
@@ -84,7 +111,9 @@ ${contactCustomPrompt ? `- Custom instructions for this contact:\n${contactCusto
 - Languages: ${ownerLanguages}
 - Preferred Writing Style: ${writingStyle}
 ${customInstructions ? `\n- General Texting Instructions:\n${customInstructions}` : ''}
-
+${styleSection}
+${examplesSection}
+${ownerKnowledge ? `\n${ownerKnowledge}\n` : ''}
 === LIVE TIME & CONTEXT ===
 - Live Time Awareness (Freetown): ${timeNow}
 - Contact JID: ${senderJid}

@@ -29,7 +29,10 @@ export async function getSettings(forceRefresh = false) {
       isPaused,
       contactRules,
       rawNotifyOwner,
-      rawPacing
+      rawPacing,
+      rawLearnReplies,
+      rawDailySummaryEnabled,
+      rawDailySummaryTime
     ] = await Promise.all([
       redis.get('config:owner_profile'),
       redis.get('config:personal_prompt'),
@@ -42,7 +45,10 @@ export async function getSettings(forceRefresh = false) {
       redis.get('config:is_paused'),
       redis.get('config:contact_rules'),
       redis.get('config:notify_owner'),
-      redis.get('config:pacing_settings')
+      redis.get('config:pacing_settings'),
+      redis.get('config:learn_from_replies'),
+      redis.get('config:daily_summary_enabled'),
+      redis.get('config:daily_summary_time')
     ]);
 
     let profile = { ...DEFAULT_PROFILE };
@@ -98,7 +104,10 @@ export async function getSettings(forceRefresh = false) {
       isPaused: isPaused === 'true',
       notifyOwnerOnWhatsApp: rawNotifyOwner === 'true',
       contactRules: rules,
-      pacing
+      pacing,
+      learnFromReplies: rawLearnReplies !== 'false',
+      dailySummaryEnabled: rawDailySummaryEnabled !== 'false',
+      dailySummaryTime: rawDailySummaryTime || '21:00'
     };
     lastSettingsFetch = now;
     return cachedSettings;
@@ -124,7 +133,10 @@ export async function getSettings(forceRefresh = false) {
         reactionsEnabled: true,
         maxHourlyRepliesPerContact: 30,
         maxHourlyRepliesGlobal: 150
-      }
+      },
+      learnFromReplies: true,
+      dailySummaryEnabled: true,
+      dailySummaryTime: '21:00'
     };
   }
 }

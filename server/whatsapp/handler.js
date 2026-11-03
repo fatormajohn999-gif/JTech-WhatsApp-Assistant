@@ -18,8 +18,19 @@ import {
   cancelPendingBatch,
   enqueueIncomingMessage,
   dispatchPacedReply,
-  checkHourlyRateLimits
+  checkHourlyRateLimits,
+  parseUnknownMarker
 } from './pacing.js';
+import {
+  captureOwnerReply,
+  getLearnedStyle,
+  getLearnedExamples
+} from '../memory/owner-style.js';
+import {
+  recordTeachMeItem,
+  getKnowledgeForPrompt
+} from '../memory/knowledge.js';
+import { markChatActiveToday } from '../lib/daily-summary.js';
 
 export function matchesContactRule(jid, list, knownPhone = '') {
   if (!Array.isArray(list) || list.length === 0) return false;
@@ -56,7 +67,7 @@ export async function handleIncomingMessage(m) {
 
   const msgId = m.key.id;
 
-  // Owner human reply detection (silences bot for 10 minutes)
+  // Owner human reply detection (silences bot for 10 minutes and captures reply)
   if (m.key.fromMe) {
     if (state.botSentMessageIds.has(msgId)) return;
 
@@ -80,8 +91,16 @@ export async function handleIncomingMessage(m) {
 
     const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Owner sent media]';
     await recordMessage(senderJid, 'assistant', text, true, 'Owner (You)');
+
+    // Feature 1: Capture what the owner writes (for style learning and learned examples)
+    await captureOwnerReply(senderJid, text);
+    // Feature 5: Track chat active today
+    await markChatActiveToday(senderJid);
     return;
   }
+
+  // Feature 5: Track contact message activity today
+  await markChatActiveToday(senderJid);
 
   // Check Handoff Status
   const handoffVal = await redis.get(`handoff:${senderJid}`);
@@ -185,6 +204,20 @@ export async function handleIncomingMessage(m) {
 
       if (!state.sock) return;
 
+      // Fetch learning context: learned style, examples, and knowledge base
+      let ownerLearnedStyle = null;
+      let learnedExamples = [];
+      let ownerKnowledge = '';
+      try {
+        [ownerLearnedStyle, learnedExamples, ownerKnowledge] = await Promise.all([
+          getLearnedStyle(senderJid),
+          getLearnedExamples(senderJid, 5),
+          getKnowledgeForPrompt(senderJid)
+        ]);
+      } catch (learnErr) {
+        console.warn('[Learning] Non-blocking context fetch error:', learnErr.message);
+      }
+
       try {
         const aiResult = await generateAiReply(turns, {
           contactFacts: memory.facts,
@@ -193,7 +226,10 @@ export async function handleIncomingMessage(m) {
           contactName: memory.settings?.displayName || memory.profile?.displayName || pushName || phone,
           contactProfile: memory.profile,
           contactSettings: memory.settings,
-          lastSpokeText
+          lastSpokeText,
+          ownerLearnedStyle,
+          learnedExamples,
+          ownerKnowledge
         });
 
         // Discard stale in-flight AI generation if new messages arrived in the meantime
@@ -209,6 +245,18 @@ export async function handleIncomingMessage(m) {
 
         if (aiResult.text) {
           const trimmedText = aiResult.text.trim();
+
+          // Feature 3: Check for [UNKNOWN: question] marker
+          const unknownQuestion = parseUnknownMarker(trimmedText);
+          if (unknownQuestion) {
+            const contactDisplayName = memory.settings?.displayName || memory.profile?.displayName || pushName || phone || senderJid;
+            await recordTeachMeItem({
+              contactJid: senderJid,
+              contactName: contactDisplayName,
+              originalMessage: combinedUserText,
+              question: unknownQuestion
+            });
+          }
 
           // Check for [FOR_OWNER] escalation marker
           const needsOwnerEscalation = trimmedText.includes('[FOR_OWNER]');

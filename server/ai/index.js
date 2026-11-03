@@ -133,9 +133,11 @@ export async function generateAiReply(turns, promptBuilderArgs) {
     contactName: promptBuilderArgs.contactName,
     contactProfile: promptBuilderArgs.contactProfile,
     contactSettings: promptBuilderArgs.contactSettings,
-    lastSpokeText: promptBuilderArgs.lastSpokeText
+    lastSpokeText: promptBuilderArgs.lastSpokeText,
+    ownerLearnedStyle: promptBuilderArgs.ownerLearnedStyle,
+    learnedExamples: promptBuilderArgs.learnedExamples,
+    ownerKnowledge: promptBuilderArgs.ownerKnowledge
   });
-
 
   const primary = (settings.provider || 'gemini').toLowerCase();
   const fallback = primary === 'gemini' ? 'groq' : 'gemini';
@@ -166,6 +168,35 @@ export async function generateAiReply(turns, promptBuilderArgs) {
       await recordAiFailure(fallback, fallbackErr.message);
       await handleBothProvidersFailed(`${primary}: ${primaryErr.message} | ${fallback}: ${fallbackErr.message}`);
       throw new Error(`Both AI providers failed. ${primary}: ${primaryErr.message}. ${fallback}: ${fallbackErr.message}`);
+    }
+  }
+}
+
+/**
+ * General-purpose AI completion runner for internal features (style analysis, summary, teach-me answers)
+ */
+export async function runAiCompletion(userPrompt, systemInstruction = '', timeoutMs = 25000) {
+  const settings = await getSettings();
+  const primary = (settings.provider || 'gemini').toLowerCase();
+  const fallback = primary === 'gemini' ? 'groq' : 'gemini';
+  const primaryModel = primary === 'gemini'
+    ? (settings.geminiModel || DEFAULT_GEMINI_MODEL)
+    : (settings.groqModel || DEFAULT_GROQ_MODEL);
+  const fallbackModel = fallback === 'gemini'
+    ? (settings.geminiModel || FALLBACK_GEMINI_MODEL)
+    : (settings.groqModel || DEFAULT_GROQ_MODEL);
+
+  const turns = [{ role: 'user', text: userPrompt }];
+
+  try {
+    const res = await callProvider(primary, turns, systemInstruction, primaryModel, timeoutMs);
+    return res.text;
+  } catch (primaryErr) {
+    try {
+      const fb = await callProvider(fallback, turns, systemInstruction, fallbackModel, timeoutMs);
+      return fb.text;
+    } catch (fallbackErr) {
+      throw new Error(`AI completion failed on both providers: ${primaryErr.message} / ${fallbackErr.message}`);
     }
   }
 }
