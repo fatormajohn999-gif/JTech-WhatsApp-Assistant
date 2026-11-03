@@ -52,6 +52,7 @@ export function buildPrompt({
   const summarySection = chatSummary ? chatSummary : 'First conversation or no older summary yet.';
 
   const ownerName = profile.ownerName || profile.name || 'JTech';
+  const ownerFirstName = profile.ownerFirstName || ownerName;
   const ownerAbout = profile.ownerAbout || profile.about || profile.facts || 'Tech brand and software solutions';
   const ownerLanguages = profile.ownerLanguages || profile.languages || 'English, Krio';
   const writingStyle = profile.writingStyle || 'Casual, natural, short, respectful, and direct. Sounds like a real person texting from their phone.';
@@ -66,11 +67,6 @@ export function buildPrompt({
   const targetRelationship = contactSettings?.relationship || 'Not specified';
   const contactCustomPrompt = (contactSettings?.prompt || '').trim();
 
-  // Benchmark samples without customer-support phrases
-  const sample1 = profile.sampleMessage1 || 'Got it, let me check on that and get back to you in a bit.';
-  const sample2 = profile.sampleMessage2 || 'Sure thing, send the details over whenever you can.';
-  const sample3 = profile.sampleMessage3 || 'Catch you later!';
-
   return `
 ${CORE_BRAIN}
 
@@ -78,20 +74,16 @@ ${CORE_BRAIN}
 - Name / Nickname: ${targetDisplayName}
 - Relationship: ${targetRelationship}
 ${contactCustomPrompt ? `- Custom instructions for this contact:\n${contactCustomPrompt}` : '- Custom instructions: Treat with standard respect and warmth according to the relationship.'}
-(Note: These specific person instructions take priority over general owner tone for this chat, but core safety and honesty rules remain strictly enforced.)
+(Note: These specific person instructions customize your voice and topics for this chat, but core safety, honesty, and [FOR_OWNER] escalation remain strictly enforced.)
 
-=== OWNER CONTEXT & GENERAL WRITING STYLE ===
-- Owner Name: ${ownerName} ${profile.ownerFirstName ? `(First name: ${profile.ownerFirstName})` : ''}
+=== OWNER PROFILE (WHO YOU WORK FOR) ===
+- Owner Name: ${ownerName}
+- Owner First Name (refer to them naturally as this): ${ownerFirstName}
 - About Owner: ${ownerAbout}
-${profile.city ? `- Location: ${profile.city} (Time zone: ${profile.timeZone || 'Africa/Freetown'})` : ''}
+- Time Zone: ${profile.timeZone || 'Africa/Freetown'}
 - Languages: ${ownerLanguages}
-- General Texting Style: ${writingStyle}
-${customInstructions ? `\n- General Owner Preferences:\n${customInstructions}` : ''}
-
-=== NATURAL TEXTING SAMPLES (TONE BENCHMARKS) ===
-Sample 1: "${sample1}"
-Sample 2: "${sample2}"
-Sample 3: "${sample3}"
+- Preferred Writing Style: ${writingStyle}
+${customInstructions ? `\n- General Texting Instructions:\n${customInstructions}` : ''}
 
 === LIVE TIME & CONTEXT ===
 - Live Time Awareness (Freetown): ${timeNow}

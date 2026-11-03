@@ -53,8 +53,19 @@ export async function handleIncomingMessage(m) {
     if (state.botSentMessageIds.has(msgId)) return;
 
     const silenceUntil = Date.now() + 10 * 60 * 1000;
-    await redis.set(`handoff:${senderJid}`, String(silenceUntil), { ex: 600 });
-    logEvent('info', `Owner replied directly to ${senderJid}. Silencing bot for 10 minutes.`);
+    await Promise.all([
+      redis.set(`handoff:${senderJid}`, String(silenceUntil), { ex: 600 }),
+      redis.del(`contact:${senderJid}:needs_owner`)
+    ]);
+    const metaRaw = await redis.get(`chat:${senderJid}:meta`);
+    if (metaRaw) {
+      try {
+        const meta = JSON.parse(metaRaw);
+        meta.needsOwner = false;
+        await redis.set(`chat:${senderJid}:meta`, JSON.stringify(meta));
+      } catch (_) {}
+    }
+    logEvent('info', `Owner replied directly to ${senderJid}. Silencing bot for 10 minutes and clearing needsOwner flag.`);
 
     const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Owner sent media]';
     await recordMessage(senderJid, 'assistant', text, true, 'Owner (You)');
@@ -162,6 +173,45 @@ export async function handleIncomingMessage(m) {
         return;
       }
 
+      // Check for [FOR_OWNER] escalation marker
+      const needsOwnerEscalation = trimmedText.includes('[FOR_OWNER]');
+      const cleanedReplyText = trimmedText.replace(/\[FOR_OWNER\]/gi, '').trim();
+
+      if (needsOwnerEscalation) {
+        const metaRaw = await redis.get(`chat:${senderJid}:meta`);
+        if (metaRaw) {
+          try {
+            const meta = JSON.parse(metaRaw);
+            meta.needsOwner = true;
+            await redis.set(`chat:${senderJid}:meta`, JSON.stringify(meta));
+          } catch (_) {}
+        }
+        await redis.set(`contact:${senderJid}:needs_owner`, 'true');
+        logEvent('info', `Marked conversation with ${senderJid} as "Needs Owner" ([FOR_OWNER] detected).`);
+
+        if (settings.notifyOwnerOnWhatsApp && state.activePhone) {
+          const ownerJid = `${state.activePhone}@s.whatsapp.net`;
+          if (ownerJid !== senderJid) {
+            try {
+              const contactDisplayName = memory.settings?.displayName || memory.profile?.displayName || pushName || phone || senderJid;
+              const alertMsg = `⚠️ [Alert] ${contactDisplayName} needs your attention on WhatsApp: "${cleanText.slice(0, 80)}"`;
+              const alertSent = await state.sock.sendMessage(ownerJid, { text: alertMsg });
+              if (alertSent?.key?.id) {
+                state.botSentMessageIds.add(alertSent.key.id);
+              }
+              logEvent('info', `Sent WhatsApp alert to owner (${ownerJid}) for ${senderJid}`);
+            } catch (notifyErr) {
+              logEvent('warn', `Failed to send WhatsApp alert to owner: ${notifyErr.message}`);
+            }
+          }
+        }
+      }
+
+      if (!cleanedReplyText) {
+        await state.sock.sendPresenceUpdate('paused', senderJid);
+        return;
+      }
+
       const minD = Math.max(100, settings.minDelay);
       const maxD = Math.max(minD, settings.maxDelay);
       const delay = Math.floor(Math.random() * (maxD - minD + 1)) + minD;
@@ -170,7 +220,7 @@ export async function handleIncomingMessage(m) {
       await state.sock.sendPresenceUpdate('paused', senderJid);
 
       // Send reply without quoting the previous message
-      const sent = await state.sock.sendMessage(senderJid, { text: trimmedText });
+      const sent = await state.sock.sendMessage(senderJid, { text: cleanedReplyText });
       if (sent?.key?.id) {
         state.botSentMessageIds.add(sent.key.id);
         if (state.botSentMessageIds.size > 2000) {
@@ -180,7 +230,7 @@ export async function handleIncomingMessage(m) {
       }
 
       const senderLabel = settings.profile?.ownerName ? `${settings.profile.ownerName} (AI)` : 'You';
-      await recordMessage(senderJid, 'assistant', trimmedText, true, senderLabel);
+      await recordMessage(senderJid, 'assistant', cleanedReplyText, true, senderLabel);
       logEvent('info', `Sent AI reply to ${senderJid} via ${aiResult.provider} (${delay}ms delay)`);
     }
 

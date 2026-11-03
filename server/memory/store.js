@@ -9,6 +9,35 @@ export function jidToPhone(jid) {
   return /^\d+$/.test(user) ? user : '';
 }
 
+export async function getResolvedContactName(jid) {
+  const [rawSettings, phonebookName, rawProf, rawMeta] = await Promise.all([
+    redis.get(`contact:${jid}:settings`),
+    redis.get(`contact:${jid}:phonebookName`),
+    redis.get(`contact:${jid}:profile`),
+    redis.get(`chat:${jid}:meta`)
+  ]);
+
+  let settings = null;
+  if (rawSettings) { try { settings = JSON.parse(rawSettings); } catch (_) {} }
+  if (settings?.displayName) return settings.displayName;
+
+  if (phonebookName) return phonebookName;
+
+  let prof = null;
+  if (rawProf) { try { prof = JSON.parse(rawProf); } catch (_) {} }
+  if (prof?.pushName) return prof.pushName;
+  if (prof?.displayName && !prof.displayName.startsWith('Owner') && prof.displayName !== 'You') {
+    return prof.displayName;
+  }
+
+  let meta = null;
+  if (rawMeta) { try { meta = JSON.parse(rawMeta); } catch (_) {} }
+  if (meta?.name && !meta.name.startsWith('Owner') && meta.name !== 'You') return meta.name;
+
+  const phone = jidToPhone(jid);
+  return phone ? `+${phone}` : jid.split('@')[0];
+}
+
 export async function getChatMemory(jid) {
   const [rawMessages, summary, rawFacts, rawProfile, rawSettings, handoffVal] = await Promise.all([
     redis.lrange(`chat:${jid}:messages`, -50, -1),
@@ -71,10 +100,19 @@ export async function recordMessage(jid, role, text, fromMe = false, senderName 
 
     const msgCount = await redis.incr(`contact:${jid}:msg_count`);
 
+    const isIncomingUser = !fromMe && role === 'user';
+
     // Per-contact profile (updated cleanly without keyword/regex heuristics)
-    const rawProfile = await redis.get(`contact:${jid}:profile`);
+    const [rawProfile, rawSettings, phonebookName, rawMeta] = await Promise.all([
+      redis.get(`contact:${jid}:profile`),
+      redis.get(`contact:${jid}:settings`),
+      redis.get(`contact:${jid}:phonebookName`),
+      redis.get(`chat:${jid}:meta`)
+    ]);
+
     let contactProf = {
-      displayName: senderName || jid.split('@')[0],
+      displayName: isIncomingUser && senderName ? senderName : jid.split('@')[0],
+      pushName: isIncomingUser && senderName ? senderName : '',
       preferredLanguage: 'English',
       typicalMessageLength: 'short',
       firstSeen: timestamp,
@@ -86,7 +124,8 @@ export async function recordMessage(jid, role, text, fromMe = false, senderName 
         const parsed = JSON.parse(rawProfile);
         contactProf = {
           ...parsed,
-          displayName: senderName || parsed.displayName,
+          pushName: (isIncomingUser && senderName) ? senderName : (parsed.pushName || ''),
+          displayName: (isIncomingUser && senderName) ? senderName : (parsed.displayName || jid.split('@')[0]),
           typicalMessageLength: text.length < 40 ? 'short' : (text.length < 120 ? 'medium' : 'detailed'),
           lastSeen: timestamp
         };
@@ -95,24 +134,50 @@ export async function recordMessage(jid, role, text, fromMe = false, senderName 
       contactProf.typicalMessageLength = text.length < 40 ? 'short' : (text.length < 120 ? 'medium' : 'detailed');
     }
 
+    let parsedMeta = null;
+    if (rawMeta) {
+      try { parsedMeta = JSON.parse(rawMeta); } catch (_) {}
+    }
+
+    let parsedSettings = null;
+    if (rawSettings) {
+      try { parsedSettings = JSON.parse(rawSettings); } catch (_) {}
+    }
+
+    // Determine resolved name according to strict priority:
+    // 1. Owner nickname (contact settings displayName)
+    // 2. Phonebook name
+    // 3. WhatsApp pushName
+    // 4. Formatted phone number or jid user
+    const phone = jidToPhone(jid);
+    const resolvedName = (
+      parsedSettings?.displayName ||
+      phonebookName ||
+      contactProf.pushName ||
+      (isIncomingUser && senderName ? senderName : '') ||
+      (parsedMeta?.name && !parsedMeta.name.startsWith('Owner') && parsedMeta.name !== 'You' ? parsedMeta.name : '') ||
+      (phone ? `+${phone}` : jid.split('@')[0])
+    );
+
     const handoffVal = await redis.get(`handoff:${jid}`);
     const metaObj = {
       jid,
-      name: senderName || contactProf.displayName || jid.split('@')[0],
+      name: resolvedName,
+      pushName: contactProf.pushName,
       lastMessage: text.slice(0, 100),
       timestamp,
       lastRole: role,
+      fromMe: Boolean(fromMe),
+      needsOwner: parsedMeta?.needsOwner || false,
       isHandoff: Boolean(handoffVal)
     };
 
-    // Refresh 30-day expiry on all contact memory keys
+    // Store profile & meta permanently (no 30-day expiration so contact data persists)
     await Promise.all([
-      redis.set(`contact:${jid}:profile`, JSON.stringify(contactProf), { ex: CONTACT_TTL_SECONDS }),
-      redis.set(`chat:${jid}:meta`, JSON.stringify(metaObj), { ex: CONTACT_TTL_SECONDS }),
+      redis.set(`contact:${jid}:profile`, JSON.stringify(contactProf)),
+      redis.set(`chat:${jid}:meta`, JSON.stringify(metaObj)),
       redis.expire(listKey, CONTACT_TTL_SECONDS),
-      redis.expire(`sum:${jid}`, CONTACT_TTL_SECONDS),
-      redis.expire(`contact:${jid}:facts`, CONTACT_TTL_SECONDS),
-      redis.expire(`contact:${jid}:msg_count`, CONTACT_TTL_SECONDS)
+      redis.expire(`sum:${jid}`, CONTACT_TTL_SECONDS)
     ]);
 
     // Update recent conversations list (max 30)

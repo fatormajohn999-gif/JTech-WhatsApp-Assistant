@@ -143,7 +143,11 @@ export async function startWhatsApp() {
         state.clearPairing();
         state.lastError = null;
         state.reconnectAttempts = 0;
-        logEvent('info', 'WhatsApp connection established successfully. JTech Assistant is online.');
+        const rawUser = state.sock?.user?.id;
+        if (rawUser) {
+          state.activePhone = rawUser.split(':')[0].split('@')[0];
+        }
+        logEvent('info', `WhatsApp connection established successfully. Active phone: ${state.activePhone || 'unknown'}`);
       } else if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const isRegistered = Boolean(state.sock?.authState?.creds?.registered);
@@ -204,6 +208,26 @@ export async function startWhatsApp() {
           await handleIncomingMessage(m);
         } catch (err) {
           console.error('[WhatsApp] Safe-caught message error:', err.message);
+        }
+      }
+    });
+
+    state.sock.ev.on('contacts.upsert', async (contacts) => {
+      if (myGeneration !== socketGeneration) return;
+      for (const c of (contacts || [])) {
+        if (c.id && (c.name || c.notify || c.verifiedName)) {
+          const name = c.name || c.notify || c.verifiedName;
+          await redis.set(`contact:${c.id}:phonebookName`, name);
+        }
+      }
+    });
+
+    state.sock.ev.on('contacts.update', async (updates) => {
+      if (myGeneration !== socketGeneration) return;
+      for (const c of (updates || [])) {
+        if (c.id && (c.name || c.notify || c.verifiedName)) {
+          const name = c.name || c.notify || c.verifiedName;
+          await redis.set(`contact:${c.id}:phonebookName`, name);
         }
       }
     });

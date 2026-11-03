@@ -818,6 +818,243 @@
       margin-top: 3px;
     }
 
+    /* WhatsApp subtle chat wallpaper background */
+    .chat-messages-scroll {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    [data-theme="light"] .chat-messages-scroll {
+      background-image: radial-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+    }
+
+    /* Date Separator Pill */
+    .chat-date-separator {
+      display: flex;
+      justify-content: center;
+      margin: 8px 0;
+    }
+    .chat-date-separator span {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 12px;
+      border-radius: 12px;
+      letter-spacing: 0.3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Avatar with image or initials */
+    .chat-avatar {
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .chat-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+    }
+    .chat-avatar .avatar-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      border-radius: 50%;
+    }
+
+    /* Animated Link Screen Scene */
+    .conn-scene {
+      position: relative;
+      padding: 24px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(0, 242, 254, 0.05) 100%);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 16px;
+    }
+
+    .conn-nodes-row {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 100px;
+      z-index: 2;
+    }
+
+    .conn-node {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 3;
+      transition: transform 0.3s ease;
+    }
+    .conn-node.wa-node {
+      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+      color: #ffffff;
+      box-shadow: 0 0 20px rgba(37, 211, 102, 0.4);
+    }
+    .conn-node.app-node {
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      color: #0b0f17;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+    }
+    .conn-node svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    /* Soft expanding ripple rings around center */
+    .conn-center-wrap {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    .ripple-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1.5px solid var(--accent-secondary);
+      opacity: 0;
+      animation: rippleExpand 3s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+    }
+    .ripple-ring:nth-child(1) { width: 40px; height: 40px; animation-delay: 0s; }
+    .ripple-ring:nth-child(2) { width: 70px; height: 70px; animation-delay: 1s; }
+    .ripple-ring:nth-child(3) { width: 100px; height: 100px; animation-delay: 2s; }
+
+    @keyframes rippleExpand {
+      0% { transform: scale(0.6); opacity: 0.6; }
+      50% { opacity: 0.3; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    /* Breathing Connected Badge */
+    .badge-breathe {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1.5px solid var(--accent-secondary);
+      color: var(--accent-secondary);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+      animation: breatheGlow 2.5s ease-in-out infinite;
+    }
+
+    @keyframes breatheGlow {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.55);
+      }
+    }
+
+    /* Flowing Pulses along line between nodes */
+    .conn-svg-line {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      width: 80%;
+      height: 24px;
+      transform: translateY(-50%);
+      z-index: 1;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .pulse-dot-right {
+      animation: moveRight 2.2s linear infinite;
+    }
+    .pulse-dot-left {
+      animation: moveLeft 2.2s linear infinite;
+    }
+
+    @keyframes moveRight {
+      0% { offset-distance: 0%; opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { offset-distance: 100%; opacity: 0; }
+    }
+    @keyframes moveLeft {
+      0% { offset-distance: 100%; opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { offset-distance: 0%; opacity: 0; }
+    }
+
+    /* Dynamic pulse burst trigger */
+    .pulse-burst {
+      animation: burstFlash 0.6s ease-out;
+    }
+    @keyframes burstFlash {
+      0% { filter: drop-shadow(0 0 16px var(--accent-primary)) brightness(1.6); }
+      100% { filter: none; }
+    }
+
+    /* Connecting Orbit Animation */
+    .conn-orbit {
+      width: 64px;
+      height: 64px;
+      border: 3px dashed var(--accent-primary);
+      border-radius: 50%;
+      animation: spinOrbit 3s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spinOrbit {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Collapsible Unlink Details */
+    .unlink-details summary {
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .unlink-details summary::-webkit-details-marker {
+      display: none;
+    }
+    .unlink-details[open] summary {
+      color: var(--danger);
+    }
+
     /* Contact Profile Slide-over Drawer & Modal */
     .profile-drawer-overlay {
       position: absolute;
@@ -1098,17 +1335,107 @@
         </div>
       </section>
 
-      <!-- SCREEN 3: LINK (#link) - WhatsApp Login with Live Countdown & Error Banner -->
+      <!-- SCREEN 3: LINK (#link) - Animated Connection Scene & Setup -->
       <section class="app-screen" id="screen-link">
-        <div class="card" style="text-align: center;">
-          <div style="width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: rgba(0, 242, 254, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 26px; height: 26px; stroke-width: 2.2;">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
+        
+        <!-- 1. Connected State View (shown when waState === 'connected') -->
+        <div id="link-connected-view" style="display: none;">
+          <div class="card" style="text-align: center; padding: 20px 16px;">
+            <!-- Animated Connection Scene -->
+            <div class="conn-scene" id="link-conn-scene">
+              <!-- Ripple rings expanding from center badge -->
+              <div class="conn-center-wrap">
+                <div class="ripple-ring"></div>
+                <div class="ripple-ring"></div>
+                <div class="ripple-ring"></div>
+                <div class="badge-breathe">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-secondary); display: inline-block;"></span>
+                  <span>Connected</span>
+                </div>
+              </div>
+
+              <!-- Nodes & connecting line -->
+              <div class="conn-nodes-row">
+                <!-- Left Node: WhatsApp -->
+                <div class="conn-node wa-node" title="WhatsApp">
+                  <svg fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 1.67c4.56 0 8.25 3.69 8.25 8.24 0 2.2-.86 4.28-2.42 5.83a8.217 8.217 0 01-5.83 2.41c-1.46 0-2.88-.39-4.14-1.13l-.3-.18-3.08.81.82-3-.2-.31c-.81-1.3-1.24-2.8-1.24-4.43 0-4.55 3.69-8.24 8.14-8.24zm4.52 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.39-1.74-.15-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+                  </svg>
+                </div>
+
+                <!-- Connecting Animated Pulse Line -->
+                <svg class="conn-svg-line" viewBox="0 0 200 24" preserveAspectRatio="none">
+                  <path d="M 10 12 L 190 12" stroke="rgba(0, 242, 254, 0.25)" stroke-width="2" stroke-dasharray="4 4" fill="none" />
+                  <!-- Right-traveling pulse dot -->
+                  <circle r="4" fill="var(--accent-primary)">
+                    <animateMotion path="M 10 12 L 190 12" dur="2.2s" repeatCount="indefinite" />
+                  </circle>
+                  <!-- Left-traveling pulse dot -->
+                  <circle r="3.5" fill="var(--accent-secondary)">
+                    <animateMotion path="M 190 12 L 10 12" dur="2.6s" repeatCount="indefinite" />
+                  </circle>
+                </svg>
+
+                <!-- Right Node: JTech Logo -->
+                <div class="conn-node app-node" title="JTech Assistant">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Connection Details Below Scene -->
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+              Live WhatsApp Link Active
+            </div>
+            <div style="font-size: 13px; color: var(--accent-primary); font-weight: 600; font-family: monospace;" id="conn-masked-phone">
+              +232 ••• ••• 456
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0 12px; text-align: left;">
+              <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Server Uptime</div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px;" id="conn-uptime-val">Live (0m)</div>
+              </div>
+              <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Replies Today</div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-top: 2px;" id="conn-replies-val">0</div>
+              </div>
+            </div>
+
+            <!-- Collapsible Unlink Section (Accordion so it's never accidentally tapped) -->
+            <details class="unlink-details" style="margin-top: 14px; text-align: center;">
+              <summary>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 14px; height: 14px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+                Advanced: Unlink WhatsApp account
+              </summary>
+              <div style="padding: 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-sm); margin-top: 8px;">
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+                  Disconnecting will remove the active session. The bot will stop answering WhatsApp messages until you pair again.
+                </div>
+                <button class="btn btn-danger btn-sm" id="btn-unlink-wa" style="width: 100%;">
+                  Unlink WhatsApp
+                </button>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- 2. Unlinked / Setup State View (shown when waState !== 'connected') -->
+        <div id="link-setup-view" class="card" style="text-align: center;">
+          <div id="link-icon-container">
+            <div style="width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: rgba(0, 242, 254, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);" id="link-setup-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 26px; height: 26px; stroke-width: 2.2;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </div>
           </div>
 
-          <div class="card-title" style="justify-content: center; font-size: 17px;">Link WhatsApp account</div>
-          <div class="card-desc" style="max-width: 280px; margin: 4px auto 16px;">
+          <div class="card-title" style="justify-content: center; font-size: 17px;" id="link-setup-title">Link WhatsApp account</div>
+          <div class="card-desc" style="max-width: 280px; margin: 4px auto 16px;" id="link-setup-desc">
             Enter your phone number with country code to generate an 8-character pairing code.
           </div>
 
@@ -1196,11 +1523,6 @@
                 <span>Scan the QR code displayed above</span>
               </div>
             </div>
-          </div>
-
-          <!-- Success Alert when connected -->
-          <div id="link-success-banner" style="display: none; margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-secondary); border-radius: var(--radius-sm); color: var(--accent-secondary); font-size: 13px; font-weight: 600;">
-            ✓ WhatsApp is connected & active!
           </div>
         </div>
       </section>
@@ -1411,6 +1733,10 @@
             <input type="text" id="set-prof-name" placeholder="JTech">
           </div>
           <div class="form-group">
+            <label for="set-prof-first-name">Owner first name (how assistant refers to you)</label>
+            <input type="text" id="set-prof-first-name" placeholder="e.g. John">
+          </div>
+          <div class="form-group">
             <label for="set-prof-about">About owner</label>
             <textarea id="set-prof-about" rows="2" placeholder="Tech company & software solutions in Freetown, Sierra Leone..."></textarea>
           </div>
@@ -1422,20 +1748,17 @@
             <label for="set-prof-style">Writing style</label>
             <input type="text" id="set-prof-style" placeholder="Short, warm, natural, respectful, and direct. Sounds like a real person texting.">
           </div>
-          <div class="form-group">
-            <label for="set-prof-city">City, country</label>
-            <input type="text" id="set-prof-city" placeholder="Freetown, Sierra Leone">
-          </div>
 
-          <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 12px 0 6px;">3 Sample messages (style copy)</div>
-          <div class="form-group">
-            <input type="text" id="set-prof-s1" placeholder="Hello! Thanks for reaching out. How can I help you today?">
-          </div>
-          <div class="form-group">
-            <input type="text" id="set-prof-s2" placeholder="Got it, I will check on this and get back to you shortly.">
-          </div>
-          <div class="form-group">
-            <input type="text" id="set-prof-s3" placeholder="Have a great day! Let me know if you need anything else.">
+          <!-- WhatsApp alerts when contact needs owner -->
+          <div class="toggle-row" style="margin-top: 12px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">WhatsApp alerts</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Notify me on WhatsApp when a contact needs me</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-notify-owner">
+              <span class="slider"></span>
+            </label>
           </div>
         </div>
 
@@ -1485,7 +1808,13 @@
           </svg>
         </button>
 
-        <div style="flex: 1; margin: 0 8px; min-width: 0; text-align: left;">
+        <!-- Header Contact Avatar -->
+        <div class="chat-avatar" id="detail-avatar-container" style="width: 36px; height: 36px; min-width: 36px; margin: 0 4px 0 6px;">
+          <img id="detail-avatar-img" src="" alt="Avatar" style="display: none;">
+          <div class="avatar-fallback" id="detail-avatar-fallback">--</div>
+        </div>
+
+        <div style="flex: 1; margin: 0 6px; min-width: 0; text-align: left;">
           <div id="detail-chat-name" style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Contact</div>
           <div id="detail-chat-sub" style="font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bot active</div>
         </div>
@@ -1499,6 +1828,15 @@
           <button class="btn btn-sm btn-primary" id="btn-chat-takeover">Take over</button>
           <button class="btn btn-sm btn-primary" id="btn-chat-resume" style="display: none; background: var(--accent-secondary); color: #fff;">Resume bot</button>
         </div>
+      </div>
+
+      <!-- Needs Owner Attention Banner -->
+      <div id="detail-needs-owner-banner" style="display: none; background: rgba(239, 68, 68, 0.15); border-bottom: 1px solid var(--danger); padding: 8px 12px; font-size: 12px; color: var(--danger); font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span>⚠️</span>
+          <span>Contact requested your attention</span>
+        </span>
+        <button class="btn btn-sm btn-secondary" id="btn-resolve-owner" style="padding: 2px 8px; font-size: 11px;">Mark Resolved</button>
       </div>
 
       <div class="chat-detail-info" id="chat-detail-info">
@@ -1737,6 +2075,47 @@
     const qrPlaceholderText = document.getElementById('qr-placeholder-text');
     const qrCountdown = document.getElementById('qr-countdown');
     let isQrMode = false;
+
+    // Link Connected View Elements
+    const linkConnectedView = document.getElementById('link-connected-view');
+    const linkSetupView = document.getElementById('link-setup-view');
+    const connMaskedPhone = document.getElementById('conn-masked-phone');
+    const connUptimeVal = document.getElementById('conn-uptime-val');
+    const connRepliesVal = document.getElementById('conn-replies-val');
+    const btnUnlinkWa = document.getElementById('btn-unlink-wa');
+    const linkConnScene = document.getElementById('link-conn-scene');
+    const linkIconContainer = document.getElementById('link-icon-container');
+    let lastSeenReplies = -1;
+
+    function formatMaskedPhone(phoneStr) {
+      if (!phoneStr) return '+••• ••• ••• •••';
+      const digits = String(phoneStr).replace(/\D/g, '');
+      if (digits.length <= 4) return '+' + digits;
+      const cc = digits.length >= 10 ? digits.slice(0, 3) : digits.slice(0, 2);
+      const last4 = digits.slice(-4);
+      return `+${cc} ••• ••• ${last4}`;
+    }
+
+    const AVATAR_COLORS = [
+      '#00f2fe', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#14b8a6'
+    ];
+    function getColorForJid(jid) {
+      if (!jid) return AVATAR_COLORS[0];
+      let hash = 0;
+      for (let i = 0; i < jid.length; i++) hash = (hash << 5) - hash + jid.charCodeAt(i);
+      return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    }
+
+    function formatDateLabel(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) return 'Today';
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    }
 
     // Toast helper: displays real messages and hints, never generic failures
     function showToast(text, isError = false, hint = '') {
@@ -2026,19 +2405,60 @@
 
         // 3. Link Screen Management
         if (waState === 'connected') {
-          linkSuccessBanner.style.display = 'block';
-          pairingBox.style.display = 'none';
-          btnRequestLink.disabled = true;
-          btnRequestLink.textContent = 'WhatsApp Connected';
-          linkErrorBanner.style.display = 'none';
-          if (qrCodeImg) qrCodeImg.style.display = 'none';
-          if (qrCodePlaceholder) {
-            qrCodePlaceholder.style.display = 'flex';
-            if (qrPlaceholderText) qrPlaceholderText.textContent = 'WhatsApp is connected!';
+          if (linkConnectedView) linkConnectedView.style.display = 'block';
+          if (linkSetupView) linkSetupView.style.display = 'none';
+
+          if (connMaskedPhone) connMaskedPhone.textContent = formatMaskedPhone(activePhoneNum);
+          if (connUptimeVal) connUptimeVal.textContent = `Live (${uptimeMins}m, Node ${nodeVer})`;
+          if (connRepliesVal) connRepliesVal.textContent = String(s.repliesToday ?? 0);
+
+          if (lastSeenReplies >= 0 && (s.repliesToday ?? 0) > lastSeenReplies && linkConnScene) {
+            linkConnScene.classList.add('pulse-burst');
+            setTimeout(() => linkConnScene.classList.remove('pulse-burst'), 700);
           }
-          if (qrCountdown) qrCountdown.textContent = 'Connected ✓';
+          lastSeenReplies = s.repliesToday ?? 0;
+
+          if (btnUnlinkWa && !btnUnlinkWa.dataset.bound) {
+            btnUnlinkWa.dataset.bound = 'true';
+            btnUnlinkWa.addEventListener('click', async () => {
+              if (!confirm('Unlink this WhatsApp account from JTech Assistant?')) return;
+              btnUnlinkWa.disabled = true;
+              btnUnlinkWa.textContent = 'Unlinking...';
+              try {
+                await api('/api/logout-wa', { method: 'POST' });
+                showToast('WhatsApp unlinked');
+                fetchState();
+              } catch (e) { showToast(e.message, true); }
+              finally {
+                btnUnlinkWa.disabled = false;
+                btnUnlinkWa.textContent = 'Unlink WhatsApp';
+              }
+            });
+          }
         } else {
-          linkSuccessBanner.style.display = 'none';
+          if (linkConnectedView) linkConnectedView.style.display = 'none';
+          if (linkSetupView) linkSetupView.style.display = 'block';
+
+          const setupTitle = document.getElementById('link-setup-title');
+          const setupDesc = document.getElementById('link-setup-desc');
+
+          if (waState === 'connecting' || waState === 'reconnecting') {
+            if (linkIconContainer) linkIconContainer.innerHTML = '<div class="conn-orbit"></div>';
+            if (setupTitle) setupTitle.textContent = 'Connecting to WhatsApp...';
+            if (setupDesc) setupDesc.textContent = 'Establishing secure socket connection to WhatsApp servers...';
+          } else {
+            if (linkIconContainer) {
+              linkIconContainer.innerHTML = `
+                <div style="width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: rgba(0, 242, 254, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 26px; height: 26px; stroke-width: 2.2;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </div>
+              `;
+            }
+            if (setupTitle) setupTitle.textContent = 'Link WhatsApp account';
+            if (setupDesc) setupDesc.textContent = 'Enter your phone number with country code to generate an 8-character pairing code.';
+          }
 
           if (s.pairing?.code && currentSecondsLeft > 0) {
             pairingBox.style.display = 'block';
@@ -2283,6 +2703,20 @@
       `;
     }
 
+    function renderMessagesHtml(messages) {
+      let html = '';
+      let lastDay = '';
+      for (const m of messages) {
+        const day = formatDateLabel(m.timestamp);
+        if (day && day !== lastDay) {
+          html += `<div class="chat-date-separator"><span>${day}</span></div>`;
+          lastDay = day;
+        }
+        html += renderBubbleHtml(m);
+      }
+      return html;
+    }
+
     // Chats Screen: Fetch List (Non-blinking in-place update)
     async function fetchChats() {
       if (!authToken || !API_BASE) return;
@@ -2321,13 +2755,19 @@
           }
         });
 
+        const cleanBase = API_BASE.replace(/\/+$/, '');
+
         // Update or insert each conversation row in order
         convos.forEach((c) => {
           const initials = (c.displayName || c.name || c.jid).slice(0, 2).toUpperCase();
+          const avatarColor = getColorForJid(c.jid);
+          const avatarSrc = `${cleanBase}/api/chats/${encodeURIComponent(c.jid)}/avatar?token=${encodeURIComponent(authToken)}`;
           const time = c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
           const tagClass = c.isHandoff ? 'human' : 'bot';
-          const tagLabel = c.isHandoff ? 'Human' : 'Bot';
+          const tagLabel = c.isHandoff ? 'Paused' : 'Bot';
           const relLabel = c.relationship && c.relationship !== 'acquaintance' ? ` • ${c.relationship.replace('_', ' ')}` : '';
+          const youPrefix = c.lastFromMe ? '<span style="color:var(--accent-primary); font-weight:600;">You: </span>' : '';
+          const needsOwnerBadge = c.needsOwner ? '<span class="chat-tag" style="background:rgba(239, 68, 68, 0.2); color:var(--danger); border:1px solid rgba(239,68,68,0.3); margin-right:4px;">Needs Owner</span>' : '';
 
           let row = list.querySelector(`.chat-row[data-jid="${CSS.escape(c.jid)}"]`);
           if (!row) {
@@ -2336,21 +2776,27 @@
             row.dataset.jid = c.jid;
             row.onclick = () => openChatDetail(c.jid);
             row.innerHTML = `
-              <div class="chat-avatar">${initials}</div>
+              <div class="chat-avatar" style="background:${avatarColor}22; color:${avatarColor};">
+                <img src="${avatarSrc}" onload="this.style.display='block'; if(this.nextElementSibling) this.nextElementSibling.style.display='none';" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" style="display:none;" alt="" />
+                <div class="avatar-fallback">${initials}</div>
+              </div>
               <div class="chat-info">
                 <div class="chat-info-top">
                   <span class="chat-name">${c.displayName || c.name || c.jid}</span>
                   <span class="chat-time">${time}</span>
                 </div>
-                <div class="chat-snippet">${c.lastMessage || '[No text]'}</div>
-                <div style="margin-top: 4px;"><span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span></div>
+                <div class="chat-snippet">${youPrefix}${c.lastMessage || '[No text]'}</div>
+                <div style="margin-top: 4px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                  ${needsOwnerBadge}
+                  <span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span>
+                </div>
               </div>
             `;
             list.appendChild(row);
           } else {
             // Update in place to avoid blinking
-            const avatarEl = row.querySelector('.chat-avatar');
-            if (avatarEl && avatarEl.textContent !== initials) avatarEl.textContent = initials;
+            const fallbackEl = row.querySelector('.avatar-fallback');
+            if (fallbackEl && fallbackEl.textContent !== initials) fallbackEl.textContent = initials;
 
             const nameEl = row.querySelector('.chat-name');
             const nameText = c.displayName || c.name || c.jid;
@@ -2360,15 +2806,14 @@
             if (timeEl && timeEl.textContent !== time) timeEl.textContent = time;
 
             const snipEl = row.querySelector('.chat-snippet');
-            const snipText = c.lastMessage || '[No text]';
-            if (snipEl && snipEl.textContent !== snipText) snipEl.textContent = snipText;
+            const fullSnipHtml = `${youPrefix}${c.lastMessage || '[No text]'}`;
+            if (snipEl && snipEl.innerHTML !== fullSnipHtml) snipEl.innerHTML = fullSnipHtml;
 
-            const tagEl = row.querySelector('.chat-tag');
-            if (tagEl) {
-              const fullTag = `${tagLabel}${relLabel}`;
-              if (tagEl.textContent !== fullTag || !tagEl.classList.contains(tagClass)) {
-                tagEl.className = `chat-tag ${tagClass}`;
-                tagEl.textContent = fullTag;
+            const badgesContainer = row.querySelector('.chat-info > div:last-child');
+            if (badgesContainer) {
+              const expectedBadgesHtml = `${needsOwnerBadge}<span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span>`;
+              if (badgesContainer.innerHTML.trim() !== expectedBadgesHtml.trim()) {
+                badgesContainer.innerHTML = expectedBadgesHtml;
               }
             }
           }
@@ -2378,7 +2823,7 @@
 
     // Active Chat State Cache
     let currentChatDetailData = null;
-    let lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null };
+    let lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null, needsOwner: null };
 
     // Chat Detail: Open Overlay (GET /api/chats/:jid)
     window.openChatDetail = async function(jid, isBackgroundPoll = false) {
@@ -2394,13 +2839,18 @@
       const msgBox = document.getElementById('detail-messages-container');
       const btnTakeover = document.getElementById('btn-chat-takeover');
       const btnResume = document.getElementById('btn-chat-resume');
+      const avatarImg = document.getElementById('detail-avatar-img');
+      const avatarFallback = document.getElementById('detail-avatar-fallback');
+      const avatarWrap = document.getElementById('detail-avatar-container');
+      const needsOwnerBanner = document.getElementById('detail-needs-owner-banner');
+      const btnResolveOwner = document.getElementById('btn-resolve-owner');
 
       // Only show loading placeholder when the user opens a different chat
       if (!isBackgroundPoll && lastRenderedChat.jid !== jid) {
         nameEl.textContent = 'Loading...';
         subEl.textContent = jid;
         msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">Fetching messages...</div>';
-        lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null };
+        lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null, needsOwner: null };
       }
 
       try {
@@ -2410,7 +2860,43 @@
 
         const displayName = d.displayName || d.settings?.displayName || d.meta?.name || jid;
         nameEl.textContent = displayName;
-        subEl.textContent = d.isHandoff ? 'Human takeover active' : 'AI bot active';
+
+        const phoneDisplay = d.phone || (jid.includes('@') ? `+${jid.split('@')[0]}` : '');
+        subEl.textContent = `${phoneDisplay ? phoneDisplay + ' • ' : ''}${d.isHandoff ? 'Human takeover active' : 'AI bot active'}`;
+
+        // Header Avatar
+        if (avatarWrap && avatarImg && avatarFallback) {
+          const clr = getColorForJid(jid);
+          avatarWrap.style.background = `${clr}22`;
+          avatarWrap.style.color = clr;
+          avatarFallback.textContent = displayName.slice(0, 2).toUpperCase();
+          const cleanBase = API_BASE.replace(/\/+$/, '');
+          const newAvatarSrc = `${cleanBase}/api/chats/${encodeURIComponent(jid)}/avatar?token=${encodeURIComponent(authToken)}`;
+          if (avatarImg.src !== newAvatarSrc) {
+            avatarImg.src = newAvatarSrc;
+            avatarImg.onload = () => { avatarImg.style.display = 'block'; avatarFallback.style.display = 'none'; };
+            avatarImg.onerror = () => { avatarImg.style.display = 'none'; avatarFallback.style.display = 'flex'; };
+          }
+        }
+
+        // Needs Owner Alert
+        if (needsOwnerBanner) {
+          needsOwnerBanner.style.display = d.needsOwner ? 'flex' : 'none';
+        }
+        if (btnResolveOwner) {
+          btnResolveOwner.onclick = async (e) => {
+            e.stopPropagation();
+            try {
+              await api(`/api/chats/${encodeURIComponent(jid)}/resolve-owner`, { method: 'POST' });
+              showToast('Attention marked resolved');
+              if (needsOwnerBanner) needsOwnerBanner.style.display = 'none';
+              d.needsOwner = false;
+              fetchChats();
+            } catch (err) {
+              showToast(err.message, true);
+            }
+          };
+        }
 
         if (d.isHandoff) {
           btnTakeover.style.display = 'none';
@@ -2422,12 +2908,12 @@
 
         const summaryHtml = `<strong>Summary:</strong> ${d.summary || 'None'}`;
         const summaryEl = document.getElementById('detail-summary');
-        if (summaryEl.innerHTML !== summaryHtml) summaryEl.innerHTML = summaryHtml;
+        if (summaryEl && summaryEl.innerHTML !== summaryHtml) summaryEl.innerHTML = summaryHtml;
 
         const facts = (d.facts && d.facts.length) ? d.facts.join('; ') : 'None';
         const factsHtml = `<strong>Facts:</strong> ${facts}`;
         const factsEl = document.getElementById('detail-facts');
-        if (factsEl.innerHTML !== factsHtml) factsEl.innerHTML = factsHtml;
+        if (factsEl && factsEl.innerHTML !== factsHtml) factsEl.innerHTML = factsHtml;
 
         const messages = d.messages || [];
         const newCount = messages.length;
@@ -2435,7 +2921,7 @@
         const lastTs = lastMsg ? (lastMsg.timestamp || 0) : 0;
 
         // Skip message re-render if count and latest timestamp haven't changed!
-        if (lastRenderedChat.jid === jid && lastRenderedChat.msgCount === newCount && lastRenderedChat.lastTs === lastTs) {
+        if (lastRenderedChat.jid === jid && lastRenderedChat.msgCount === newCount && lastRenderedChat.lastTs === lastTs && lastRenderedChat.needsOwner === d.needsOwner) {
           return;
         }
 
@@ -2444,17 +2930,9 @@
 
         if (messages.length === 0) {
           msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">No stored messages.</div>';
-        } else if (lastRenderedChat.jid === jid && lastRenderedChat.msgCount > 0 && newCount > lastRenderedChat.msgCount) {
-          // Append only new messages to preserve DOM elements and prevent flashing
-          const newMessages = messages.slice(lastRenderedChat.msgCount);
-          for (const m of newMessages) {
-            const div = document.createElement('div');
-            div.innerHTML = renderBubbleHtml(m).trim();
-            msgBox.appendChild(div.firstElementChild);
-          }
         } else {
-          // Full render on first load or history refresh
-          msgBox.innerHTML = messages.map(m => renderBubbleHtml(m)).join('');
+          // Render messages with date separators
+          msgBox.innerHTML = renderMessagesHtml(messages);
         }
 
         // Auto-scroll only if user was already at the bottom or on initial chat open
@@ -2462,7 +2940,7 @@
           msgBox.scrollTop = msgBox.scrollHeight;
         }
 
-        lastRenderedChat = { jid, msgCount: newCount, lastTs, isHandoff: d.isHandoff };
+        lastRenderedChat = { jid, msgCount: newCount, lastTs, isHandoff: d.isHandoff, needsOwner: d.needsOwner };
       } catch (err) {
         if (!isBackgroundPoll) {
           msgBox.innerHTML = `<div style="color:var(--danger); padding:16px;">Error: ${err.message}</div>`;
@@ -2737,14 +3215,12 @@
 
         if (s.profile) {
           document.getElementById('set-prof-name').value = s.profile.ownerName || s.profile.name || '';
+          document.getElementById('set-prof-first-name').value = s.profile.ownerFirstName || '';
           document.getElementById('set-prof-about').value = s.profile.ownerAbout || s.profile.about || s.profile.facts || '';
           document.getElementById('set-prof-languages').value = s.profile.ownerLanguages || s.profile.languages || '';
           document.getElementById('set-prof-style').value = s.profile.writingStyle || '';
-          document.getElementById('set-prof-city').value = s.profile.city || '';
-          document.getElementById('set-prof-s1').value = s.profile.sampleMessage1 || '';
-          document.getElementById('set-prof-s2').value = s.profile.sampleMessage2 || '';
-          document.getElementById('set-prof-s3').value = s.profile.sampleMessage3 || '';
         }
+        document.getElementById('set-notify-owner').checked = Boolean(s.notifyOwnerOnWhatsApp);
 
         if (s.contactRules) {
           selectedMode = s.contactRules.mode || 'all';
@@ -2786,18 +3262,16 @@
 
       const profile = {
         ownerName: document.getElementById('set-prof-name').value.trim(),
+        ownerFirstName: document.getElementById('set-prof-first-name').value.trim(),
         name: document.getElementById('set-prof-name').value.trim(),
         ownerAbout: document.getElementById('set-prof-about').value.trim(),
         about: document.getElementById('set-prof-about').value.trim(),
         ownerLanguages: document.getElementById('set-prof-languages').value.trim(),
         languages: document.getElementById('set-prof-languages').value.trim(),
-        writingStyle: document.getElementById('set-prof-style').value.trim(),
-        city: document.getElementById('set-prof-city').value.trim(),
-        sampleMessage1: document.getElementById('set-prof-s1').value.trim(),
-        sampleMessage2: document.getElementById('set-prof-s2').value.trim(),
-        sampleMessage3: document.getElementById('set-prof-s3').value.trim()
+        writingStyle: document.getElementById('set-prof-style').value.trim()
       };
 
+      const notifyOwnerOnWhatsApp = document.getElementById('set-notify-owner').checked;
       const allowlist = document.getElementById('set-allowlist').value.split('\n').map(s => s.trim()).filter(Boolean);
       const blocklist = document.getElementById('set-blocklist').value.split('\n').map(s => s.trim()).filter(Boolean);
 
@@ -2813,6 +3287,7 @@
             minDelay,
             maxDelay,
             profile,
+            notifyOwnerOnWhatsApp,
             contactRules: { mode: selectedMode, allowlist, blocklist }
           }
         });

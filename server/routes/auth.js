@@ -27,6 +27,15 @@ export async function requireAuth(req, res, next) {
     }
   }
 
+  // Also check query param token (e.g. for img tags requesting authenticated avatar assets)
+  const queryToken = req.query?.token;
+  if (queryToken && typeof queryToken === 'string') {
+    const valid = await redis.get('session:' + queryToken);
+    if (valid) {
+      return next();
+    }
+  }
+
   // Fallback for x-pass header only (NO query parameters)
   const pass = req.headers['x-pass'];
   if (DASHBOARD_PASSWORD && pass && timingSafeEqualStr(String(pass), String(DASHBOARD_PASSWORD))) {

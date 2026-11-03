@@ -1,7 +1,8 @@
 import express from 'express';
+import { state } from '../state.js';
 import { redis } from '../lib/redis.js';
 import { logEvent } from '../lib/logger.js';
-import { getChatMemory, jidToPhone } from '../memory/store.js';
+import { getChatMemory, jidToPhone, getResolvedContactName } from '../memory/store.js';
 import { requireAuth } from './auth.js';
 
 const router = express.Router();
@@ -17,10 +18,11 @@ router.get('/chats', requireAuth, async (req, res) => {
     const conversations = [];
     for (const jid of jids.slice(0, 30)) {
       try {
-        const [metaRaw, handoffVal, settingsRaw] = await Promise.all([
+        const [metaRaw, handoffVal, settingsRaw, resolvedName] = await Promise.all([
           redis.get(`chat:${jid}:meta`),
           redis.get(`handoff:${jid}`),
-          redis.get(`contact:${jid}:settings`)
+          redis.get(`contact:${jid}:settings`),
+          getResolvedContactName(jid)
         ]);
 
         let isHandoff = false;
@@ -39,16 +41,21 @@ router.get('/chats', requireAuth, async (req, res) => {
           try { meta = JSON.parse(metaRaw); } catch (_) {}
         }
 
-        const displayName = settings?.displayName || meta?.name || jidToPhone(jid) || jid;
+        const displayName = resolvedName || settings?.displayName || meta?.name || jidToPhone(jid) || jid;
         const relationship = settings?.relationship || 'acquaintance';
+        const phone = jidToPhone(jid);
 
         conversations.push({
           jid,
           name: displayName,
           displayName,
+          phone: phone ? `+${phone}` : '',
           relationship,
           lastMessage: meta?.lastMessage || '',
+          lastRole: meta?.lastRole || 'user',
+          lastFromMe: Boolean(meta?.fromMe || meta?.lastRole === 'assistant'),
           timestamp: meta?.timestamp || 0,
+          needsOwner: Boolean(meta?.needsOwner),
           isHandoff
         });
       } catch (_) {}
@@ -61,6 +68,42 @@ router.get('/chats', requireAuth, async (req, res) => {
       code: 'CHATS_FETCH_FAILED',
       hint: 'Failed to retrieve active chat list.'
     });
+  }
+});
+
+router.get('/chats/:jid/avatar', requireAuth, async (req, res) => {
+  try {
+    const { jid } = req.params;
+    if (!jid) return res.status(404).send('Not found');
+
+    const cacheKey = `wa:avatar:${jid}`;
+    let url = await redis.get(cacheKey);
+
+    if (!url && state.sock) {
+      try {
+        url = await state.sock.profilePictureUrl(jid, 'image');
+        if (url) {
+          await redis.set(cacheKey, url, { ex: 86400 }); // Cache for 24h
+        }
+      } catch (_) {}
+    }
+
+    if (!url) {
+      return res.status(404).send('No profile picture');
+    }
+
+    const imgRes = await fetch(url);
+    if (!imgRes.ok) {
+      return res.status(404).send('Image fetch failed');
+    }
+
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const arrayBuf = await imgRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuf));
+  } catch (err) {
+    res.status(404).send('Avatar not found');
   }
 });
 
@@ -89,13 +132,16 @@ router.get('/chats/:jid', requireAuth, async (req, res) => {
     }
 
     const displayName = settings.displayName || meta?.name || jidToPhone(jid) || jid;
+    const phone = jidToPhone(jid);
 
     res.json({
       jid,
       meta,
       displayName,
+      phone: phone ? `+${phone}` : '',
       relationship: settings.relationship,
       settings,
+      needsOwner: Boolean(meta?.needsOwner),
       isHandoff: memory.isHandoff,
       summary: memory.summary,
       facts: memory.facts,
@@ -201,6 +247,29 @@ router.post('/chats/:jid/resume', requireAuth, async (req, res) => {
       error: err.message,
       code: 'RESUME_FAILED',
       hint: 'Unable to remove handoff status in Redis.'
+    });
+  }
+});
+
+router.post('/chats/:jid/resolve-owner', requireAuth, async (req, res) => {
+  try {
+    const { jid } = req.params;
+    const metaRaw = await redis.get(`chat:${jid}:meta`);
+    if (metaRaw) {
+      try {
+        const meta = JSON.parse(metaRaw);
+        meta.needsOwner = false;
+        await redis.set(`chat:${jid}:meta`, JSON.stringify(meta));
+      } catch (_) {}
+    }
+    await redis.del(`contact:${jid}:needs_owner`);
+    logEvent('info', `Owner attention marked resolved for ${jid}`);
+    res.json({ success: true, message: 'Owner attention marked resolved' });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      code: 'RESOLVE_OWNER_FAILED',
+      hint: 'Unable to clear owner attention flag.'
     });
   }
 });

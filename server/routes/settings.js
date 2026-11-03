@@ -34,11 +34,17 @@ router.post('/cfg', requireAuth, async (req, res) => {
       minDelay,
       maxDelay,
       isPaused,
+      notifyOwnerOnWhatsApp,
       contactRules
     } = req.body;
 
     if (profile && typeof profile === 'object') {
-      await redis.set('config:owner_profile', JSON.stringify(profile));
+      const cleanProfile = { ...profile };
+      delete cleanProfile.city;
+      delete cleanProfile.sampleMessage1;
+      delete cleanProfile.sampleMessage2;
+      delete cleanProfile.sampleMessage3;
+      await redis.set('config:owner_profile', JSON.stringify(cleanProfile));
     }
 
     // Save personalPrompt; if client sent baseRules instead, support it transparently
@@ -57,6 +63,7 @@ router.post('/cfg', requireAuth, async (req, res) => {
     if (minDelay !== undefined) await redis.set('config:min_delay', String(minDelay));
     if (maxDelay !== undefined) await redis.set('config:max_delay', String(maxDelay));
     if (isPaused !== undefined) await redis.set('config:is_paused', isPaused ? 'true' : 'false');
+    if (notifyOwnerOnWhatsApp !== undefined) await redis.set('config:notify_owner', notifyOwnerOnWhatsApp ? 'true' : 'false');
 
     if (contactRules && typeof contactRules === 'object') {
       const mode = ['all', 'allowlist', 'blocklist'].includes(contactRules.mode) ? contactRules.mode : 'all';

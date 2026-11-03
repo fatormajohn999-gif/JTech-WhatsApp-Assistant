@@ -27,7 +27,8 @@ export async function getSettings(forceRefresh = false) {
       minDelay,
       maxDelay,
       isPaused,
-      contactRules
+      contactRules,
+      rawNotifyOwner
     ] = await Promise.all([
       redis.get('config:owner_profile'),
       redis.get('config:personal_prompt'),
@@ -38,13 +39,22 @@ export async function getSettings(forceRefresh = false) {
       redis.get('config:min_delay'),
       redis.get('config:max_delay'),
       redis.get('config:is_paused'),
-      redis.get('config:contact_rules')
+      redis.get('config:contact_rules'),
+      redis.get('config:notify_owner')
     ]);
 
-    let profile = DEFAULT_PROFILE;
+    let profile = { ...DEFAULT_PROFILE };
     if (rawProfile) {
-      try { profile = { ...DEFAULT_PROFILE, ...JSON.parse(rawProfile) }; } catch (_) {}
+      try {
+        const parsed = JSON.parse(rawProfile);
+        profile = { ...DEFAULT_PROFILE, ...parsed };
+      } catch (_) {}
     }
+    // Delete legacy sample messages and city if present
+    delete profile.city;
+    delete profile.sampleMessage1;
+    delete profile.sampleMessage2;
+    delete profile.sampleMessage3;
 
     let rules = contactRules ? JSON.parse(contactRules) : { mode: 'all', allowlist: [], blocklist: [] };
 
@@ -68,6 +78,7 @@ export async function getSettings(forceRefresh = false) {
       minDelay: parseInt(minDelay || '300', 10),
       maxDelay: parseInt(maxDelay || '1200', 10),
       isPaused: isPaused === 'true',
+      notifyOwnerOnWhatsApp: rawNotifyOwner === 'true',
       contactRules: rules
     };
     lastSettingsFetch = now;

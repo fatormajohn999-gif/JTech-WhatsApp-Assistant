@@ -35,14 +35,10 @@ export const DEFAULT_PROFILE = {
   ownerLanguages: 'English, Krio',
   writingStyle: 'Short, warm, natural, respectful, and direct. Sounds like a real person texting.',
   name: 'JTech',
-  city: 'Freetown, Sierra Leone',
   timeZone: 'Africa/Freetown',
   job: 'Tech Company & Software Solutions',
   languages: 'English, Krio',
-  facts: 'Technology provider based in Freetown, Sierra Leone. Builds software, web, and AI solutions.',
-  sampleMessage1: 'Hello! Thanks for reaching out. How can I help you today?',
-  sampleMessage2: 'Got it, I will check on this and get back to you shortly.',
-  sampleMessage3: 'Have a great day! Let me know if you need anything else.'
+  facts: 'Technology provider based in Freetown, Sierra Leone. Builds software, web, and AI solutions.'
 };
 
 export const DEFAULT_PERSONAL_PROMPT = 
