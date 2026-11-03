@@ -70,8 +70,21 @@ export async function useUpstashAuthState() {
 export async function clearWhatsAppAuth() {
   try {
     await redis.del('wa:creds');
-    logEvent('info', 'Cleared wa:creds from Redis');
+    // FIX: also wipe every stored signal key (wa:keys:*). Old keys left next to
+    // brand-new creds corrupt the next pairing attempt.
+    let cursor = '0';
+    let removed = 0;
+    do {
+      const result = await redis.scan(cursor, { match: 'wa:keys:*', count: 200 });
+      cursor = String(result[0]);
+      const keys = result[1] || [];
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        removed += keys.length;
+      }
+    } while (cursor !== '0');
+    logEvent('info', `Cleared wa:creds and ${removed} wa:keys:* entries from Redis`);
   } catch (e) {
-    logEvent('error', `Error clearing wa:creds: ${e.message}`);
+    logEvent('error', `Error clearing WhatsApp auth: ${e.message}`);
   }
 }
