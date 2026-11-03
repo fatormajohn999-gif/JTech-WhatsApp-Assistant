@@ -16,6 +16,9 @@ import { handleIncomingMessage } from './handler.js';
 
 const logger = pino({ level: 'silent' });
 
+// FIX: counts sockets so events from an old, replaced socket can be ignored
+let socketGeneration = 0;
+
 export function scheduleReconnect() {
   if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
   const delay = Math.min(60000, 5000 * Math.pow(2, state.reconnectAttempts));
@@ -67,6 +70,7 @@ export async function startWhatsApp() {
       }
     }, 20000);
 
+    const myGeneration = ++socketGeneration;
     const { state: authState, saveCreds } = await useUpstashAuthState();
     const { version, isLatest } = await fetchLatestBaileysVersion();
     logEvent('info', `Fetched Baileys version: ${Array.isArray(version) ? version.join('.') : version} (isLatest: ${isLatest})`);
@@ -87,9 +91,15 @@ export async function startWhatsApp() {
       generateHighQualityLinkPreview: false
     });
 
-    state.sock.ev.on('creds.update', saveCreds);
+    // FIX: an old socket must never overwrite the newer socket's saved creds
+    state.sock.ev.on('creds.update', async () => {
+      if (myGeneration !== socketGeneration) return;
+      await saveCreds();
+    });
 
     state.sock.ev.on('connection.update', async (update) => {
+      // FIX: ignore events coming from a socket that has already been replaced
+      if (myGeneration !== socketGeneration) return;
       const { connection, lastDisconnect, qr } = update;
       const qrPresent = qr ? 'yes' : 'no';
       const discCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode || 'none';
@@ -125,6 +135,7 @@ export async function startWhatsApp() {
         }
 
         setTimeout(() => {
+          if (myGeneration !== socketGeneration) return;
           triggerPairingCodeIfRequested('connecting-2s', startWhatsApp);
         }, 2000);
       } else if (connection === 'open') {
@@ -152,6 +163,9 @@ export async function startWhatsApp() {
             state.clearPairing();
           } else {
             logEvent('error', 'WhatsApp rejected the pairing attempt (401). Stopping retry loop.');
+            // FIX: throw away the half-registered identity so the next attempt starts fresh
+            await clearWhatsAppAuth();
+            state.pairingCodeRequestedOnSocket = false;
             state.setWhatsappState('error');
             state.setLastError({
               code: 401,
@@ -182,6 +196,7 @@ export async function startWhatsApp() {
     });
 
     state.sock.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (myGeneration !== socketGeneration) return;
       if (type !== 'notify') return;
 
       for (const m of messages) {
