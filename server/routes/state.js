@@ -77,6 +77,10 @@ router.get('/state', requireAuth, async (req, res) => {
         lastAiTest: state.lastAiTest
       },
       events: getEventLog().reverse(),
+      globalRateLimit: {
+        isLimited: state.isGlobalRateLimited && (state.globalRateLimitResetAt > Date.now()),
+        resetAt: state.globalRateLimitResetAt
+      },
       // Backward-compatible fields:
       uptime: Math.floor(process.uptime()),
       status: state.whatsappState,

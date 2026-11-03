@@ -30,6 +30,9 @@ class ServerState {
     this.lastAiTest = null;
     this.isFirstAiCall = true;
 
+    this.isGlobalRateLimited = false;
+    this.globalRateLimitResetAt = 0;
+
     this.cachedSettings = null;
     this.lastSettingsFetch = 0;
 

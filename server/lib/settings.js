@@ -28,7 +28,8 @@ export async function getSettings(forceRefresh = false) {
       maxDelay,
       isPaused,
       contactRules,
-      rawNotifyOwner
+      rawNotifyOwner,
+      rawPacing
     ] = await Promise.all([
       redis.get('config:owner_profile'),
       redis.get('config:personal_prompt'),
@@ -40,7 +41,8 @@ export async function getSettings(forceRefresh = false) {
       redis.get('config:max_delay'),
       redis.get('config:is_paused'),
       redis.get('config:contact_rules'),
-      redis.get('config:notify_owner')
+      redis.get('config:notify_owner'),
+      redis.get('config:pacing_settings')
     ]);
 
     let profile = { ...DEFAULT_PROFILE };
@@ -68,6 +70,22 @@ export async function getSettings(forceRefresh = false) {
       personalPrompt = DEFAULT_PERSONAL_PROMPT;
     }
 
+    let pacing = {
+      typingDelayEnabled: true,
+      typingSpeed: 'normal',
+      batchingEnabled: true,
+      batchWindowSec: 5,
+      splitRepliesEnabled: true,
+      reactionsEnabled: true,
+      maxHourlyRepliesPerContact: 30,
+      maxHourlyRepliesGlobal: 150
+    };
+    if (rawPacing) {
+      try {
+        pacing = { ...pacing, ...JSON.parse(rawPacing) };
+      } catch (_) {}
+    }
+
     cachedSettings = {
       profile,
       personalPrompt,
@@ -79,7 +97,8 @@ export async function getSettings(forceRefresh = false) {
       maxDelay: parseInt(maxDelay || '1200', 10),
       isPaused: isPaused === 'true',
       notifyOwnerOnWhatsApp: rawNotifyOwner === 'true',
-      contactRules: rules
+      contactRules: rules,
+      pacing
     };
     lastSettingsFetch = now;
     return cachedSettings;
@@ -95,7 +114,17 @@ export async function getSettings(forceRefresh = false) {
       minDelay: 300,
       maxDelay: 1200,
       isPaused: false,
-      contactRules: { mode: 'all', allowlist: [], blocklist: [] }
+      contactRules: { mode: 'all', allowlist: [], blocklist: [] },
+      pacing: {
+        typingDelayEnabled: true,
+        typingSpeed: 'normal',
+        batchingEnabled: true,
+        batchWindowSec: 5,
+        splitRepliesEnabled: true,
+        reactionsEnabled: true,
+        maxHourlyRepliesPerContact: 30,
+        maxHourlyRepliesGlobal: 150
+      }
     };
   }
 }

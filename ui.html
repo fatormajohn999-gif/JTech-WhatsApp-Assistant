@@ -1269,6 +1269,16 @@
           </div>
         </div>
 
+        <!-- Global Hourly Rate Limit Warning Banner -->
+        <div class="banner error-banner" id="home-ratelimit-banner" style="display: none; margin-bottom: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-sm); padding: 10px 12px; user-select: text; -webkit-user-select: text;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="font-size: 16px;">⚠️</span>
+            <div style="font-size: 12px; color: var(--danger); line-height: 1.4;">
+              <strong>Global rate limit reached:</strong> Automated replies are temporarily paused for the remainder of this hour to protect your WhatsApp number from bans.
+            </div>
+          </div>
+        </div>
+
         <!-- Connection Card -->
         <div class="card" id="home-conn-card">
           <div class="card-header">
@@ -1719,6 +1729,88 @@
             <div class="form-group">
               <label for="set-max-delay">Max delay (ms)</label>
               <input type="number" id="set-max-delay" placeholder="1200">
+            </div>
+          </div>
+        </div>
+
+        <!-- Natural Replies & Pacing -->
+        <div class="card">
+          <div class="card-title">Natural replies & pacing</div>
+          <div class="card-desc">Human-like reply delays, message burst batching, split answers, reactions, and anti-ban protection.</div>
+
+          <!-- Typing delay toggle -->
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Human-like typing delay</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Mark message as read and show typing indicator based on length</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-typing" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Typing speed -->
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-pacing-speed">Typing speed</label>
+            <select id="set-pacing-speed">
+              <option value="fast">Fast (~30ms/char)</option>
+              <option value="normal" selected>Normal (~55ms/char)</option>
+              <option value="slow">Slow (~85ms/char)</option>
+            </select>
+          </div>
+
+          <!-- Message Batching -->
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Message burst batching</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Wait for consecutive messages from the same sender and answer together</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-batching" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Quiet window duration -->
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-pacing-batch-window">Quiet window before replying (2–12s, max 20s wait)</label>
+            <input type="number" id="set-pacing-batch-window" min="2" max="12" value="5" placeholder="5">
+          </div>
+
+          <!-- Split replies toggle -->
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Split replies [SPLIT]</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Send multi-part answers as 1–3 short messages with natural pauses</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-splits" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Emoji reactions toggle -->
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Emoji reactions [REACT:👍]</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">React with emojis instead of texting (max 1 per 15 min per contact)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-reactions" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Safety Rate Limits -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+            <div class="form-group">
+              <label for="set-pacing-contact-limit">Max replies/hr (per contact)</label>
+              <input type="number" id="set-pacing-contact-limit" min="1" max="200" value="30" placeholder="30">
+            </div>
+            <div class="form-group">
+              <label for="set-pacing-global-limit">Max replies/hr (global total)</label>
+              <input type="number" id="set-pacing-global-limit" min="1" max="1000" value="150" placeholder="150">
             </div>
           </div>
         </div>
@@ -2372,6 +2464,12 @@
             homeWaFull.textContent = 'Not connected';
             homeWaFull.style.color = 'var(--text-muted)';
           }
+        }
+
+        // Global rate limit banner check
+        const homeRateLimitBanner = document.getElementById('home-ratelimit-banner');
+        if (homeRateLimitBanner) {
+          homeRateLimitBanner.style.display = s.globalRateLimit?.isLimited ? 'block' : 'none';
         }
 
         // Home screen cards
@@ -3230,6 +3328,33 @@
           document.getElementById('set-allowlist').value = (s.contactRules.allowlist || []).join('\n');
           document.getElementById('set-blocklist').value = (s.contactRules.blocklist || []).join('\n');
         }
+
+        if (s.pacing) {
+          if (s.pacing.typingDelayEnabled !== undefined) {
+            document.getElementById('set-pacing-typing').checked = Boolean(s.pacing.typingDelayEnabled);
+          }
+          if (s.pacing.typingSpeed) {
+            document.getElementById('set-pacing-speed').value = s.pacing.typingSpeed;
+          }
+          if (s.pacing.batchingEnabled !== undefined) {
+            document.getElementById('set-pacing-batching').checked = Boolean(s.pacing.batchingEnabled);
+          }
+          if (s.pacing.batchWindowSec !== undefined) {
+            document.getElementById('set-pacing-batch-window').value = s.pacing.batchWindowSec;
+          }
+          if (s.pacing.splitRepliesEnabled !== undefined) {
+            document.getElementById('set-pacing-splits').checked = Boolean(s.pacing.splitRepliesEnabled);
+          }
+          if (s.pacing.reactionsEnabled !== undefined) {
+            document.getElementById('set-pacing-reactions').checked = Boolean(s.pacing.reactionsEnabled);
+          }
+          if (s.pacing.maxHourlyRepliesPerContact !== undefined) {
+            document.getElementById('set-pacing-contact-limit').value = s.pacing.maxHourlyRepliesPerContact;
+          }
+          if (s.pacing.maxHourlyRepliesGlobal !== undefined) {
+            document.getElementById('set-pacing-global-limit').value = s.pacing.maxHourlyRepliesGlobal;
+          }
+        }
       } catch (_) {}
     }
 
@@ -3275,6 +3400,17 @@
       const allowlist = document.getElementById('set-allowlist').value.split('\n').map(s => s.trim()).filter(Boolean);
       const blocklist = document.getElementById('set-blocklist').value.split('\n').map(s => s.trim()).filter(Boolean);
 
+      const pacing = {
+        typingDelayEnabled: document.getElementById('set-pacing-typing').checked,
+        typingSpeed: document.getElementById('set-pacing-speed').value,
+        batchingEnabled: document.getElementById('set-pacing-batching').checked,
+        batchWindowSec: parseInt(document.getElementById('set-pacing-batch-window').value, 10) || 5,
+        splitRepliesEnabled: document.getElementById('set-pacing-splits').checked,
+        reactionsEnabled: document.getElementById('set-pacing-reactions').checked,
+        maxHourlyRepliesPerContact: parseInt(document.getElementById('set-pacing-contact-limit').value, 10) || 30,
+        maxHourlyRepliesGlobal: parseInt(document.getElementById('set-pacing-global-limit').value, 10) || 150
+      };
+
       try {
         await api('/api/cfg', {
           method: 'POST',
@@ -3288,7 +3424,8 @@
             maxDelay,
             profile,
             notifyOwnerOnWhatsApp,
-            contactRules: { mode: selectedMode, allowlist, blocklist }
+            contactRules: { mode: selectedMode, allowlist, blocklist },
+            pacing
           }
         });
         showToast('Settings saved successfully');

@@ -35,7 +35,8 @@ router.post('/cfg', requireAuth, async (req, res) => {
       maxDelay,
       isPaused,
       notifyOwnerOnWhatsApp,
-      contactRules
+      contactRules,
+      pacing
     } = req.body;
 
     if (profile && typeof profile === 'object') {
@@ -73,6 +74,35 @@ router.post('/cfg', requireAuth, async (req, res) => {
         allowlist: cleanList(contactRules.allowlist),
         blocklist: cleanList(contactRules.blocklist)
       }));
+    }
+
+    if (pacing && typeof pacing === 'object') {
+      const currentRaw = await redis.get('config:pacing_settings');
+      let current = {
+        typingDelayEnabled: true,
+        typingSpeed: 'normal',
+        batchingEnabled: true,
+        batchWindowSec: 5,
+        splitRepliesEnabled: true,
+        reactionsEnabled: true,
+        maxHourlyRepliesPerContact: 30,
+        maxHourlyRepliesGlobal: 150
+      };
+      if (currentRaw) {
+        try { current = { ...current, ...JSON.parse(currentRaw) }; } catch (_) {}
+      }
+
+      const updatedPacing = {
+        typingDelayEnabled: pacing.typingDelayEnabled !== undefined ? Boolean(pacing.typingDelayEnabled) : current.typingDelayEnabled,
+        typingSpeed: ['fast', 'normal', 'slow'].includes(pacing.typingSpeed) ? pacing.typingSpeed : current.typingSpeed,
+        batchingEnabled: pacing.batchingEnabled !== undefined ? Boolean(pacing.batchingEnabled) : current.batchingEnabled,
+        batchWindowSec: Math.min(12, Math.max(2, parseInt(pacing.batchWindowSec ?? current.batchWindowSec, 10) || 5)),
+        splitRepliesEnabled: pacing.splitRepliesEnabled !== undefined ? Boolean(pacing.splitRepliesEnabled) : current.splitRepliesEnabled,
+        reactionsEnabled: pacing.reactionsEnabled !== undefined ? Boolean(pacing.reactionsEnabled) : current.reactionsEnabled,
+        maxHourlyRepliesPerContact: Math.max(1, parseInt(pacing.maxHourlyRepliesPerContact ?? current.maxHourlyRepliesPerContact, 10) || 30),
+        maxHourlyRepliesGlobal: Math.max(1, parseInt(pacing.maxHourlyRepliesGlobal ?? current.maxHourlyRepliesGlobal, 10) || 150)
+      };
+      await redis.set('config:pacing_settings', JSON.stringify(updatedPacing));
     }
 
     invalidateSettingsCache();

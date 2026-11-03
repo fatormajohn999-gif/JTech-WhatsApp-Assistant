@@ -10,8 +10,16 @@ import {
 } from '../memory/store.js';
 import {
   generateAiReply,
-  buildAlternatingTurns
+  buildAlternatingTurns,
+  checkAutoPause
 } from '../ai/index.js';
+import {
+  DEFAULT_PACING_SETTINGS,
+  cancelPendingBatch,
+  enqueueIncomingMessage,
+  dispatchPacedReply,
+  checkHourlyRateLimits
+} from './pacing.js';
 
 export function matchesContactRule(jid, list, knownPhone = '') {
   if (!Array.isArray(list) || list.length === 0) return false;
@@ -51,6 +59,9 @@ export async function handleIncomingMessage(m) {
   // Owner human reply detection (silences bot for 10 minutes)
   if (m.key.fromMe) {
     if (state.botSentMessageIds.has(msgId)) return;
+
+    // Cancel any queued batch for this contact since owner stepped in
+    cancelPendingBatch(senderJid);
 
     const silenceUntil = Date.now() + 10 * 60 * 1000;
     await Promise.all([
@@ -131,113 +142,127 @@ export async function handleIncomingMessage(m) {
   if (!userText || !userText.trim()) return;
   const cleanText = userText.trim();
 
-  // Fetch memory & context
-  const memory = await getChatMemory(senderJid);
-
-  const lastSpokeText = formatLastSeen(memory.profile?.lastSeen);
-
-  // Record incoming user message
+  // Record incoming user message immediately so chat history is preserved
   await recordMessage(senderJid, 'user', cleanText, false, pushName);
 
-  // Build multi-turn context (last 12 messages with alternating turns)
-  const fullConversation = [...memory.messages, { role: 'user', text: cleanText, fromMe: false }];
-  const turns = buildAlternatingTurns(fullConversation, cleanText);
+  // Enqueue message into batching queue (burst consolidation + quiet window)
+  await enqueueIncomingMessage({
+    m,
+    senderJid,
+    cleanText,
+    pushName,
+    processBatchCallback: async ({ entries, token, isTokenValid }) => {
+      // Double check handoff did not activate during batch window
+      const currentHandoff = await redis.get(`handoff:${senderJid}`);
+      if (currentHandoff) return;
 
-  if (!state.sock) return;
+      // Check auto-pause and manual pause
+      const isAutoPaused = await checkAutoPause();
+      if (isAutoPaused) return;
 
-  await state.sock.sendPresenceUpdate('composing', senderJid);
+      const liveSettings = await getSettings();
+      if (liveSettings.isPaused) return;
 
-  try {
-    const aiResult = await generateAiReply(turns, {
-      contactFacts: memory.facts,
-      chatSummary: memory.summary,
-      senderJid,
-      contactName: memory.settings?.displayName || memory.profile?.displayName || pushName || phone,
-      contactProfile: memory.profile,
-      contactSettings: memory.settings,
-      lastSpokeText
-    });
+      const pacing = liveSettings.pacing || DEFAULT_PACING_SETTINGS;
 
-    if (aiResult.paused) {
-      await state.sock.sendPresenceUpdate('paused', senderJid);
-      return;
-    }
-
-    if (aiResult.text) {
-      const trimmedText = aiResult.text.trim();
-
-      // Check for [NO_REPLY] silence signal
-      if (trimmedText === '[NO_REPLY]' || trimmedText.includes('[NO_REPLY]')) {
-        await state.sock.sendPresenceUpdate('paused', senderJid);
-        logEvent('info', `Model chose silence for ${senderJid} ([NO_REPLY])`);
+      // Check hourly safety rate limits
+      const rateCheck = await checkHourlyRateLimits(senderJid, pacing);
+      if (!rateCheck.allowed) {
         return;
       }
 
-      // Check for [FOR_OWNER] escalation marker
-      const needsOwnerEscalation = trimmedText.includes('[FOR_OWNER]');
-      const cleanedReplyText = trimmedText.replace(/\[FOR_OWNER\]/gi, '').trim();
+      // Combine messages from burst
+      const combinedUserText = entries.map(e => e.cleanText).filter(Boolean).join('\n');
+      const lastEntry = entries[entries.length - 1];
+      const lastMsg = lastEntry?.m || m;
 
-      if (needsOwnerEscalation) {
-        const metaRaw = await redis.get(`chat:${senderJid}:meta`);
-        if (metaRaw) {
-          try {
-            const meta = JSON.parse(metaRaw);
-            meta.needsOwner = true;
-            await redis.set(`chat:${senderJid}:meta`, JSON.stringify(meta));
-          } catch (_) {}
+      // Fetch memory & context
+      const memory = await getChatMemory(senderJid);
+      const lastSpokeText = formatLastSeen(memory.profile?.lastSeen);
+
+      // Build multi-turn context (last 12 messages with alternating turns)
+      const turns = buildAlternatingTurns(memory.messages, combinedUserText);
+
+      if (!state.sock) return;
+
+      try {
+        const aiResult = await generateAiReply(turns, {
+          contactFacts: memory.facts,
+          chatSummary: memory.summary,
+          senderJid,
+          contactName: memory.settings?.displayName || memory.profile?.displayName || pushName || phone,
+          contactProfile: memory.profile,
+          contactSettings: memory.settings,
+          lastSpokeText
+        });
+
+        // Discard stale in-flight AI generation if new messages arrived in the meantime
+        if (!isTokenValid(token)) {
+          logEvent('info', `Discarded stale reply for ${senderJid} because newer messages arrived.`);
+          return;
         }
-        await redis.set(`contact:${senderJid}:needs_owner`, 'true');
-        logEvent('info', `Marked conversation with ${senderJid} as "Needs Owner" ([FOR_OWNER] detected).`);
 
-        if (settings.notifyOwnerOnWhatsApp && state.activePhone) {
-          const ownerJid = `${state.activePhone}@s.whatsapp.net`;
-          if (ownerJid !== senderJid) {
-            try {
-              const contactDisplayName = memory.settings?.displayName || memory.profile?.displayName || pushName || phone || senderJid;
-              const alertMsg = `⚠️ [Alert] ${contactDisplayName} needs your attention on WhatsApp: "${cleanText.slice(0, 80)}"`;
-              const alertSent = await state.sock.sendMessage(ownerJid, { text: alertMsg });
-              if (alertSent?.key?.id) {
-                state.botSentMessageIds.add(alertSent.key.id);
+        if (aiResult.paused) {
+          try { await state.sock.sendPresenceUpdate('paused', senderJid); } catch (_) {}
+          return;
+        }
+
+        if (aiResult.text) {
+          const trimmedText = aiResult.text.trim();
+
+          // Check for [FOR_OWNER] escalation marker
+          const needsOwnerEscalation = trimmedText.includes('[FOR_OWNER]');
+
+          if (needsOwnerEscalation) {
+            const metaRaw = await redis.get(`chat:${senderJid}:meta`);
+            if (metaRaw) {
+              try {
+                const meta = JSON.parse(metaRaw);
+                meta.needsOwner = true;
+                await redis.set(`chat:${senderJid}:meta`, JSON.stringify(meta));
+              } catch (_) {}
+            }
+            await redis.set(`contact:${senderJid}:needs_owner`, 'true');
+            logEvent('info', `Marked conversation with ${senderJid} as "Needs Owner" ([FOR_OWNER] detected).`);
+
+            if (liveSettings.notifyOwnerOnWhatsApp && state.activePhone) {
+              const ownerJid = `${state.activePhone}@s.whatsapp.net`;
+              if (ownerJid !== senderJid) {
+                try {
+                  const contactDisplayName = memory.settings?.displayName || memory.profile?.displayName || pushName || phone || senderJid;
+                  const alertMsg = `⚠️ [Alert] ${contactDisplayName} needs your attention on WhatsApp: "${combinedUserText.slice(0, 80)}"`;
+                  const alertSent = await state.sock.sendMessage(ownerJid, { text: alertMsg });
+                  if (alertSent?.key?.id) {
+                    state.botSentMessageIds.add(alertSent.key.id);
+                  }
+                  logEvent('info', `Sent WhatsApp alert to owner (${ownerJid}) for ${senderJid}`);
+                } catch (notifyErr) {
+                  logEvent('warn', `Failed to send WhatsApp alert to owner: ${notifyErr.message}`);
+                }
               }
-              logEvent('info', `Sent WhatsApp alert to owner (${ownerJid}) for ${senderJid}`);
-            } catch (notifyErr) {
-              logEvent('warn', `Failed to send WhatsApp alert to owner: ${notifyErr.message}`);
             }
           }
+
+          // Dispatch with pacing (typing simulation, splits, reactions, rate limits)
+          const senderLabel = liveSettings.profile?.ownerName ? `${liveSettings.profile.ownerName} (AI)` : 'You';
+          await dispatchPacedReply({
+            sock: state.sock,
+            senderJid,
+            rawReplyText: trimmedText,
+            lastMsg,
+            pacing,
+            senderLabel,
+            hourKey: rateCheck.hourKey
+          });
         }
-      }
 
-      if (!cleanedReplyText) {
-        await state.sock.sendPresenceUpdate('paused', senderJid);
-        return;
-      }
-
-      const minD = Math.max(100, settings.minDelay);
-      const maxD = Math.max(minD, settings.maxDelay);
-      const delay = Math.floor(Math.random() * (maxD - minD + 1)) + minD;
-      await new Promise(r => setTimeout(r, delay));
-
-      await state.sock.sendPresenceUpdate('paused', senderJid);
-
-      // Send reply without quoting the previous message
-      const sent = await state.sock.sendMessage(senderJid, { text: cleanedReplyText });
-      if (sent?.key?.id) {
-        state.botSentMessageIds.add(sent.key.id);
-        if (state.botSentMessageIds.size > 2000) {
-          const first = state.botSentMessageIds.values().next().value;
-          state.botSentMessageIds.delete(first);
+      } catch (err) {
+        if (state.sock) {
+          try { await state.sock.sendPresenceUpdate('paused', senderJid); } catch (_) {}
         }
+        logEvent('error', `Error answering ${senderJid}: ${err.message}`);
       }
-
-      const senderLabel = settings.profile?.ownerName ? `${settings.profile.ownerName} (AI)` : 'You';
-      await recordMessage(senderJid, 'assistant', cleanedReplyText, true, senderLabel);
-      logEvent('info', `Sent AI reply to ${senderJid} via ${aiResult.provider} (${delay}ms delay)`);
     }
-
-  } catch (err) {
-    if (state.sock) {
-      await state.sock.sendPresenceUpdate('paused', senderJid);
-    }
-    logEvent('error', `Error answering ${senderJid}: ${err.message}`);
-  }
+  });
 }
+
