@@ -1,0 +1,95 @@
+import { redis } from './redis.js';
+import {
+  DEFAULT_PROFILE,
+  DEFAULT_PERSONAL_PROMPT,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GROQ_MODEL,
+  SETTINGS_CACHE_TTL
+} from '../config.js';
+
+let cachedSettings = null;
+let lastSettingsFetch = 0;
+
+export async function getSettings(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && cachedSettings && (now - lastSettingsFetch < SETTINGS_CACHE_TTL)) {
+    return cachedSettings;
+  }
+
+  try {
+    const [
+      rawProfile,
+      rawPersonalPrompt,
+      legacyRules,
+      provider,
+      geminiModel,
+      groqModel,
+      minDelay,
+      maxDelay,
+      isPaused,
+      contactRules
+    ] = await Promise.all([
+      redis.get('config:owner_profile'),
+      redis.get('config:personal_prompt'),
+      redis.get('config:base_rules'),
+      redis.get('config:ai_provider'),
+      redis.get('config:gemini_model'),
+      redis.get('config:groq_model'),
+      redis.get('config:min_delay'),
+      redis.get('config:max_delay'),
+      redis.get('config:is_paused'),
+      redis.get('config:contact_rules')
+    ]);
+
+    let profile = DEFAULT_PROFILE;
+    if (rawProfile) {
+      try { profile = { ...DEFAULT_PROFILE, ...JSON.parse(rawProfile) }; } catch (_) {}
+    }
+
+    let rules = contactRules ? JSON.parse(contactRules) : { mode: 'all', allowlist: [], blocklist: [] };
+
+    // Automatic migration of legacy baseRules to personalPrompt on first load if personalPrompt is not yet set
+    let personalPrompt = rawPersonalPrompt;
+    if (!personalPrompt && legacyRules) {
+      personalPrompt = legacyRules;
+      await redis.set('config:personal_prompt', legacyRules);
+    }
+    if (!personalPrompt) {
+      personalPrompt = DEFAULT_PERSONAL_PROMPT;
+    }
+
+    cachedSettings = {
+      profile,
+      personalPrompt,
+      baseRules: personalPrompt, // Maintain backward compatibility for UI/API
+      provider: provider || 'gemini',
+      geminiModel: geminiModel || DEFAULT_GEMINI_MODEL,
+      groqModel: groqModel || DEFAULT_GROQ_MODEL,
+      minDelay: parseInt(minDelay || '300', 10),
+      maxDelay: parseInt(maxDelay || '1200', 10),
+      isPaused: isPaused === 'true',
+      contactRules: rules
+    };
+    lastSettingsFetch = now;
+    return cachedSettings;
+  } catch (err) {
+    console.error('[Settings] Cache refresh error:', err.message);
+    return cachedSettings || {
+      profile: DEFAULT_PROFILE,
+      personalPrompt: DEFAULT_PERSONAL_PROMPT,
+      baseRules: DEFAULT_PERSONAL_PROMPT,
+      provider: 'gemini',
+      geminiModel: DEFAULT_GEMINI_MODEL,
+      groqModel: DEFAULT_GROQ_MODEL,
+      minDelay: 300,
+      maxDelay: 1200,
+      isPaused: false,
+      contactRules: { mode: 'all', allowlist: [], blocklist: [] }
+    };
+  }
+}
+
+export function invalidateSettingsCache() {
+  cachedSettings = null;
+  lastSettingsFetch = 0;
+}
