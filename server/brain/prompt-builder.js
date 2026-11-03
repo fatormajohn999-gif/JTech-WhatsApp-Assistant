@@ -39,8 +39,8 @@ export function buildPrompt({
   senderJid = '',
   contactName = '',
   contactProfile = null,
-  lastSpokeText = '',
-  isFirstMessage = false
+  contactSettings = null,
+  lastSpokeText = ''
 }) {
   const timeNow = getFreetownTime();
 
@@ -52,44 +52,59 @@ export function buildPrompt({
   const summarySection = chatSummary ? chatSummary : 'First conversation or no older summary yet.';
 
   const ownerName = profile.ownerName || profile.name || 'JTech';
-  const ownerAbout = profile.ownerAbout || profile.about || profile.facts || 'Leading tech brand and software solutions in Freetown, Sierra Leone';
+  const ownerAbout = profile.ownerAbout || profile.about || profile.facts || 'Tech brand and software solutions';
   const ownerLanguages = profile.ownerLanguages || profile.languages || 'English, Krio';
-  const writingStyle = profile.writingStyle || 'Short, warm, natural, respectful, and direct. Sounds like a real person texting.';
+  const writingStyle = profile.writingStyle || 'Casual, natural, short, respectful, and direct. Sounds like a real person texting from their phone.';
 
   const contactLang = contactProfile?.preferredLanguage || 'English';
   const contactMsgLen = contactProfile?.typicalMessageLength || 'short';
 
   const customInstructions = (personalPrompt || '').trim();
 
+  // Contact-specific settings
+  const targetDisplayName = contactSettings?.displayName || contactProfile?.displayName || contactName || 'Contact';
+  const targetRelationship = contactSettings?.relationship || 'Not specified';
+  const contactCustomPrompt = (contactSettings?.prompt || '').trim();
+
+  // Benchmark samples without customer-support phrases
+  const sample1 = profile.sampleMessage1 || 'Got it, let me check on that and get back to you in a bit.';
+  const sample2 = profile.sampleMessage2 || 'Sure thing, send the details over whenever you can.';
+  const sample3 = profile.sampleMessage3 || 'Catch you later!';
+
   return `
 ${CORE_BRAIN}
 
-=== OWNER INSTRUCTIONS & PERSONALITY ===
+=== INSTRUCTIONS FOR THIS SPECIFIC PERSON ===
+- Name / Nickname: ${targetDisplayName}
+- Relationship: ${targetRelationship}
+${contactCustomPrompt ? `- Custom instructions for this contact:\n${contactCustomPrompt}` : '- Custom instructions: Treat with standard respect and warmth according to the relationship.'}
+(Note: These specific person instructions take priority over general owner tone for this chat, but core safety and honesty rules remain strictly enforced.)
+
+=== OWNER CONTEXT & GENERAL WRITING STYLE ===
 - Owner Name: ${ownerName} ${profile.ownerFirstName ? `(First name: ${profile.ownerFirstName})` : ''}
-- About Owner & Brand: ${ownerAbout}
-- Location: ${profile.city || 'Freetown, Sierra Leone'} (Time zone: ${profile.timeZone || 'Africa/Freetown'})
-- Languages Spoken: ${ownerLanguages}
-- Writing Style Guidelines: ${writingStyle}
-${customInstructions ? `\n- Additional Owner Instructions:\n${customInstructions}` : ''}
+- About Owner: ${ownerAbout}
+${profile.city ? `- Location: ${profile.city} (Time zone: ${profile.timeZone || 'Africa/Freetown'})` : ''}
+- Languages: ${ownerLanguages}
+- General Texting Style: ${writingStyle}
+${customInstructions ? `\n- General Owner Preferences:\n${customInstructions}` : ''}
 
-=== SAMPLE MESSAGES (TONE BENCHMARKS) ===
-Sample 1: "${profile.sampleMessage1 || 'Hello! Thanks for reaching out. How can I help you today?'}"
-Sample 2: "${profile.sampleMessage2 || 'Got it, I will check on this and get back to you shortly.'}"
-Sample 3: "${profile.sampleMessage3 || 'Have a great day! Let me know if you need anything else.'}"
+=== NATURAL TEXTING SAMPLES (TONE BENCHMARKS) ===
+Sample 1: "${sample1}"
+Sample 2: "${sample2}"
+Sample 3: "${sample3}"
 
-=== LIVE CONTEXT & CONTACT PROFILE ===
-- Current Freetown Date & Time: ${timeNow}
+=== LIVE TIME & CONTEXT ===
+- Live Time Awareness (Freetown): ${timeNow}
 - Contact JID: ${senderJid}
-- Contact Display Name: ${contactName || 'Contact'}
-- Conversation Activity: ${lastSpokeText || 'First conversation'}
-- First Message Flag: ${isFirstMessage ? 'YES - First ever message from this contact (introduce as JTech Assistant).' : 'NO - Ongoing/returning contact (do NOT reintroduce yourself).'}
-- Contact Detected Language: ${contactLang}
-- Contact Message Length Habit: ${contactMsgLen}
+- Contact Preferred Language: ${contactLang}
+- Contact Texting Habit: ${contactMsgLen} messages
+- Recent Activity: ${lastSpokeText || 'First conversation'}
 
-Known Contact Facts:
+Known Permanent Facts About This Contact:
 ${factsSection}
 
-Rolling Conversation Summary:
+Rolling Conversation Context:
 ${summarySection}
 `.trim();
 }
+

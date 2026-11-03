@@ -17,9 +17,10 @@ router.get('/chats', requireAuth, async (req, res) => {
     const conversations = [];
     for (const jid of jids.slice(0, 30)) {
       try {
-        const [metaRaw, handoffVal] = await Promise.all([
+        const [metaRaw, handoffVal, settingsRaw] = await Promise.all([
           redis.get(`chat:${jid}:meta`),
-          redis.get(`handoff:${jid}`)
+          redis.get(`handoff:${jid}`),
+          redis.get(`contact:${jid}:settings`)
         ]);
 
         let isHandoff = false;
@@ -28,19 +29,28 @@ router.get('/chats', requireAuth, async (req, res) => {
           isHandoff = isNaN(until) ? true : Date.now() < until;
         }
 
-        if (metaRaw) {
-          const meta = JSON.parse(metaRaw);
-          meta.isHandoff = isHandoff;
-          conversations.push(meta);
-        } else {
-          conversations.push({
-            jid,
-            name: jidToPhone(jid) || jid,
-            lastMessage: '',
-            timestamp: 0,
-            isHandoff
-          });
+        let settings = null;
+        if (settingsRaw) {
+          try { settings = JSON.parse(settingsRaw); } catch (_) {}
         }
+
+        let meta = null;
+        if (metaRaw) {
+          try { meta = JSON.parse(metaRaw); } catch (_) {}
+        }
+
+        const displayName = settings?.displayName || meta?.name || jidToPhone(jid) || jid;
+        const relationship = settings?.relationship || 'acquaintance';
+
+        conversations.push({
+          jid,
+          name: displayName,
+          displayName,
+          relationship,
+          lastMessage: meta?.lastMessage || '',
+          timestamp: meta?.timestamp || 0,
+          isHandoff
+        });
       } catch (_) {}
     }
 
@@ -57,16 +67,35 @@ router.get('/chats', requireAuth, async (req, res) => {
 router.get('/chats/:jid', requireAuth, async (req, res) => {
   try {
     const { jid } = req.params;
-    const memory = await getChatMemory(jid);
-    const metaRaw = await redis.get(`chat:${jid}:meta`);
+    const [memory, metaRaw, settingsRaw] = await Promise.all([
+      getChatMemory(jid),
+      redis.get(`chat:${jid}:meta`),
+      redis.get(`contact:${jid}:settings`)
+    ]);
+
     let meta = null;
     if (metaRaw) {
       try { meta = JSON.parse(metaRaw); } catch (_) {}
     }
 
+    let settings = {
+      displayName: '',
+      relationship: 'acquaintance',
+      prompt: '',
+      updatedAt: 0
+    };
+    if (settingsRaw) {
+      try { settings = { ...settings, ...JSON.parse(settingsRaw) }; } catch (_) {}
+    }
+
+    const displayName = settings.displayName || meta?.name || jidToPhone(jid) || jid;
+
     res.json({
       jid,
       meta,
+      displayName,
+      relationship: settings.relationship,
+      settings,
       isHandoff: memory.isHandoff,
       summary: memory.summary,
       facts: memory.facts,
@@ -81,6 +110,70 @@ router.get('/chats/:jid', requireAuth, async (req, res) => {
     });
   }
 });
+
+router.get('/chats/:jid/settings', requireAuth, async (req, res) => {
+  try {
+    const { jid } = req.params;
+    const raw = await redis.get(`contact:${jid}:settings`);
+    let settings = {
+      displayName: '',
+      relationship: 'acquaintance',
+      prompt: '',
+      updatedAt: 0
+    };
+    if (raw) {
+      try { settings = { ...settings, ...JSON.parse(raw) }; } catch (_) {}
+    }
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      code: 'CONTACT_SETTINGS_FETCH_FAILED',
+      hint: 'Failed to retrieve contact settings.'
+    });
+  }
+});
+
+router.put('/chats/:jid/settings', requireAuth, async (req, res) => {
+  try {
+    const { jid } = req.params;
+    const { displayName, relationship, prompt } = req.body || {};
+    const cleanPrompt = String(prompt || '').slice(0, 1000);
+    const cleanName = String(displayName || '').slice(0, 100).trim();
+    const cleanRel = String(relationship || 'acquaintance').slice(0, 50).trim();
+
+    const settingsObj = {
+      displayName: cleanName,
+      relationship: cleanRel,
+      prompt: cleanPrompt,
+      updatedAt: Date.now()
+    };
+
+    await redis.set(`contact:${jid}:settings`, JSON.stringify(settingsObj));
+
+    // Sync displayName to meta and profile if provided
+    if (cleanName) {
+      const metaRaw = await redis.get(`chat:${jid}:meta`);
+      if (metaRaw) {
+        try {
+          const meta = JSON.parse(metaRaw);
+          meta.name = cleanName;
+          await redis.set(`chat:${jid}:meta`, JSON.stringify(meta));
+        } catch (_) {}
+      }
+    }
+
+    logEvent('info', `Saved custom profile for ${jid} (${cleanName || 'unnamed'}, ${cleanRel})`);
+    res.json({ success: true, settings: settingsObj });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      code: 'CONTACT_SETTINGS_SAVE_FAILED',
+      hint: 'Failed to save contact settings.'
+    });
+  }
+});
+
 
 router.post('/chats/:jid/takeover', requireAuth, async (req, res) => {
   try {

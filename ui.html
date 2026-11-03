@@ -818,6 +818,46 @@
       margin-top: 3px;
     }
 
+    /* Contact Profile Slide-over Drawer & Modal */
+    .profile-drawer-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 70;
+      display: none;
+      align-items: flex-end;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .profile-drawer-overlay.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .profile-drawer-card {
+      width: 100%;
+      max-height: 85vh;
+      background: var(--bg-card);
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      border-bottom: none;
+      padding: 18px 16px env(safe-area-inset-bottom, 16px);
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .profile-drawer-overlay.open .profile-drawer-card {
+      transform: translateY(0);
+    }
+
+
     /* Skeleton Loader */
     .skeleton {
       background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-card-hover) 50%, var(--bg-surface) 75%);
@@ -1445,12 +1485,17 @@
           </svg>
         </button>
 
-        <div style="text-align: center; max-width: 170px;">
+        <div style="flex: 1; margin: 0 8px; min-width: 0; text-align: left;">
           <div id="detail-chat-name" style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Contact</div>
-          <div id="detail-chat-sub" style="font-size: 11px; color: var(--text-muted);">Bot active</div>
+          <div id="detail-chat-sub" style="font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bot active</div>
         </div>
 
-        <div style="display: flex; gap: 6px;">
+        <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+          <button class="icon-btn" id="btn-contact-profile" title="Contact Profile" style="color: var(--accent-primary);">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 17px; height: 17px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </button>
           <button class="btn btn-sm btn-primary" id="btn-chat-takeover">Take over</button>
           <button class="btn btn-sm btn-primary" id="btn-chat-resume" style="display: none; background: var(--accent-secondary); color: #fff;">Resume bot</button>
         </div>
@@ -1464,7 +1509,85 @@
       <div class="chat-messages-scroll" id="detail-messages-container">
         <!-- Bubbles injected here -->
       </div>
+
+      <!-- Contact Profile Modal / Slide-over Drawer -->
+      <div id="contact-profile-modal" class="profile-drawer-overlay">
+        <div class="profile-drawer-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(0, 242, 254, 0.15); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 18px; height: 18px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <div style="font-weight: 700; font-size: 14.5px;">Contact Profile</div>
+                <div id="cp-phone-sub" style="font-size: 11px; color: var(--text-muted);">JID / Phone</div>
+              </div>
+            </div>
+            <button class="icon-btn" id="btn-close-contact-profile" style="width: 32px; height: 32px;">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 17px; height: 17px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div style="overflow-y: auto; max-height: calc(80vh - 65px); padding-right: 2px;">
+            <!-- Display Name / Nickname -->
+            <div class="form-group">
+              <label for="cp-input-name">Display Name / Nickname</label>
+              <input type="text" id="cp-input-name" placeholder="e.g. Mom, Boss, John, Dr. Alpha">
+            </div>
+
+            <!-- Relationship selector -->
+            <div class="form-group">
+              <label for="cp-select-relationship">Relationship</label>
+              <select id="cp-select-relationship">
+                <option value="family">Family</option>
+                <option value="close_friend">Close friend</option>
+                <option value="friend">Friend</option>
+                <option value="business">Business / Colleague</option>
+                <option value="customer">Customer / Client</option>
+                <option value="acquaintance">Acquaintance</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <!-- Custom AI Instructions -->
+            <div class="form-group">
+              <label for="cp-input-prompt">Custom AI Instructions for this person</label>
+              <textarea id="cp-input-prompt" placeholder="e.g. This is my boss. Keep replies formal and brief. Never send emojis." style="min-height: 75px;"></textarea>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Takes priority over general style for this conversation (max 1,000 chars).</div>
+            </div>
+
+            <!-- Save Button -->
+            <button class="btn btn-primary btn-block" id="btn-save-contact-profile" style="margin-bottom: 14px;">
+              Save contact profile
+            </button>
+
+            <!-- Read-only AI-discovered facts & rolling summary -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
+                AI Rolling Summary
+              </div>
+              <div id="cp-summary-text" style="font-size: 12px; line-height: 1.4; color: var(--text-main);">
+                No summary available yet.
+              </div>
+            </div>
+
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
+                AI Discovered Facts
+              </div>
+              <div id="cp-facts-list" style="font-size: 11.5px; line-height: 1.4; color: var(--text-main); display: flex; flex-direction: column; gap: 4px;">
+                <div style="color: var(--text-muted);">No facts discovered yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
 
     <!-- Fixed Bottom Nav (TikTok layout) -->
     <nav class="app-bottom-nav">
@@ -2146,13 +2269,29 @@
       });
     }
 
-    // Chats Screen: Fetch List (GET /api/chats)
+    // Bubble HTML formatting
+    function renderBubbleHtml(m) {
+      const isBot = m.role === 'assistant';
+      const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+      const sender = m.senderName || (isBot ? 'You (AI)' : 'Contact');
+      return `
+        <div class="bubble ${isBot ? 'assistant' : 'user'}" data-msg-id="${m.id || m.timestamp}">
+          <div style="font-size: 11px; font-weight: 700; margin-bottom: 2px; opacity: 0.75;">${sender}</div>
+          <div>${m.text}</div>
+          <div class="bubble-meta">${time}</div>
+        </div>
+      `;
+    }
+
+    // Chats Screen: Fetch List (Non-blinking in-place update)
     async function fetchChats() {
       if (!authToken || !API_BASE) return;
       try {
         const data = await api('/api/chats');
         const list = document.getElementById('chats-list');
-        if (!data.conversations || data.conversations.length === 0) {
+        const convos = data.conversations || [];
+
+        if (convos.length === 0) {
           list.innerHTML = `
             <div class="empty-state">
               <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2166,34 +2305,89 @@
           return;
         }
 
-        list.innerHTML = data.conversations.map(c => {
-          const initials = (c.name || c.jid).slice(0, 2).toUpperCase();
-          const time = c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
-          const tag = c.isHandoff
-            ? '<span class="chat-tag human">Human</span>'
-            : '<span class="chat-tag bot">Bot</span>';
+        // Remove skeletons or empty-state if present
+        const emptyOrSkeleton = list.querySelector('.empty-state, .skeleton');
+        if (emptyOrSkeleton) {
+          list.innerHTML = '';
+        }
 
-          return `
-            <div class="chat-row" onclick="openChatDetail('${c.jid}')">
+        const validJids = new Set(convos.map(c => c.jid));
+
+        // Remove rows for chats no longer in list
+        const existingRows = list.querySelectorAll('.chat-row');
+        existingRows.forEach(row => {
+          if (!validJids.has(row.dataset.jid)) {
+            row.remove();
+          }
+        });
+
+        // Update or insert each conversation row in order
+        convos.forEach((c) => {
+          const initials = (c.displayName || c.name || c.jid).slice(0, 2).toUpperCase();
+          const time = c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+          const tagClass = c.isHandoff ? 'human' : 'bot';
+          const tagLabel = c.isHandoff ? 'Human' : 'Bot';
+          const relLabel = c.relationship && c.relationship !== 'acquaintance' ? ` • ${c.relationship.replace('_', ' ')}` : '';
+
+          let row = list.querySelector(`.chat-row[data-jid="${CSS.escape(c.jid)}"]`);
+          if (!row) {
+            row = document.createElement('div');
+            row.className = 'chat-row';
+            row.dataset.jid = c.jid;
+            row.onclick = () => openChatDetail(c.jid);
+            row.innerHTML = `
               <div class="chat-avatar">${initials}</div>
               <div class="chat-info">
                 <div class="chat-info-top">
-                  <span class="chat-name">${c.name || c.jid}</span>
+                  <span class="chat-name">${c.displayName || c.name || c.jid}</span>
                   <span class="chat-time">${time}</span>
                 </div>
                 <div class="chat-snippet">${c.lastMessage || '[No text]'}</div>
-                <div style="margin-top: 4px;">${tag}</div>
+                <div style="margin-top: 4px;"><span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span></div>
               </div>
-            </div>
-          `;
-        }).join('');
+            `;
+            list.appendChild(row);
+          } else {
+            // Update in place to avoid blinking
+            const avatarEl = row.querySelector('.chat-avatar');
+            if (avatarEl && avatarEl.textContent !== initials) avatarEl.textContent = initials;
+
+            const nameEl = row.querySelector('.chat-name');
+            const nameText = c.displayName || c.name || c.jid;
+            if (nameEl && nameEl.textContent !== nameText) nameEl.textContent = nameText;
+
+            const timeEl = row.querySelector('.chat-time');
+            if (timeEl && timeEl.textContent !== time) timeEl.textContent = time;
+
+            const snipEl = row.querySelector('.chat-snippet');
+            const snipText = c.lastMessage || '[No text]';
+            if (snipEl && snipEl.textContent !== snipText) snipEl.textContent = snipText;
+
+            const tagEl = row.querySelector('.chat-tag');
+            if (tagEl) {
+              const fullTag = `${tagLabel}${relLabel}`;
+              if (tagEl.textContent !== fullTag || !tagEl.classList.contains(tagClass)) {
+                tagEl.className = `chat-tag ${tagClass}`;
+                tagEl.textContent = fullTag;
+              }
+            }
+          }
+        });
       } catch (_) {}
     }
 
+    // Active Chat State Cache
+    let currentChatDetailData = null;
+    let lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null };
+
     // Chat Detail: Open Overlay (GET /api/chats/:jid)
-    window.openChatDetail = async function(jid) {
-      activeChatJid = jid;
-      chatDetail.classList.add('open');
+    window.openChatDetail = async function(jid, isBackgroundPoll = false) {
+      if (!isBackgroundPoll) {
+        activeChatJid = jid;
+        chatDetail.classList.add('open');
+      }
+
+      if (activeChatJid !== jid && isBackgroundPoll) return;
 
       const nameEl = document.getElementById('detail-chat-name');
       const subEl = document.getElementById('detail-chat-sub');
@@ -2201,13 +2395,21 @@
       const btnTakeover = document.getElementById('btn-chat-takeover');
       const btnResume = document.getElementById('btn-chat-resume');
 
-      nameEl.textContent = 'Loading...';
-      subEl.textContent = jid;
-      msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">Fetching message history...</div>';
+      // Only show loading placeholder when the user opens a different chat
+      if (!isBackgroundPoll && lastRenderedChat.jid !== jid) {
+        nameEl.textContent = 'Loading...';
+        subEl.textContent = jid;
+        msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">Fetching messages...</div>';
+        lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null };
+      }
 
       try {
         const d = await api(`/api/chats/${encodeURIComponent(jid)}`);
-        nameEl.textContent = d.meta?.name || jid;
+        if (activeChatJid !== jid) return; // User navigated away
+        currentChatDetailData = d;
+
+        const displayName = d.displayName || d.settings?.displayName || d.meta?.name || jid;
+        nameEl.textContent = displayName;
         subEl.textContent = d.isHandoff ? 'Human takeover active' : 'AI bot active';
 
         if (d.isHandoff) {
@@ -2218,32 +2420,53 @@
           btnResume.style.display = 'none';
         }
 
-        document.getElementById('detail-summary').innerHTML = `<strong>Summary:</strong> ${d.summary || 'None'}`;
-        const facts = (d.facts && d.facts.length) ? d.facts.join('; ') : 'None';
-        document.getElementById('detail-facts').innerHTML = `<strong>Facts:</strong> ${facts}`;
+        const summaryHtml = `<strong>Summary:</strong> ${d.summary || 'None'}`;
+        const summaryEl = document.getElementById('detail-summary');
+        if (summaryEl.innerHTML !== summaryHtml) summaryEl.innerHTML = summaryHtml;
 
-        if (!d.messages || d.messages.length === 0) {
-          msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">No stored messages.</div>';
+        const facts = (d.facts && d.facts.length) ? d.facts.join('; ') : 'None';
+        const factsHtml = `<strong>Facts:</strong> ${facts}`;
+        const factsEl = document.getElementById('detail-facts');
+        if (factsEl.innerHTML !== factsHtml) factsEl.innerHTML = factsHtml;
+
+        const messages = d.messages || [];
+        const newCount = messages.length;
+        const lastMsg = newCount > 0 ? messages[newCount - 1] : null;
+        const lastTs = lastMsg ? (lastMsg.timestamp || 0) : 0;
+
+        // Skip message re-render if count and latest timestamp haven't changed!
+        if (lastRenderedChat.jid === jid && lastRenderedChat.msgCount === newCount && lastRenderedChat.lastTs === lastTs) {
           return;
         }
 
-        msgBox.innerHTML = d.messages.map(m => {
-          const isBot = m.role === 'assistant';
-          const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
-          const sender = m.senderName || (isBot ? 'JTech Assistant' : 'Contact');
+        // Check if user is scrolled near bottom before modifying DOM
+        const isNearBottom = (msgBox.scrollHeight - msgBox.scrollTop - msgBox.clientHeight) < 80;
 
-          return `
-            <div class="bubble ${isBot ? 'assistant' : 'user'}">
-              <div style="font-size: 11px; font-weight: 700; margin-bottom: 2px; opacity: 0.75;">${sender}</div>
-              <div>${m.text}</div>
-              <div class="bubble-meta">${time}</div>
-            </div>
-          `;
-        }).join('');
+        if (messages.length === 0) {
+          msgBox.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:13px;">No stored messages.</div>';
+        } else if (lastRenderedChat.jid === jid && lastRenderedChat.msgCount > 0 && newCount > lastRenderedChat.msgCount) {
+          // Append only new messages to preserve DOM elements and prevent flashing
+          const newMessages = messages.slice(lastRenderedChat.msgCount);
+          for (const m of newMessages) {
+            const div = document.createElement('div');
+            div.innerHTML = renderBubbleHtml(m).trim();
+            msgBox.appendChild(div.firstElementChild);
+          }
+        } else {
+          // Full render on first load or history refresh
+          msgBox.innerHTML = messages.map(m => renderBubbleHtml(m)).join('');
+        }
 
-        msgBox.scrollTop = msgBox.scrollHeight;
+        // Auto-scroll only if user was already at the bottom or on initial chat open
+        if (!isBackgroundPoll || isNearBottom) {
+          msgBox.scrollTop = msgBox.scrollHeight;
+        }
+
+        lastRenderedChat = { jid, msgCount: newCount, lastTs, isHandoff: d.isHandoff };
       } catch (err) {
-        msgBox.innerHTML = `<div style="color:var(--danger); padding:16px;">Error: ${err.message}</div>`;
+        if (!isBackgroundPoll) {
+          msgBox.innerHTML = `<div style="color:var(--danger); padding:16px;">Error: ${err.message}</div>`;
+        }
       }
     };
 
@@ -2251,7 +2474,87 @@
     document.getElementById('btn-chat-back').addEventListener('click', () => {
       chatDetail.classList.remove('open');
       activeChatJid = null;
+      lastRenderedChat = { jid: null, msgCount: 0, lastTs: 0, isHandoff: null };
       fetchChats();
+    });
+
+    // Contact Profile Modal Elements
+    const contactProfileModal = document.getElementById('contact-profile-modal');
+    const btnContactProfile = document.getElementById('btn-contact-profile');
+    const btnCloseContactProfile = document.getElementById('btn-close-contact-profile');
+    const btnSaveContactProfile = document.getElementById('btn-save-contact-profile');
+    const cpInputName = document.getElementById('cp-input-name');
+    const cpSelectRelationship = document.getElementById('cp-select-relationship');
+    const cpInputPrompt = document.getElementById('cp-input-prompt');
+    const cpSummaryText = document.getElementById('cp-summary-text');
+    const cpFactsList = document.getElementById('cp-facts-list');
+    const cpPhoneSub = document.getElementById('cp-phone-sub');
+
+    // Open Contact Profile Drawer
+    btnContactProfile.addEventListener('click', async () => {
+      if (!activeChatJid) return;
+      contactProfileModal.classList.add('open');
+      cpPhoneSub.textContent = activeChatJid;
+
+      // Populate current summary & facts from active chat data
+      if (currentChatDetailData) {
+        cpSummaryText.textContent = currentChatDetailData.summary || 'No summary recorded yet.';
+        if (Array.isArray(currentChatDetailData.facts) && currentChatDetailData.facts.length > 0) {
+          cpFactsList.innerHTML = currentChatDetailData.facts.map(f => `<div>• ${f}</div>`).join('');
+        } else {
+          cpFactsList.innerHTML = '<div style="color: var(--text-muted);">No facts discovered yet.</div>';
+        }
+      }
+
+      // Fetch latest custom settings for this contact
+      try {
+        const s = await api(`/api/chats/${encodeURIComponent(activeChatJid)}/settings`);
+        cpInputName.value = s.displayName || '';
+        cpSelectRelationship.value = s.relationship || 'acquaintance';
+        cpInputPrompt.value = s.prompt || '';
+      } catch (_) {}
+    });
+
+    // Close Contact Profile Drawer
+    btnCloseContactProfile.addEventListener('click', () => {
+      contactProfileModal.classList.remove('open');
+    });
+
+    contactProfileModal.addEventListener('click', (e) => {
+      if (e.target === contactProfileModal) {
+        contactProfileModal.classList.remove('open');
+      }
+    });
+
+    // Save Contact Profile
+    btnSaveContactProfile.addEventListener('click', async () => {
+      if (!activeChatJid) return;
+      btnSaveContactProfile.disabled = true;
+      btnSaveContactProfile.textContent = 'Saving profile...';
+
+      const displayName = cpInputName.value.trim();
+      const relationship = cpSelectRelationship.value;
+      const prompt = cpInputPrompt.value.trim();
+
+      try {
+        await api(`/api/chats/${encodeURIComponent(activeChatJid)}/settings`, {
+          method: 'PUT',
+          body: { displayName, relationship, prompt }
+        });
+        showToast('Contact profile saved');
+        contactProfileModal.classList.remove('open');
+
+        // Update active chat title in place
+        if (displayName) {
+          document.getElementById('detail-chat-name').textContent = displayName;
+        }
+        fetchChats();
+      } catch (err) {
+        showToast(err.message, true, err.hint);
+      } finally {
+        btnSaveContactProfile.disabled = false;
+        btnSaveContactProfile.textContent = 'Save contact profile';
+      }
     });
 
     // Chat Takeover / Resume buttons
@@ -2260,7 +2563,7 @@
       try {
         await api(`/api/chats/${encodeURIComponent(activeChatJid)}/takeover`, { method: 'POST' });
         showToast('Takeover active');
-        openChatDetail(activeChatJid);
+        openChatDetail(activeChatJid, true);
       } catch (e) { showToast(e.message, true, e.hint); }
     });
 
@@ -2269,9 +2572,10 @@
       try {
         await api(`/api/chats/${encodeURIComponent(activeChatJid)}/resume`, { method: 'POST' });
         showToast('Bot resumed');
-        openChatDetail(activeChatJid);
+        openChatDetail(activeChatJid, true);
       } catch (e) { showToast(e.message, true, e.hint); }
     });
+
 
     // Copy button on Link error banner
     const btnCopyLinkError = document.getElementById('btn-copy-link-error');
@@ -2672,19 +2976,37 @@
       route();
       fetchState();
 
+      let isTabVisible = !document.hidden;
+      document.addEventListener('visibilitychange', () => {
+        isTabVisible = !document.hidden;
+        if (isTabVisible) {
+          fetchState();
+          const hash = window.location.hash.slice(1);
+          if (hash === 'chats' && !activeChatJid) {
+            fetchChats();
+          } else if (activeChatJid) {
+            openChatDetail(activeChatJid, true);
+          } else if (hash === 'dashboard') {
+            fetchStats();
+          }
+        }
+      });
+
       if (mainPollInterval) clearInterval(mainPollInterval);
       mainPollInterval = setInterval(() => {
+        if (!isTabVisible) return;
         fetchState();
         const hash = window.location.hash.slice(1);
         if (hash === 'chats' && !activeChatJid) {
           fetchChats();
         } else if (activeChatJid) {
-          openChatDetail(activeChatJid);
+          openChatDetail(activeChatJid, true);
         } else if (hash === 'dashboard') {
           fetchStats();
         }
       }, 5000);
     }
+
 
     // Start App Flow
     if (verifyBackendUrl()) {

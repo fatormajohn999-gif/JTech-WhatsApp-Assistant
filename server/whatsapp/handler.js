@@ -112,21 +112,9 @@ export async function handleIncomingMessage(m) {
     return;
   }
 
-  // Media deflection if no accompanying text
+  // Media note if no accompanying text
   if (isMedia && !userText.trim()) {
-    const politeReply = `Hello! I am the *JTech Assistant*. I cannot process voice notes or photos. Please send your message as text. 🙏`;
-    await recordMessage(senderJid, 'user', '[Voice note or Image received]', false, pushName);
-
-    if (state.sock) {
-      await state.sock.sendPresenceUpdate('composing', senderJid);
-      await new Promise(r => setTimeout(r, 600));
-      await state.sock.sendPresenceUpdate('paused', senderJid);
-
-      const sent = await state.sock.sendMessage(senderJid, { text: politeReply }, { quoted: m });
-      if (sent?.key?.id) state.botSentMessageIds.add(sent.key.id);
-      await recordMessage(senderJid, 'assistant', politeReply, true, 'JTech Assistant');
-    }
-    return;
+    userText = '[the contact sent a voice note or photo you cannot open]';
   }
 
   if (!userText || !userText.trim()) return;
@@ -136,7 +124,6 @@ export async function handleIncomingMessage(m) {
   const memory = await getChatMemory(senderJid);
 
   const lastSpokeText = formatLastSeen(memory.profile?.lastSeen);
-  const isFirstMessage = !memory.profile?.firstSeen || memory.messages.length === 0;
 
   // Record incoming user message
   await recordMessage(senderJid, 'user', cleanText, false, pushName);
@@ -154,10 +141,10 @@ export async function handleIncomingMessage(m) {
       contactFacts: memory.facts,
       chatSummary: memory.summary,
       senderJid,
-      contactName: pushName || phone,
+      contactName: memory.settings?.displayName || memory.profile?.displayName || pushName || phone,
       contactProfile: memory.profile,
-      lastSpokeText,
-      isFirstMessage
+      contactSettings: memory.settings,
+      lastSpokeText
     });
 
     if (aiResult.paused) {
@@ -166,6 +153,15 @@ export async function handleIncomingMessage(m) {
     }
 
     if (aiResult.text) {
+      const trimmedText = aiResult.text.trim();
+
+      // Check for [NO_REPLY] silence signal
+      if (trimmedText === '[NO_REPLY]' || trimmedText.includes('[NO_REPLY]')) {
+        await state.sock.sendPresenceUpdate('paused', senderJid);
+        logEvent('info', `Model chose silence for ${senderJid} ([NO_REPLY])`);
+        return;
+      }
+
       const minD = Math.max(100, settings.minDelay);
       const maxD = Math.max(minD, settings.maxDelay);
       const delay = Math.floor(Math.random() * (maxD - minD + 1)) + minD;
@@ -173,7 +169,8 @@ export async function handleIncomingMessage(m) {
 
       await state.sock.sendPresenceUpdate('paused', senderJid);
 
-      const sent = await state.sock.sendMessage(senderJid, { text: aiResult.text }, { quoted: m });
+      // Send reply without quoting the previous message
+      const sent = await state.sock.sendMessage(senderJid, { text: trimmedText });
       if (sent?.key?.id) {
         state.botSentMessageIds.add(sent.key.id);
         if (state.botSentMessageIds.size > 2000) {
@@ -182,9 +179,11 @@ export async function handleIncomingMessage(m) {
         }
       }
 
-      await recordMessage(senderJid, 'assistant', aiResult.text, true, `JTech Assistant (${aiResult.provider})`);
+      const senderLabel = settings.profile?.ownerName ? `${settings.profile.ownerName} (AI)` : 'You';
+      await recordMessage(senderJid, 'assistant', trimmedText, true, senderLabel);
       logEvent('info', `Sent AI reply to ${senderJid} via ${aiResult.provider} (${delay}ms delay)`);
     }
+
   } catch (err) {
     if (state.sock) {
       await state.sock.sendPresenceUpdate('paused', senderJid);

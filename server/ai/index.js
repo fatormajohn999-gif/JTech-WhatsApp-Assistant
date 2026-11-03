@@ -132,9 +132,10 @@ export async function generateAiReply(turns, promptBuilderArgs) {
     senderJid: promptBuilderArgs.senderJid,
     contactName: promptBuilderArgs.contactName,
     contactProfile: promptBuilderArgs.contactProfile,
-    lastSpokeText: promptBuilderArgs.lastSpokeText,
-    isFirstMessage: promptBuilderArgs.isFirstMessage
+    contactSettings: promptBuilderArgs.contactSettings,
+    lastSpokeText: promptBuilderArgs.lastSpokeText
   });
+
 
   const primary = (settings.provider || 'gemini').toLowerCase();
   const fallback = primary === 'gemini' ? 'groq' : 'gemini';
