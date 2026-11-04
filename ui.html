@@ -1944,6 +1944,58 @@
               <span class="slider"></span>
             </label>
           </div>
+
+          <!-- Learn from my replies toggle -->
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Learn from my replies</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Learn your writing style and real examples when you text directly</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-learn-replies" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Learned Style Card (Read-only with reset button) -->
+        <div class="card">
+          <div class="card-header" style="margin-bottom: 6px;">
+            <div>
+              <div class="card-title">Learned texting style</div>
+              <div class="card-desc">How the assistant mimics your texting habits (replaces static templates).</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-reset-style" style="flex-shrink: 0;">Reset</button>
+          </div>
+          <div id="set-learned-style-display" style="font-size: 12.5px; line-height: 1.5; color: var(--text-main); background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-height: 50px; user-select: text; -webkit-user-select: text;">
+            Learning in progress... As you reply to contacts from WhatsApp, your natural style will appear here.
+          </div>
+        </div>
+
+        <!-- Daily Briefing Settings Card -->
+        <div class="card">
+          <div class="card-title">Daily WhatsApp briefing</div>
+          <div class="card-desc">Receive an evening summary on WhatsApp listing today's activity, contacts needing you, and pending questions.</div>
+
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Send daily briefing</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Send briefing to your own WhatsApp number</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-daily-summary-toggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-daily-summary-time">Briefing time (Africa/Freetown)</label>
+            <input type="time" id="set-daily-summary-time" value="21:00">
+          </div>
+
+          <button class="btn btn-secondary btn-block" id="btn-test-summary" style="margin-top: 8px;">
+            Send a summary now (test)
+          </button>
         </div>
 
         <!-- Contact Rules -->
@@ -1973,6 +2025,7 @@
         <div class="card" style="margin-top: 20px; border-color: rgba(239, 68, 68, 0.2);">
           <div class="card-title" style="color: var(--danger);">Session & memory</div>
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-secondary btn-sm" id="btn-action-clear-learned">Clear learned data</button>
             <button class="btn btn-secondary btn-sm" id="btn-action-clear-mem">Clear chat memory</button>
             <button class="btn btn-secondary btn-sm" id="btn-action-logout-wa">Log out WhatsApp</button>
             <button class="btn btn-danger btn-sm" id="btn-action-signout">Sign out of dashboard</button>
@@ -2481,7 +2534,7 @@
     function route() {
       const hash = window.location.hash.slice(1) || 'home';
       const targetScreenId = 'screen-' + hash;
-      const validScreens = ['screen-home', 'screen-chats', 'screen-link', 'screen-dashboard', 'screen-settings'];
+      const validScreens = ['screen-home', 'screen-chats', 'screen-teachme', 'screen-link', 'screen-dashboard', 'screen-settings'];
 
       if (!validScreens.includes(targetScreenId)) {
         window.location.hash = '#home';
@@ -2516,6 +2569,7 @@
       // Lazy fetch on screen switch
       if (hash === 'home') { fetchHomeActivity(); fetchState(); }
       if (hash === 'chats') { fetchChats(); }
+      if (hash === 'teachme') { fetchTeachMe(); fetchKnowledge(); }
       if (hash === 'dashboard') { fetchStats(); fetchState(); }
       if (hash === 'settings') { fetchSettings(); fetchState(); }
     }
@@ -2614,6 +2668,40 @@
         const pauseToggle = document.getElementById('home-pause-toggle');
         pauseToggle.checked = !s.isManualPaused;
         document.getElementById('pause-status-sub').textContent = s.isManualPaused ? 'Automated replies are paused' : 'Bot replies are currently active';
+
+        // Teach-Me badge & Home card
+        const teachMeCount = s.teachMeCount || 0;
+        const navTeachMeBadge = document.getElementById('nav-teachme-badge');
+        if (navTeachMeBadge) {
+          navTeachMeBadge.textContent = teachMeCount;
+          navTeachMeBadge.style.display = teachMeCount > 0 ? 'inline-block' : 'none';
+        }
+        const homeTeachMeCard = document.getElementById('home-teachme-card');
+        const homeTeachMeCount = document.getElementById('home-teachme-count');
+        if (homeTeachMeCard && homeTeachMeCount) {
+          homeTeachMeCount.textContent = teachMeCount;
+          homeTeachMeCard.style.display = teachMeCount > 0 ? 'block' : 'none';
+        }
+
+        // Home Latest Daily Briefing Card
+        const homeSummaryCard = document.getElementById('home-summary-card');
+        const homeSummaryText = document.getElementById('home-summary-text');
+        const homeSummaryDate = document.getElementById('home-summary-date');
+        if (homeSummaryCard && homeSummaryText) {
+          if (s.latestDailySummary?.text) {
+            homeSummaryCard.style.display = 'block';
+            homeSummaryText.textContent = s.latestDailySummary.text;
+            if (homeSummaryDate) homeSummaryDate.textContent = s.latestDailySummary.date || 'Today';
+          } else {
+            homeSummaryCard.style.display = 'none';
+          }
+        }
+
+        // Learned style display
+        const learnedStyleDisplay = document.getElementById('set-learned-style-display');
+        if (learnedStyleDisplay && s.learnedStyle) {
+          learnedStyleDisplay.textContent = s.learnedStyle;
+        }
 
         // 3. Link Screen Management
         if (waState === 'connected') {
@@ -3180,6 +3268,57 @@
     const cpFactsList = document.getElementById('cp-facts-list');
     const cpPhoneSub = document.getElementById('cp-phone-sub');
 
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function fetchOwnerExamples(jid) {
+      const listEl = document.getElementById('cp-learned-examples-list');
+      const countEl = document.getElementById('cp-learned-count');
+      if (!listEl) return;
+      listEl.innerHTML = '<div style="color:var(--text-muted); font-size:11.5px;">Loading learned replies...</div>';
+      try {
+        const res = await api(`/api/owner-examples/${encodeURIComponent(jid)}`);
+        const examples = res.examples || [];
+        if (countEl) countEl.textContent = `${examples.length} example${examples.length === 1 ? '' : 's'}`;
+        if (examples.length === 0) {
+          listEl.innerHTML = '<div style="color:var(--text-muted); font-size:11.5px;">No learned replies for this contact yet.</div>';
+          return;
+        }
+        listEl.innerHTML = examples.map(ex => {
+          const time = ex.timestamp ? new Date(ex.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+          return `
+            <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:8px 10px; font-size:11.5px; position:relative;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:var(--text-muted); font-size:10px;">${time}</span>
+                <button class="btn btn-danger btn-sm" style="padding:2px 6px; font-size:10px;" onclick="deleteOwnerExample('${encodeURIComponent(jid)}', '${ex.id}')">Delete</button>
+              </div>
+              <div style="color:var(--text-muted); margin-bottom:2px;"><strong style="color:var(--text-main);">Them:</strong> ${escapeHtml(ex.contactMsg || '')}</div>
+              <div style="color:var(--accent-primary);"><strong style="color:var(--text-main);">You:</strong> ${escapeHtml(ex.ownerReply || '')}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:var(--danger); font-size:11.5px;">Failed to load examples: ${e.message}</div>`;
+      }
+    }
+
+    window.deleteOwnerExample = async function(encJid, id) {
+      if (!confirm('Delete this learned reply pair?')) return;
+      try {
+        await api(`/api/owner-examples/${encJid}/${id}`, { method: 'DELETE' });
+        showToast('Learned reply removed');
+        fetchOwnerExamples(decodeURIComponent(encJid));
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
     // Open Contact Profile Drawer
     btnContactProfile.addEventListener('click', async () => {
       if (!activeChatJid) return;
@@ -3203,6 +3342,9 @@
         cpSelectRelationship.value = s.relationship || 'acquaintance';
         cpInputPrompt.value = s.prompt || '';
       } catch (_) {}
+
+      // Fetch learned replies from owner for this contact
+      fetchOwnerExamples(activeChatJid);
     });
 
     // Close Contact Profile Drawer
@@ -3265,6 +3407,237 @@
         openChatDetail(activeChatJid, true);
       } catch (e) { showToast(e.message, true, e.hint); }
     });
+
+    // Teach Me Screen: Tabs & Data
+    const tabTeachMePending = document.getElementById('tab-btn-teachme-pending');
+    const tabTeachMeKb = document.getElementById('tab-btn-teachme-kb');
+    const teachMeViewPending = document.getElementById('teachme-view-pending');
+    const teachMeViewKb = document.getElementById('teachme-view-kb');
+    const kbSelectScope = document.getElementById('kb-select-scope');
+    const kbContactGroup = document.getElementById('kb-contact-group');
+    const btnAddKbItem = document.getElementById('btn-add-kb-item');
+
+    if (tabTeachMePending && tabTeachMeKb) {
+      tabTeachMePending.addEventListener('click', () => {
+        tabTeachMePending.classList.add('selected');
+        tabTeachMeKb.classList.remove('selected');
+        teachMeViewPending.style.display = 'block';
+        teachMeViewKb.style.display = 'none';
+        fetchTeachMe();
+      });
+
+      tabTeachMeKb.addEventListener('click', () => {
+        tabTeachMeKb.classList.add('selected');
+        tabTeachMePending.classList.remove('selected');
+        teachMeViewPending.style.display = 'none';
+        teachMeViewKb.style.display = 'block';
+        fetchKnowledge();
+      });
+    }
+
+    if (kbSelectScope) {
+      kbSelectScope.addEventListener('change', () => {
+        if (kbContactGroup) {
+          kbContactGroup.style.display = kbSelectScope.value === 'this contact' ? 'block' : 'none';
+        }
+      });
+    }
+
+    async function fetchTeachMe() {
+      if (!authToken || !API_BASE) return;
+      const listEl = document.getElementById('teachme-pending-list');
+      const badgeEl = document.getElementById('teachme-pending-badge');
+      if (!listEl) return;
+      try {
+        const res = await api('/api/teachme');
+        const items = res.items || [];
+        if (badgeEl) badgeEl.textContent = items.length;
+
+        // Update nav badge & home card as well
+        const navTeachMeBadge = document.getElementById('nav-teachme-badge');
+        if (navTeachMeBadge) {
+          navTeachMeBadge.textContent = items.length;
+          navTeachMeBadge.style.display = items.length > 0 ? 'inline-block' : 'none';
+        }
+        const homeTeachMeCard = document.getElementById('home-teachme-card');
+        const homeTeachMeCount = document.getElementById('home-teachme-count');
+        if (homeTeachMeCard && homeTeachMeCount) {
+          homeTeachMeCount.textContent = items.length;
+          homeTeachMeCard.style.display = items.length > 0 ? 'block' : 'none';
+        }
+
+        if (items.length === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state" id="teachme-empty-state">
+              <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <div class="empty-title">All caught up!</div>
+              <div class="empty-desc">When someone asks a question the assistant doesn't know, it will appear here so you can teach it.</div>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = items.map(it => {
+          const time = it.timestamp ? new Date(it.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+          const sender = it.contactName || it.contactJid || 'Contact';
+          return `
+            <div class="card" style="margin-bottom:0; border-left:3px solid var(--accent-primary);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                <div>
+                  <div style="font-weight:700; font-size:13.5px; color:var(--text-main);">${escapeHtml(it.question)}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Asked by <strong>${escapeHtml(sender)}</strong> • ${time}</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:11px;" onclick="dismissTeachMe('${it.id}')">Dismiss</button>
+              </div>
+              <div class="form-group" style="margin-top:8px;">
+                <label style="font-size:11.5px;">Your confirmed answer</label>
+                <textarea id="tm-ans-${it.id}" rows="2" placeholder="Teach the assistant what to answer..."></textarea>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                <div style="display:flex; align-items:center; gap:12px; font-size:12px;">
+                  <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="radio" name="tm-scope-${it.id}" value="everyone" checked> Everyone
+                  </label>
+                  <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="radio" name="tm-scope-${it.id}" value="this contact"> Only ${escapeHtml(sender)}
+                  </label>
+                </div>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                  <input type="checkbox" id="tm-send-${it.id}" checked>
+                  <span>Send this answer to ${escapeHtml(sender)} now</span>
+                </label>
+                <button class="btn btn-primary btn-sm" style="align-self:flex-start; padding:6px 14px; margin-top:4px;" onclick="answerTeachMe('${it.id}')">
+                  Save & Teach Assistant
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div style="color:var(--danger); font-size:12px; padding:12px;">Error: ${err.message}</div>`;
+      }
+    }
+
+    window.dismissTeachMe = async function(id) {
+      try {
+        await api(`/api/teachme/${id}/dismiss`, { method: 'POST' });
+        showToast('Question dismissed');
+        fetchTeachMe();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    window.answerTeachMe = async function(id) {
+      const ansEl = document.getElementById(`tm-ans-${id}`);
+      const answer = ansEl ? ansEl.value.trim() : '';
+      if (!answer) {
+        showToast('Please type an answer', true);
+        return;
+      }
+      const scopeRadio = document.querySelector(`input[name="tm-scope-${id}"]:checked`);
+      const scope = scopeRadio ? scopeRadio.value : 'everyone';
+      const sendCheck = document.getElementById(`tm-send-${id}`);
+      const sendToContact = sendCheck ? sendCheck.checked : true;
+
+      try {
+        await api(`/api/teachme/${id}/answer`, {
+          method: 'POST',
+          body: { answer, scope, sendToContact }
+        });
+        showToast(sendToContact ? 'Answer saved and queued to send!' : 'Answer saved to knowledge base');
+        fetchTeachMe();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    async function fetchKnowledge() {
+      if (!authToken || !API_BASE) return;
+      const listEl = document.getElementById('kb-items-list');
+      const badgeEl = document.getElementById('teachme-kb-badge');
+      if (!listEl) return;
+      try {
+        const res = await api('/api/knowledge');
+        const items = res.items || [];
+        if (badgeEl) badgeEl.textContent = items.length;
+
+        if (items.length === 0) {
+          listEl.innerHTML = '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:16px;">No knowledge items yet. Add one above or answer pending questions.</div>';
+          return;
+        }
+
+        listEl.innerHTML = items.map(it => {
+          const isEveryone = it.scope !== 'this contact' && !it.contactJid;
+          const scopeBadge = isEveryone
+            ? '<span class="chat-tag bot">Everyone</span>'
+            : `<span class="chat-tag human">Contact: ${escapeHtml(it.contactJid || 'Private')}</span>`;
+          return `
+            <div class="card" style="margin-bottom:0;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                <div style="font-weight:700; font-size:13px; color:var(--text-main);">${escapeHtml(it.question)}</div>
+                <button class="btn btn-danger btn-sm" style="padding:2px 6px; font-size:10px;" onclick="deleteKnowledgeItem('${it.id}')">Delete</button>
+              </div>
+              <div style="font-size:12px; color:var(--text-main); line-height:1.4; margin-bottom:8px; white-space:pre-wrap;">${escapeHtml(it.answer)}</div>
+              <div>${scopeBadge}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div style="color:var(--danger); font-size:12px; padding:12px;">Error: ${err.message}</div>`;
+      }
+    }
+
+    window.deleteKnowledgeItem = async function(id) {
+      if (!confirm('Delete this knowledge item? The assistant will no longer know this answer.')) return;
+      try {
+        await api(`/api/knowledge/${id}`, { method: 'DELETE' });
+        showToast('Knowledge item removed');
+        fetchKnowledge();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    if (btnAddKbItem) {
+      btnAddKbItem.addEventListener('click', async () => {
+        const qEl = document.getElementById('kb-input-question');
+        const aEl = document.getElementById('kb-input-answer');
+        const sEl = document.getElementById('kb-select-scope');
+        const cEl = document.getElementById('kb-input-contact');
+
+        const question = qEl ? qEl.value.trim() : '';
+        const answer = aEl ? aEl.value.trim() : '';
+        const scope = sEl ? sEl.value : 'everyone';
+        const contactJid = cEl ? cEl.value.trim() : '';
+
+        if (!question || !answer) {
+          showToast('Please provide both question and answer', true);
+          return;
+        }
+
+        btnAddKbItem.disabled = true;
+        btnAddKbItem.textContent = 'Saving...';
+        try {
+          await api('/api/knowledge', {
+            method: 'POST',
+            body: { question, answer, scope, contactJid }
+          });
+          showToast('Knowledge added successfully');
+          if (qEl) qEl.value = '';
+          if (aEl) aEl.value = '';
+          if (cEl) cEl.value = '';
+          fetchKnowledge();
+        } catch (e) {
+          showToast(e.message, true);
+        } finally {
+          btnAddKbItem.disabled = false;
+          btnAddKbItem.textContent = 'Save to knowledge base';
+        }
+      });
+    }
 
 
     // Copy button on Link error banner
@@ -3443,6 +3816,16 @@
           document.getElementById('set-blocklist').value = (s.contactRules.blocklist || []).join('\n');
         }
 
+        if (s.learnFromReplies !== undefined) {
+          document.getElementById('set-learn-replies').checked = Boolean(s.learnFromReplies);
+        }
+        if (s.dailySummaryEnabled !== undefined) {
+          document.getElementById('set-daily-summary-toggle').checked = Boolean(s.dailySummaryEnabled);
+        }
+        if (s.dailySummaryTime) {
+          document.getElementById('set-daily-summary-time').value = s.dailySummaryTime;
+        }
+
         if (s.pacing) {
           if (s.pacing.typingDelayEnabled !== undefined) {
             document.getElementById('set-pacing-typing').checked = Boolean(s.pacing.typingDelayEnabled);
@@ -3511,6 +3894,9 @@
       };
 
       const notifyOwnerOnWhatsApp = document.getElementById('set-notify-owner').checked;
+      const learnFromReplies = document.getElementById('set-learn-replies').checked;
+      const dailySummaryEnabled = document.getElementById('set-daily-summary-toggle').checked;
+      const dailySummaryTime = document.getElementById('set-daily-summary-time').value || '21:00';
       const allowlist = document.getElementById('set-allowlist').value.split('\n').map(s => s.trim()).filter(Boolean);
       const blocklist = document.getElementById('set-blocklist').value.split('\n').map(s => s.trim()).filter(Boolean);
 
@@ -3538,6 +3924,9 @@
             maxDelay,
             profile,
             notifyOwnerOnWhatsApp,
+            learnFromReplies,
+            dailySummaryEnabled,
+            dailySummaryTime,
             contactRules: { mode: selectedMode, allowlist, blocklist },
             pacing
           }
@@ -3688,6 +4077,60 @@
         fetchState();
       } catch (e) { showToast(e.message, true, e.hint); }
     });
+
+    // Reset Learned Style
+    const btnResetStyle = document.getElementById('btn-reset-style');
+    if (btnResetStyle) {
+      btnResetStyle.addEventListener('click', async () => {
+        if (!confirm('Reset your learned texting style? The assistant will start learning fresh from future replies.')) return;
+        btnResetStyle.disabled = true;
+        try {
+          await api('/api/style/reset', { method: 'POST' });
+          showToast('Learned style reset');
+          document.getElementById('set-learned-style-display').textContent = 'Learning in progress... As you reply to contacts from WhatsApp, your natural style will appear here.';
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true);
+        } finally {
+          btnResetStyle.disabled = false;
+        }
+      });
+    }
+
+    // Test Daily Briefing Now
+    const btnTestSummary = document.getElementById('btn-test-summary');
+    if (btnTestSummary) {
+      btnTestSummary.addEventListener('click', async () => {
+        btnTestSummary.disabled = true;
+        btnTestSummary.textContent = 'Generating briefing...';
+        try {
+          const res = await api('/api/summary/trigger-now', { method: 'POST' });
+          showToast(res.sent ? 'Briefing generated and sent to WhatsApp!' : (res.message || 'Briefing generated'));
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true);
+        } finally {
+          btnTestSummary.disabled = false;
+          btnTestSummary.textContent = 'Send a summary now (test)';
+        }
+      });
+    }
+
+    // Clear Learned Data Button
+    const btnClearLearned = document.getElementById('btn-action-clear-learned');
+    if (btnClearLearned) {
+      btnClearLearned.addEventListener('click', async () => {
+        if (!confirm('Clear all learned owner replies and reset learned style? Permanent knowledge items will NOT be deleted.')) return;
+        try {
+          await api('/api/clear-learned-data', { method: 'POST' });
+          showToast('Learned replies and style cleared');
+          document.getElementById('set-learned-style-display').textContent = 'Learning in progress... As you reply to contacts from WhatsApp, your natural style will appear here.';
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      });
+    }
 
     // Session Actions: Sign out of Dashboard
     document.getElementById('btn-action-signout').addEventListener('click', () => {
