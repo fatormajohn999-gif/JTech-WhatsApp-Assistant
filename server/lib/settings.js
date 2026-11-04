@@ -32,7 +32,8 @@ export async function getSettings(forceRefresh = false) {
       rawPacing,
       rawLearnReplies,
       rawDailySummaryEnabled,
-      rawDailySummaryTime
+      rawDailySummaryTime,
+      rawScheduledLimits
     ] = await Promise.all([
       redis.get('config:owner_profile'),
       redis.get('config:personal_prompt'),
@@ -48,7 +49,8 @@ export async function getSettings(forceRefresh = false) {
       redis.get('config:pacing_settings'),
       redis.get('config:learn_from_replies'),
       redis.get('config:daily_summary_enabled'),
-      redis.get('config:daily_summary_time')
+      redis.get('config:daily_summary_time'),
+      redis.get('config:scheduled_limits')
     ]);
 
     let profile = { ...DEFAULT_PROFILE };
@@ -92,6 +94,22 @@ export async function getSettings(forceRefresh = false) {
       } catch (_) {}
     }
 
+    let scheduledLimits = {
+      maxHourlyScheduledTotal: 10,
+      maxDailyScheduledTotal: 30,
+      maxDailyScheduledPerContact: 2,
+      minScheduledGapMins: 60,
+      quietHoursEnabled: true,
+      quietHoursStart: '22:00',
+      quietHoursEnd: '07:00',
+      schedulerGracePeriodHours: 3
+    };
+    if (rawScheduledLimits) {
+      try {
+        scheduledLimits = { ...scheduledLimits, ...JSON.parse(rawScheduledLimits) };
+      } catch (_) {}
+    }
+
     cachedSettings = {
       profile,
       personalPrompt,
@@ -107,7 +125,8 @@ export async function getSettings(forceRefresh = false) {
       pacing,
       learnFromReplies: rawLearnReplies !== 'false',
       dailySummaryEnabled: rawDailySummaryEnabled !== 'false',
-      dailySummaryTime: rawDailySummaryTime || '21:00'
+      dailySummaryTime: rawDailySummaryTime || '21:00',
+      scheduledLimits
     };
     lastSettingsFetch = now;
     return cachedSettings;

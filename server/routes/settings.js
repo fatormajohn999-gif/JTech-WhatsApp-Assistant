@@ -39,7 +39,8 @@ router.post('/cfg', requireAuth, async (req, res) => {
       pacing,
       learnFromReplies,
       dailySummaryEnabled,
-      dailySummaryTime
+      dailySummaryTime,
+      scheduledLimits
     } = req.body;
 
     if (profile && typeof profile === 'object') {
@@ -109,6 +110,34 @@ router.post('/cfg', requireAuth, async (req, res) => {
         maxHourlyRepliesGlobal: Math.max(1, parseInt(pacing.maxHourlyRepliesGlobal ?? current.maxHourlyRepliesGlobal, 10) || 150)
       };
       await redis.set('config:pacing_settings', JSON.stringify(updatedPacing));
+    }
+
+    if (scheduledLimits && typeof scheduledLimits === 'object') {
+      const currentLimitsRaw = await redis.get('config:scheduled_limits');
+      let currentLimits = {
+        maxHourlyScheduledTotal: 10,
+        maxDailyScheduledTotal: 30,
+        maxDailyScheduledPerContact: 2,
+        minScheduledGapMins: 60,
+        quietHoursEnabled: true,
+        quietHoursStart: '22:00',
+        quietHoursEnd: '07:00',
+        schedulerGracePeriodHours: 3
+      };
+      if (currentLimitsRaw) {
+        try { currentLimits = { ...currentLimits, ...JSON.parse(currentLimitsRaw) }; } catch (_) {}
+      }
+      const updatedLimits = {
+        maxHourlyScheduledTotal: Math.max(1, parseInt(scheduledLimits.maxHourlyScheduledTotal ?? currentLimits.maxHourlyScheduledTotal, 10) || 10),
+        maxDailyScheduledTotal: Math.max(1, parseInt(scheduledLimits.maxDailyScheduledTotal ?? currentLimits.maxDailyScheduledTotal, 10) || 30),
+        maxDailyScheduledPerContact: Math.max(1, parseInt(scheduledLimits.maxDailyScheduledPerContact ?? currentLimits.maxDailyScheduledPerContact, 10) || 2),
+        minScheduledGapMins: Math.max(0, parseInt(scheduledLimits.minScheduledGapMins ?? currentLimits.minScheduledGapMins, 10) || 60),
+        quietHoursEnabled: scheduledLimits.quietHoursEnabled !== undefined ? Boolean(scheduledLimits.quietHoursEnabled) : currentLimits.quietHoursEnabled,
+        quietHoursStart: scheduledLimits.quietHoursStart || currentLimits.quietHoursStart || '22:00',
+        quietHoursEnd: scheduledLimits.quietHoursEnd || currentLimits.quietHoursEnd || '07:00',
+        schedulerGracePeriodHours: Math.max(1, parseInt(scheduledLimits.schedulerGracePeriodHours ?? currentLimits.schedulerGracePeriodHours, 10) || 3)
+      };
+      await redis.set('config:scheduled_limits', JSON.stringify(updatedLimits));
     }
 
     invalidateSettingsCache();

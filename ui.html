@@ -1344,6 +1344,25 @@
           <div id="home-summary-text" style="font-size: 12px; line-height: 1.5; color: var(--text-main); white-space: pre-wrap; user-select: text; -webkit-user-select: text; background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);"></div>
         </div>
 
+        <!-- Next Scheduled Message Card on Home -->
+        <div class="card" id="home-next-scheduled-card" style="display: none; border-color: rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.06); padding: 12px 14px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1;">
+              <span style="font-size: 20px;">⏰</span>
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Next scheduled</span>
+                  <span id="home-approval-alert-badge" class="chat-tag human" style="display: none; padding: 1px 6px; font-size: 10px;">Approval needed</span>
+                </div>
+                <div id="home-scheduled-desc" style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  Checking schedules...
+                </div>
+              </div>
+            </div>
+            <a href="#scheduled" class="btn btn-sm btn-primary" style="flex-shrink: 0; margin-left: 8px;">View all</a>
+          </div>
+        </div>
+
         <!-- Last 5 Activity Items -->
         <div class="card">
           <div class="card-header">
@@ -1433,6 +1452,65 @@
           <!-- Existing Knowledge Items List -->
           <div id="kb-items-list" style="display: flex; flex-direction: column; gap: 10px;">
             <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 12px;">Loading knowledge base...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN: SCHEDULED (#scheduled) -->
+      <section class="app-screen" id="screen-scheduled">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <div class="card-title">Scheduled messages</div>
+            <div class="card-desc">Automatic check-ins, reminders, and delivery history.</div>
+          </div>
+          <button class="btn btn-sm btn-primary" id="btn-sch-global-add" style="flex-shrink: 0;">
+            + Add schedule
+          </button>
+        </div>
+
+        <!-- Mode selector: Upcoming vs Waiting Approval vs History -->
+        <div class="mode-bar" style="margin-bottom: 14px;">
+          <button class="mode-btn selected" id="tab-btn-sch-upcoming" style="font-size: 12px;">
+            Upcoming (<span id="sch-count-upcoming">0</span>)
+          </button>
+          <button class="mode-btn" id="tab-btn-sch-approvals" style="font-size: 12px; position: relative;">
+            Waiting approval (<span id="sch-count-approvals">0</span>)
+          </button>
+          <button class="mode-btn" id="tab-btn-sch-history" style="font-size: 12px;">
+            History
+          </button>
+        </div>
+
+        <!-- View 1: Upcoming Schedules List -->
+        <div id="sch-view-upcoming">
+          <div id="sch-upcoming-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="empty-state" id="sch-upcoming-empty">
+              <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="empty-title">No scheduled messages</div>
+              <div class="empty-desc">Schedule the assistant to check in on friends, family, or clients automatically.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Waiting Approval List -->
+        <div id="sch-view-approvals" style="display: none;">
+          <div id="sch-approvals-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="empty-state" id="sch-approvals-empty">
+              <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="empty-title">No messages waiting for approval</div>
+              <div class="empty-desc">Schedules with "Ask me first" enabled will appear here before they are sent.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 3: Execution History List -->
+        <div id="sch-view-history" style="display: none;">
+          <div id="sch-history-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 12px;">Loading history...</div>
           </div>
         </div>
       </section>
@@ -1998,6 +2076,57 @@
           </button>
         </div>
 
+        <!-- Scheduled message safety limits card -->
+        <div class="card">
+          <div class="card-title">Scheduled message limits</div>
+          <div class="card-desc">Safety controls to protect your WhatsApp account from rate limits and bans.</div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-sch-hourly-limit">Max scheduled messages/hr (global total)</label>
+            <input type="number" id="set-sch-hourly-limit" min="1" max="100" value="10">
+          </div>
+          <div class="form-group">
+            <label for="set-sch-daily-limit">Max scheduled messages/day (global total)</label>
+            <input type="number" id="set-sch-daily-limit" min="1" max="500" value="30">
+          </div>
+          <div class="form-group">
+            <label for="set-sch-contact-limit">Max scheduled messages/day (per contact)</label>
+            <input type="number" id="set-sch-contact-limit" min="1" max="50" value="2">
+          </div>
+          <div class="form-group">
+            <label for="set-sch-gap-mins">Minimum gap between messages to same contact (minutes)</label>
+            <input type="number" id="set-sch-gap-mins" min="0" max="1440" value="60">
+          </div>
+
+          <div class="toggle-row" style="margin-top: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px;">Enforce quiet hours</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Hold scheduled messages during nighttime</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-sch-quiet-toggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+            <div class="form-group">
+              <label for="set-sch-quiet-start">Quiet start (Freetown)</label>
+              <input type="time" id="set-sch-quiet-start" value="22:00">
+            </div>
+            <div class="form-group">
+              <label for="set-sch-quiet-end">Quiet end (Freetown)</label>
+              <input type="time" id="set-sch-quiet-end" value="07:00">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="set-sch-grace-hours">Waking grace period (hours)</label>
+            <input type="number" id="set-sch-grace-hours" min="1" max="24" value="3">
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">If server was sleeping at send time, send if within this window; otherwise record missed.</div>
+          </div>
+        </div>
+
         <!-- Contact Rules -->
         <div class="card">
           <div class="card-title">Contact rules</div>
@@ -2159,6 +2288,24 @@
               </div>
             </div>
 
+            <!-- Scheduled messages section for this contact -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 13px;">⏰</span>
+                  <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                    Scheduled messages
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-primary" id="btn-cp-add-schedule" style="padding: 3px 8px; font-size: 11px;" type="button">
+                  + Add schedule
+                </button>
+              </div>
+              <div id="cp-schedules-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="color: var(--text-muted); font-size: 11.5px;">No scheduled messages for this contact.</div>
+              </div>
+            </div>
+
             <!-- Learned from you: Reply examples -->
             <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -2169,6 +2316,203 @@
               </div>
               <div id="cp-learned-examples-list" style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="color: var(--text-muted); font-size: 11.5px;">No learned replies for this contact yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Editor Modal / Bottom Sheet -->
+      <div id="schedule-editor-modal" class="profile-drawer-overlay">
+        <div class="profile-drawer-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(139, 92, 246, 0.15); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 18px; height: 18px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <div id="sch-modal-title" style="font-weight: 700; font-size: 14.5px;">Schedule Message</div>
+                <div id="sch-target-sub" style="font-size: 11px; color: var(--text-muted);">Recipient</div>
+              </div>
+            </div>
+            <button class="icon-btn" id="btn-close-schedule-modal" style="width: 32px; height: 32px;" type="button">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 17px; height: 17px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div style="overflow-y: auto; max-height: calc(82vh - 65px); padding-right: 2px;">
+            <!-- Safety Warning -->
+            <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 11.5px; color: var(--warning); margin-bottom: 12px; line-height: 1.4;">
+              ⚠️ Messages you start can raise the risk of WhatsApp limiting this number. Keep schedules few and personal.
+            </div>
+
+            <!-- Recipient input (visible only when creating from global view) -->
+            <div class="form-group" id="sch-recipient-group" style="display: none;">
+              <label for="sch-input-recipient">Recipient Phone or @lid ID</label>
+              <input type="text" id="sch-input-recipient" placeholder="e.g. 23276123456 or 120363028392@lid">
+            </div>
+
+            <!-- What to send / Purpose -->
+            <div class="form-group">
+              <label for="sch-input-purpose">Purpose or instruction for the assistant</label>
+              <textarea id="sch-input-purpose" rows="2" placeholder="e.g. Check in on how his exams are going, friendly and short"></textarea>
+            </div>
+
+            <!-- Generation Mode Switch -->
+            <div class="form-group">
+              <label>Message generation</label>
+              <div class="mode-bar" style="margin-top: 4px;">
+                <button type="button" class="mode-btn selected" id="sch-btn-mode-ai" style="font-size: 11.5px;">AI writes it each time</button>
+                <button type="button" class="mode-btn" id="sch-btn-mode-exact" style="font-size: 11.5px;">Send exactly this text</button>
+              </div>
+            </div>
+
+            <!-- Exact Text Area (Shown when mode === exact) -->
+            <div class="form-group" id="sch-exact-group" style="display: none;">
+              <label for="sch-input-exact">Exact message text</label>
+              <textarea id="sch-input-exact" rows="2" placeholder="Write exact text to send..."></textarea>
+            </div>
+
+            <!-- Repeat Pattern -->
+            <div class="form-group">
+              <label for="sch-select-repeat">Repeat pattern</label>
+              <select id="sch-select-repeat">
+                <option value="once" selected>Once (specific date & time)</option>
+                <option value="delay">In X hours or days from now</option>
+                <option value="daily">Every day</option>
+                <option value="weekdays">On selected weekdays</option>
+                <option value="interval">Every N days</option>
+              </select>
+            </div>
+
+            <!-- Repeat Dynamic Inputs -->
+            <!-- 1. Once: DateTime Local -->
+            <div class="form-group" id="sch-group-once">
+              <label for="sch-input-datetime">Send date & time (Africa/Freetown)</label>
+              <input type="datetime-local" id="sch-input-datetime">
+            </div>
+
+            <!-- 2. Delay: In X Hours/Days -->
+            <div id="sch-group-delay" style="display: none;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="form-group">
+                  <label for="sch-input-delay-amount">Wait amount</label>
+                  <input type="number" id="sch-input-delay-amount" min="1" max="90" value="2">
+                </div>
+                <div class="form-group">
+                  <label for="sch-select-delay-unit">Unit</label>
+                  <select id="sch-select-delay-unit">
+                    <option value="hours" selected>Hours</option>
+                    <option value="days">Days</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Time of day (for daily, weekdays, interval) -->
+            <div class="form-group" id="sch-group-time" style="display: none;">
+              <label for="sch-input-time">Time of day (Africa/Freetown)</label>
+              <input type="time" id="sch-input-time" value="08:00">
+            </div>
+
+            <!-- 4. Weekdays selector (chips) -->
+            <div class="form-group" id="sch-group-weekdays" style="display: none;">
+              <label>Select days</label>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;">
+                <button type="button" class="mode-btn sch-day-btn selected" data-day="1">Mon</button>
+                <button type="button" class="mode-btn sch-day-btn" data-day="2">Tue</button>
+                <button type="button" class="mode-btn sch-day-btn" data-day="3">Wed</button>
+                <button type="button" class="mode-btn sch-day-btn selected" data-day="4">Thu</button>
+                <button type="button" class="mode-btn sch-day-btn" data-day="5">Fri</button>
+                <button type="button" class="mode-btn sch-day-btn" data-day="6">Sat</button>
+                <button type="button" class="mode-btn sch-day-btn" data-day="0">Sun</button>
+              </div>
+            </div>
+
+            <!-- 5. Interval Days -->
+            <div class="form-group" id="sch-group-interval" style="display: none;">
+              <label for="sch-input-interval">Every N days</label>
+              <input type="number" id="sch-input-interval" min="1" max="60" value="2">
+            </div>
+
+            <!-- Optional End Condition -->
+            <div class="form-group">
+              <label for="sch-select-end">End condition</label>
+              <select id="sch-select-end">
+                <option value="never" selected>Never (repeats indefinitely)</option>
+                <option value="date">On specific date</option>
+                <option value="max_sends">After maximum number of sends</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="sch-group-end-date" style="display: none;">
+              <label for="sch-input-end-date">End date</label>
+              <input type="date" id="sch-input-end-date">
+            </div>
+
+            <div class="form-group" id="sch-group-max-sends" style="display: none;">
+              <label for="sch-input-max-sends">Maximum number of sends</label>
+              <input type="number" id="sch-input-max-sends" min="1" max="100" value="5">
+            </div>
+
+            <!-- Messages per send (1 to 3) -->
+            <div class="form-group">
+              <label for="sch-select-msg-count">Messages per send</label>
+              <select id="sch-select-msg-count">
+                <option value="1" selected>1 message</option>
+                <option value="2">2 messages (natural split)</option>
+                <option value="3">3 messages (natural split)</option>
+              </select>
+            </div>
+
+            <!-- Ask me first toggle -->
+            <div class="toggle-row" style="margin-top: 10px;">
+              <div>
+                <div style="font-weight: 700; font-size: 13px;">Ask me first</div>
+                <div style="font-size: 11px; color: var(--text-muted);">AI generates message and waits for dashboard approval</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="sch-toggle-ask-first">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Send even in quiet hours toggle -->
+            <div class="toggle-row" style="margin-top: 10px;">
+              <div>
+                <div style="font-weight: 700; font-size: 13px;">Send even in quiet hours</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Bypass 10 PM – 7 AM quiet window</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="sch-toggle-quiet">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Live Preview Box -->
+            <div id="sch-preview-container" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 12px;">
+              <div style="font-size: 10.5px; font-weight: 700; color: var(--accent-primary); text-transform: uppercase; margin-bottom: 4px;">
+                Preview generated message:
+              </div>
+              <div id="sch-preview-text" style="font-size: 12px; line-height: 1.4; color: var(--text-main); white-space: pre-wrap;"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+              <button class="btn btn-secondary btn-block" id="btn-sch-preview" type="button">
+                Preview message
+              </button>
+              <button class="btn btn-primary btn-block" id="btn-sch-save" type="button">
+                Save schedule
+              </button>
+              <div id="sch-extra-actions" style="display: none; gap: 8px; margin-top: 4px;">
+                <button class="btn btn-secondary btn-sm" id="btn-sch-send-now" style="flex: 1;" type="button">Send now</button>
+                <button class="btn btn-secondary btn-sm" id="btn-sch-toggle-status" style="flex: 1;" type="button">Pause</button>
+                <button class="btn btn-danger btn-sm" id="btn-sch-delete" style="padding: 4px 10px;" type="button">Delete</button>
               </div>
             </div>
           </div>
@@ -2193,6 +2537,15 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
         <span>Chats</span>
+      </a>
+
+      <a href="#scheduled" class="nav-item" data-target="screen-scheduled" style="position: relative;">
+        <!-- Clock / Schedule SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Scheduled</span>
+        <span class="teachme-nav-badge" id="nav-scheduled-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--warning); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);">0</span>
       </a>
 
       <a href="#teachme" class="nav-item" data-target="screen-teachme" style="position: relative;">
@@ -2534,7 +2887,7 @@
     function route() {
       const hash = window.location.hash.slice(1) || 'home';
       const targetScreenId = 'screen-' + hash;
-      const validScreens = ['screen-home', 'screen-chats', 'screen-teachme', 'screen-link', 'screen-dashboard', 'screen-settings'];
+      const validScreens = ['screen-home', 'screen-chats', 'screen-scheduled', 'screen-teachme', 'screen-link', 'screen-dashboard', 'screen-settings'];
 
       if (!validScreens.includes(targetScreenId)) {
         window.location.hash = '#home';
@@ -2569,6 +2922,7 @@
       // Lazy fetch on screen switch
       if (hash === 'home') { fetchHomeActivity(); fetchState(); }
       if (hash === 'chats') { fetchChats(); }
+      if (hash === 'scheduled') { fetchScheduled(); fetchState(); }
       if (hash === 'teachme') { fetchTeachMe(); fetchKnowledge(); }
       if (hash === 'dashboard') { fetchStats(); fetchState(); }
       if (hash === 'settings') { fetchSettings(); fetchState(); }
@@ -2694,6 +3048,42 @@
             if (homeSummaryDate) homeSummaryDate.textContent = s.latestDailySummary.date || 'Today';
           } else {
             homeSummaryCard.style.display = 'none';
+          }
+        }
+
+        // Home Next Scheduled Card & Badges
+        const homeSchCard = document.getElementById('home-next-scheduled-card');
+        const homeSchDesc = document.getElementById('home-scheduled-desc');
+        const homeApprovalBadge = document.getElementById('home-approval-alert-badge');
+        const navSchBadge = document.getElementById('nav-scheduled-badge');
+
+        const pendingApprovals = s.pendingApprovalCount || 0;
+        if (navSchBadge) {
+          navSchBadge.textContent = pendingApprovals;
+          navSchBadge.style.display = pendingApprovals > 0 ? 'inline-block' : 'none';
+        }
+
+        if (homeSchCard && homeSchDesc) {
+          if (pendingApprovals > 0 || s.nextScheduled) {
+            homeSchCard.style.display = 'block';
+            if (pendingApprovals > 0) {
+              if (homeApprovalBadge) {
+                homeApprovalBadge.style.display = 'inline-block';
+                homeApprovalBadge.textContent = `${pendingApprovals} waiting approval`;
+              }
+            } else if (homeApprovalBadge) {
+              homeApprovalBadge.style.display = 'none';
+            }
+
+            if (s.nextScheduled) {
+              const timeStr = new Date(s.nextScheduled.nextRunAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const dateStr = formatDateLabel(s.nextScheduled.nextRunAt);
+              homeSchDesc.textContent = `To ${s.nextScheduled.contactName || 'Contact'}: "${s.nextScheduled.purpose}" (${dateStr} at ${timeStr})`;
+            } else {
+              homeSchDesc.textContent = `${pendingApprovals} message(s) waiting for your approval before sending.`;
+            }
+          } else {
+            homeSchCard.style.display = 'none';
           }
         }
 
@@ -3345,6 +3735,9 @@
 
       // Fetch learned replies from owner for this contact
       fetchOwnerExamples(activeChatJid);
+
+      // Fetch scheduled messages for this contact
+      fetchContactSchedules(activeChatJid);
     });
 
     // Close Contact Profile Drawer
@@ -3407,6 +3800,715 @@
         openChatDetail(activeChatJid, true);
       } catch (e) { showToast(e.message, true, e.hint); }
     });
+
+    // ==========================================
+    // SCHEDULED MESSAGES CONTROLLERS & LOGIC
+    // ==========================================
+    let currentEditingScheduleId = null;
+    let currentEditingScheduleJid = null;
+    let scheduleSelectedMode = 'ai';
+
+    const scheduleEditorModal = document.getElementById('schedule-editor-modal');
+    const btnCloseScheduleModal = document.getElementById('btn-close-schedule-modal');
+    const schBtnModeAi = document.getElementById('sch-btn-mode-ai');
+    const schBtnModeExact = document.getElementById('sch-btn-mode-exact');
+    const schExactGroup = document.getElementById('sch-exact-group');
+    const schSelectRepeat = document.getElementById('sch-select-repeat');
+    const schSelectEnd = document.getElementById('sch-select-end');
+    const btnSchPreview = document.getElementById('btn-sch-preview');
+    const btnSchSave = document.getElementById('btn-sch-save');
+    const btnSchSendNow = document.getElementById('btn-sch-send-now');
+    const btnSchToggleStatus = document.getElementById('btn-sch-toggle-status');
+    const btnSchDelete = document.getElementById('btn-sch-delete');
+
+    // Tab buttons and views for Scheduled screen
+    const tabSchUpcoming = document.getElementById('tab-btn-sch-upcoming');
+    const tabSchApprovals = document.getElementById('tab-btn-sch-approvals');
+    const tabSchHistory = document.getElementById('tab-btn-sch-history');
+    const schViewUpcoming = document.getElementById('sch-view-upcoming');
+    const schViewApprovals = document.getElementById('sch-view-approvals');
+    const schViewHistory = document.getElementById('sch-view-history');
+
+    if (tabSchUpcoming && tabSchApprovals && tabSchHistory) {
+      tabSchUpcoming.addEventListener('click', () => {
+        tabSchUpcoming.classList.add('selected');
+        tabSchApprovals.classList.remove('selected');
+        tabSchHistory.classList.remove('selected');
+        schViewUpcoming.style.display = 'block';
+        schViewApprovals.style.display = 'none';
+        schViewHistory.style.display = 'none';
+      });
+
+      tabSchApprovals.addEventListener('click', () => {
+        tabSchApprovals.classList.add('selected');
+        tabSchUpcoming.classList.remove('selected');
+        tabSchHistory.classList.remove('selected');
+        schViewUpcoming.style.display = 'none';
+        schViewApprovals.style.display = 'block';
+        schViewHistory.style.display = 'none';
+      });
+
+      tabSchHistory.addEventListener('click', () => {
+        tabSchHistory.classList.add('selected');
+        tabSchUpcoming.classList.remove('selected');
+        tabSchApprovals.classList.remove('selected');
+        schViewUpcoming.style.display = 'none';
+        schViewApprovals.style.display = 'none';
+        schViewHistory.style.display = 'block';
+      });
+    }
+
+    // Add schedule from Contact Profile
+    const btnCpAddSchedule = document.getElementById('btn-cp-add-schedule');
+    if (btnCpAddSchedule) {
+      btnCpAddSchedule.addEventListener('click', () => {
+        openScheduleEditor(null, activeChatJid);
+      });
+    }
+
+    // Add schedule from Global Scheduled Screen
+    const btnSchNewGlobal = document.getElementById('btn-sch-new-global');
+    if (btnSchNewGlobal) {
+      btnSchNewGlobal.addEventListener('click', () => {
+        openScheduleEditor(null, null);
+      });
+    }
+
+    // Close Modal Listeners
+    if (btnCloseScheduleModal) {
+      btnCloseScheduleModal.addEventListener('click', () => {
+        scheduleEditorModal.classList.remove('open');
+      });
+    }
+    if (scheduleEditorModal) {
+      scheduleEditorModal.addEventListener('click', (e) => {
+        if (e.target === scheduleEditorModal) {
+          scheduleEditorModal.classList.remove('open');
+        }
+      });
+    }
+
+    // Mode Toggle (AI writes vs Exact text)
+    if (schBtnModeAi && schBtnModeExact) {
+      schBtnModeAi.addEventListener('click', () => {
+        scheduleSelectedMode = 'ai';
+        schBtnModeAi.classList.add('selected');
+        schBtnModeExact.classList.remove('selected');
+        schExactGroup.style.display = 'none';
+      });
+      schBtnModeExact.addEventListener('click', () => {
+        scheduleSelectedMode = 'exact';
+        schBtnModeExact.classList.add('selected');
+        schBtnModeAi.classList.remove('selected');
+        schExactGroup.style.display = 'block';
+      });
+    }
+
+    // Repeat pattern selector change
+    if (schSelectRepeat) {
+      schSelectRepeat.addEventListener('change', () => {
+        updateRepeatInputsVisibility(schSelectRepeat.value);
+      });
+    }
+
+    function updateRepeatInputsVisibility(repeat) {
+      document.getElementById('sch-group-once').style.display = repeat === 'once' ? 'block' : 'none';
+      document.getElementById('sch-group-delay').style.display = repeat === 'delay' ? 'block' : 'none';
+      document.getElementById('sch-group-time').style.display = (repeat === 'daily' || repeat === 'weekdays' || repeat === 'interval') ? 'block' : 'none';
+      document.getElementById('sch-group-weekdays').style.display = repeat === 'weekdays' ? 'block' : 'none';
+      document.getElementById('sch-group-interval').style.display = repeat === 'interval' ? 'block' : 'none';
+    }
+
+    // Weekday chips toggle
+    document.querySelectorAll('.sch-day-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('selected');
+      });
+    });
+
+    // End condition selector change
+    if (schSelectEnd) {
+      schSelectEnd.addEventListener('change', () => {
+        updateEndInputsVisibility(schSelectEnd.value);
+      });
+    }
+
+    function updateEndInputsVisibility(endCond) {
+      document.getElementById('sch-group-end-date').style.display = endCond === 'date' ? 'block' : 'none';
+      document.getElementById('sch-group-max-sends').style.display = endCond === 'max_sends' ? 'block' : 'none';
+    }
+
+    function formatCadenceText(s) {
+      if (!s) return '';
+      if (s.repeat === 'once') {
+        return s.datetime ? `Once on ${new Date(s.datetime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'Once';
+      }
+      if (s.repeat === 'delay') {
+        return `In ${s.delayAmount || 2} ${s.delayUnit || 'hours'}`;
+      }
+      if (s.repeat === 'daily') {
+        return `Daily at ${s.timeOfDay || '08:00'}`;
+      }
+      if (s.repeat === 'weekdays') {
+        const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const daysStr = (s.weekdays || []).map(d => daysMap[d]).filter(Boolean).join(', ');
+        return `${daysStr || 'Selected days'} at ${s.timeOfDay || '08:00'}`;
+      }
+      if (s.repeat === 'interval') {
+        return `Every ${s.intervalDays || 2} days at ${s.timeOfDay || '08:00'}`;
+      }
+      return s.repeat || 'Scheduled';
+    }
+
+    function openScheduleEditor(existing = null, prefillJid = null) {
+      currentEditingScheduleId = existing ? existing.id : null;
+      currentEditingScheduleJid = existing ? existing.contactJid : (prefillJid || null);
+
+      const titleEl = document.getElementById('modal-schedule-title');
+      if (titleEl) {
+        titleEl.textContent = existing ? 'Edit Scheduled Message' : 'Schedule Message';
+      }
+
+      const recGroup = document.getElementById('sch-recipient-group');
+      const recInput = document.getElementById('sch-input-recipient');
+      if (currentEditingScheduleJid) {
+        recInput.value = currentEditingScheduleJid;
+        recGroup.style.display = 'none';
+      } else {
+        recInput.value = '';
+        recGroup.style.display = 'block';
+      }
+
+      document.getElementById('sch-input-purpose').value = existing?.purpose || '';
+
+      const mode = existing?.mode || 'ai';
+      scheduleSelectedMode = mode;
+      schBtnModeAi.classList.toggle('selected', mode === 'ai');
+      schBtnModeExact.classList.toggle('selected', mode === 'exact');
+      schExactGroup.style.display = mode === 'exact' ? 'block' : 'none';
+      document.getElementById('sch-input-exact').value = existing?.exactText || '';
+
+      const repeat = existing?.repeat || 'once';
+      schSelectRepeat.value = repeat;
+      updateRepeatInputsVisibility(repeat);
+
+      if (existing?.datetime) {
+        try {
+          const d = new Date(existing.datetime);
+          document.getElementById('sch-input-datetime').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        } catch (_) {}
+      } else {
+        const d = new Date(Date.now() + 3600000 * 2);
+        document.getElementById('sch-input-datetime').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      }
+
+      document.getElementById('sch-input-delay-amount').value = existing?.delayAmount || 2;
+      document.getElementById('sch-select-delay-unit').value = existing?.delayUnit || 'hours';
+      document.getElementById('sch-input-time').value = existing?.timeOfDay || '08:00';
+
+      const weekdays = Array.isArray(existing?.weekdays) && existing.weekdays.length > 0
+        ? existing.weekdays
+        : [1, 2, 3, 4, 5];
+      document.querySelectorAll('.sch-day-btn').forEach(btn => {
+        const d = parseInt(btn.dataset.day, 10);
+        btn.classList.toggle('selected', weekdays.includes(d));
+      });
+
+      document.getElementById('sch-input-interval').value = existing?.intervalDays || 2;
+
+      const endCond = existing?.endCondition || 'never';
+      schSelectEnd.value = endCond;
+      updateEndInputsVisibility(endCond);
+      document.getElementById('sch-input-end-date').value = existing?.endDate || '';
+      document.getElementById('sch-input-max-sends').value = existing?.maxSends || 5;
+
+      document.getElementById('sch-select-msg-count').value = String(existing?.messagesCount || 1);
+      document.getElementById('sch-toggle-ask-first').checked = Boolean(existing?.askFirst);
+      document.getElementById('sch-toggle-quiet').checked = Boolean(existing?.sendInQuietHours);
+
+      document.getElementById('sch-preview-container').style.display = 'none';
+
+      const extraActions = document.getElementById('sch-extra-actions');
+      if (existing) {
+        extraActions.style.display = 'flex';
+        if (btnSchToggleStatus) {
+          btnSchToggleStatus.textContent = existing.status === 'paused' ? 'Resume' : 'Pause';
+        }
+      } else {
+        extraActions.style.display = 'none';
+      }
+
+      scheduleEditorModal.classList.add('open');
+    }
+
+    // Live Message Preview in Modal
+    if (btnSchPreview) {
+      btnSchPreview.addEventListener('click', async () => {
+        const purpose = document.getElementById('sch-input-purpose').value.trim();
+        const recipient = currentEditingScheduleJid || document.getElementById('sch-input-recipient').value.trim();
+        const exactText = document.getElementById('sch-input-exact').value.trim();
+        const messagesCount = parseInt(document.getElementById('sch-select-msg-count').value, 10) || 1;
+
+        if (scheduleSelectedMode === 'ai' && !purpose) {
+          showToast('Please enter a purpose or instruction first', true);
+          return;
+        }
+
+        btnSchPreview.disabled = true;
+        btnSchPreview.textContent = 'Generating preview...';
+
+        try {
+          const res = await api('/api/schedules/preview', {
+            method: 'POST',
+            body: {
+              contactJid: recipient,
+              purpose,
+              mode: scheduleSelectedMode,
+              exactText,
+              messagesCount
+            }
+          });
+
+          const pBox = document.getElementById('sch-preview-container');
+          const pText = document.getElementById('sch-preview-text');
+          pText.textContent = res.preview || '(No text generated)';
+          pBox.style.display = 'block';
+        } catch (e) {
+          showToast(e.message, true, e.hint);
+        } finally {
+          btnSchPreview.disabled = false;
+          btnSchPreview.textContent = 'Preview message';
+        }
+      });
+    }
+
+    // Save Schedule (Create or Update)
+    if (btnSchSave) {
+      btnSchSave.addEventListener('click', async () => {
+        const recipient = (currentEditingScheduleJid || document.getElementById('sch-input-recipient').value.trim());
+        if (!recipient) {
+          showToast('Please specify a recipient contact', true);
+          return;
+        }
+
+        const purpose = document.getElementById('sch-input-purpose').value.trim();
+        const exactText = document.getElementById('sch-input-exact').value.trim();
+        if (scheduleSelectedMode === 'exact' && !exactText) {
+          showToast('Please enter the exact text to send', true);
+          return;
+        }
+        if (scheduleSelectedMode === 'ai' && !purpose) {
+          showToast('Please enter a purpose or instruction', true);
+          return;
+        }
+
+        const selectedDays = [];
+        document.querySelectorAll('.sch-day-btn.selected').forEach(btn => {
+          selectedDays.push(parseInt(btn.dataset.day, 10));
+        });
+
+        const payload = {
+          contactJid: recipient,
+          purpose,
+          mode: scheduleSelectedMode,
+          exactText,
+          repeat: schSelectRepeat.value,
+          datetime: document.getElementById('sch-input-datetime').value,
+          delayAmount: parseInt(document.getElementById('sch-input-delay-amount').value, 10) || 2,
+          delayUnit: document.getElementById('sch-select-delay-unit').value,
+          timeOfDay: document.getElementById('sch-input-time').value || '08:00',
+          weekdays: selectedDays,
+          intervalDays: parseInt(document.getElementById('sch-input-interval').value, 10) || 2,
+          endCondition: schSelectEnd.value,
+          endDate: document.getElementById('sch-input-end-date').value,
+          maxSends: parseInt(document.getElementById('sch-input-max-sends').value, 10) || 5,
+          messagesCount: parseInt(document.getElementById('sch-select-msg-count').value, 10) || 1,
+          askFirst: document.getElementById('sch-toggle-ask-first').checked,
+          sendInQuietHours: document.getElementById('sch-toggle-quiet').checked
+        };
+
+        btnSchSave.disabled = true;
+        btnSchSave.textContent = 'Saving...';
+
+        try {
+          if (currentEditingScheduleId) {
+            await api(`/api/schedules/${currentEditingScheduleId}`, {
+              method: 'PUT',
+              body: payload
+            });
+            showToast('Schedule updated');
+          } else {
+            await api('/api/schedules', {
+              method: 'POST',
+              body: payload
+            });
+            showToast('Schedule created');
+          }
+
+          scheduleEditorModal.classList.remove('open');
+          if (activeChatJid) fetchContactSchedules(activeChatJid);
+          fetchScheduled();
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true, e.hint);
+        } finally {
+          btnSchSave.disabled = false;
+          btnSchSave.textContent = 'Save schedule';
+        }
+      });
+    }
+
+    // Modal Extra Actions: Send Now
+    if (btnSchSendNow) {
+      btnSchSendNow.addEventListener('click', async () => {
+        if (!currentEditingScheduleId) return;
+        if (!confirm('Send this scheduled message right now?')) return;
+        btnSchSendNow.disabled = true;
+        try {
+          await api(`/api/schedules/${currentEditingScheduleId}/run-now`, { method: 'POST' });
+          showToast('Message sent or queued for approval');
+          scheduleEditorModal.classList.remove('open');
+          if (activeChatJid) fetchContactSchedules(activeChatJid);
+          fetchScheduled();
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true, e.hint);
+        } finally {
+          btnSchSendNow.disabled = false;
+        }
+      });
+    }
+
+    // Modal Extra Actions: Toggle Pause/Resume
+    if (btnSchToggleStatus) {
+      btnSchToggleStatus.addEventListener('click', async () => {
+        if (!currentEditingScheduleId) return;
+        btnSchToggleStatus.disabled = true;
+        try {
+          const isPause = btnSchToggleStatus.textContent.trim().toLowerCase() === 'pause';
+          await api(`/api/schedules/${currentEditingScheduleId}/${isPause ? 'pause' : 'resume'}`, { method: 'POST' });
+          showToast(isPause ? 'Schedule paused' : 'Schedule resumed');
+          scheduleEditorModal.classList.remove('open');
+          if (activeChatJid) fetchContactSchedules(activeChatJid);
+          fetchScheduled();
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true, e.hint);
+        } finally {
+          btnSchToggleStatus.disabled = false;
+        }
+      });
+    }
+
+    // Modal Extra Actions: Delete
+    if (btnSchDelete) {
+      btnSchDelete.addEventListener('click', async () => {
+        if (!currentEditingScheduleId) return;
+        if (!confirm('Delete this scheduled message?')) return;
+        btnSchDelete.disabled = true;
+        try {
+          await api(`/api/schedules/${currentEditingScheduleId}`, { method: 'DELETE' });
+          showToast('Schedule deleted');
+          scheduleEditorModal.classList.remove('open');
+          if (activeChatJid) fetchContactSchedules(activeChatJid);
+          fetchScheduled();
+          fetchState();
+        } catch (e) {
+          showToast(e.message, true, e.hint);
+        } finally {
+          btnSchDelete.disabled = false;
+        }
+      });
+    }
+
+    // Fetch Schedules for Contact Profile Drawer
+    async function fetchContactSchedules(jid) {
+      const listEl = document.getElementById('cp-schedules-list');
+      if (!listEl) return;
+      try {
+        const res = await api(`/api/chats/${encodeURIComponent(jid)}/schedules`);
+        const schedules = res.schedules || [];
+        if (schedules.length === 0) {
+          listEl.innerHTML = '<div style="color: var(--text-muted); font-size: 11.5px; padding: 4px 0;">No scheduled messages for this contact yet.</div>';
+          return;
+        }
+
+        listEl.innerHTML = schedules.map(s => {
+          const nextTime = s.nextRunAt ? new Date(s.nextRunAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'None';
+          const isPaused = s.status === 'paused';
+          const isCompleted = s.status === 'completed';
+          const isApproval = s.status === 'waiting_approval';
+          const statusColor = isPaused ? 'var(--warning)' : (isCompleted ? 'var(--text-muted)' : (isApproval ? 'var(--accent-glow)' : 'var(--accent-secondary)'));
+          const statusText = isPaused ? 'Paused' : (isCompleted ? 'Completed' : (isApproval ? 'Waiting Approval' : 'Active'));
+
+          return `
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <div style="font-weight: 700; font-size: 12px; color: var(--text-main);">${escapeHtml(s.purpose || s.exactText || 'Scheduled message')}</div>
+                <span style="font-size: 10px; font-weight: 700; color: ${statusColor}; text-transform: uppercase;">${statusText}</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
+                ${escapeHtml(formatCadenceText(s))} • Next: <strong style="color: var(--text-main);">${nextTime}</strong> • Sent: ${s.sendsCount || 0}
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 10.5px;" onclick="window.runScheduleItemNow('${s.id}')">Send now</button>
+                <button class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 10.5px;" onclick="window.toggleSchedulePause('${s.id}', ${isPaused})">${isPaused ? 'Resume' : 'Pause'}</button>
+                <button class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 10.5px;" onclick="window.openEditSchedule('${s.id}')">Edit</button>
+                <button class="btn btn-danger btn-sm" style="padding: 2px 8px; font-size: 10.5px;" onclick="window.deleteScheduleItem('${s.id}')">Delete</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div style="color: var(--danger); font-size: 11px;">Failed to load schedules: ${err.message}</div>`;
+      }
+    }
+
+    // Fetch Global Scheduled Screen Data
+    async function fetchScheduled() {
+      if (!authToken || !API_BASE) return;
+      const upcomingList = document.getElementById('sch-upcoming-list');
+      const approvalsList = document.getElementById('sch-approvals-list');
+      const historyList = document.getElementById('sch-history-list');
+      const badgeApprovals = document.getElementById('sch-badge-approvals');
+      const badgeUpcoming = document.getElementById('sch-badge-upcoming');
+      const navBadge = document.getElementById('nav-scheduled-badge');
+
+      try {
+        const res = await api('/api/schedules');
+        const schedules = res.schedules || [];
+        const pendingApprovals = res.pendingApprovals || [];
+        const history = res.history || [];
+
+        if (badgeUpcoming) badgeUpcoming.textContent = schedules.length;
+        if (badgeApprovals) badgeApprovals.textContent = pendingApprovals.length;
+        if (navBadge) {
+          navBadge.textContent = pendingApprovals.length;
+          navBadge.style.display = pendingApprovals.length > 0 ? 'inline-block' : 'none';
+        }
+
+        // 1. Render Upcoming
+        if (upcomingList) {
+          if (schedules.length === 0) {
+            upcomingList.innerHTML = `
+              <div class="empty-state">
+                <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="empty-title">No upcoming schedules</div>
+                <div class="empty-desc">Create a schedule to automate personal check-ins or recurring updates for any contact.</div>
+              </div>
+            `;
+          } else {
+            upcomingList.innerHTML = schedules.map(s => {
+              const nextTime = s.nextRunAt ? new Date(s.nextRunAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Indefinite';
+              const isPaused = s.status === 'paused';
+              const isApproval = s.status === 'waiting_approval';
+              const recipient = s.contactName || s.contactJid || 'Contact';
+
+              return `
+                <div class="card" style="margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <div>
+                      <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">${escapeHtml(s.purpose || s.exactText || 'Scheduled Message')}</div>
+                      <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                        To <strong>${escapeHtml(recipient)}</strong> (${escapeHtml(s.contactJid)})
+                      </div>
+                    </div>
+                    <span class="chat-tag ${isPaused ? 'human' : (isApproval ? 'bot' : 'bot')}" style="${isPaused ? 'color: var(--warning); border-color: var(--warning);' : ''}">
+                      ${isPaused ? 'Paused' : (isApproval ? 'Waiting Approval' : 'Active')}
+                    </span>
+                  </div>
+
+                  <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+                    Cadence: <strong style="color: var(--text-main);">${escapeHtml(formatCadenceText(s))}</strong><br>
+                    Next run: <strong style="color: var(--accent-primary);">${nextTime}</strong> • Mode: ${s.mode === 'ai' ? 'AI Generated' : 'Exact Text'} • Sends: ${s.sendsCount || 0}
+                  </div>
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="window.runScheduleItemNow('${s.id}')">Send now</button>
+                    <button class="btn btn-secondary btn-sm" onclick="window.toggleSchedulePause('${s.id}', ${isPaused})">${isPaused ? 'Resume' : 'Pause'}</button>
+                    <button class="btn btn-secondary btn-sm" onclick="window.openEditSchedule('${s.id}')">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="window.deleteScheduleItem('${s.id}')">Delete</button>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // 2. Render Pending Approvals
+        if (approvalsList) {
+          if (pendingApprovals.length === 0) {
+            approvalsList.innerHTML = `
+              <div class="empty-state">
+                <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="empty-title">No messages waiting for approval</div>
+                <div class="empty-desc">When a schedule with "Ask me first" triggers, the prepared message will wait here for your review.</div>
+              </div>
+            `;
+          } else {
+            approvalsList.innerHTML = pendingApprovals.map(s => {
+              const prepTime = s.pendingPreparedAt ? new Date(s.pendingPreparedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+              const recipient = s.contactName || s.contactJid || 'Contact';
+
+              return `
+                <div class="card" style="margin-bottom: 8px; border-left: 3px solid var(--warning);">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <div>
+                      <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Prepared message for ${escapeHtml(recipient)}</div>
+                      <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                        Purpose: "${escapeHtml(s.purpose || '')}" • Generated: ${prepTime}
+                      </div>
+                    </div>
+                    <span class="chat-tag human" style="color: var(--warning); border-color: var(--warning);">Approval Required</span>
+                  </div>
+
+                  <div class="form-group" style="margin-top: 8px;">
+                    <label style="font-size: 11px;">Edit or refine before sending:</label>
+                    <textarea id="sch-approval-text-${s.id}" rows="3" style="font-size: 12.5px;">${escapeHtml(s.pendingMessageText || '')}</textarea>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="btn btn-primary btn-sm" onclick="window.approveScheduleItem('${s.id}')">Approve & Send</button>
+                    <button class="btn btn-secondary btn-sm" onclick="window.rejectScheduleItem('${s.id}')">Reject</button>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // 3. Render Delivery History
+        if (historyList) {
+          if (history.length === 0) {
+            historyList.innerHTML = `
+              <div class="empty-state">
+                <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="empty-title">No delivery history yet</div>
+                <div class="empty-desc">Past scheduled dispatches, confirmations, missed quiet-hour logs, and rejections will appear here.</div>
+              </div>
+            `;
+          } else {
+            historyList.innerHTML = history.map(h => {
+              const time = h.timestamp ? new Date(h.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+              const recipient = h.contactName || h.contactJid || 'Contact';
+              const isSent = h.status === 'sent';
+              const isMissed = h.status === 'missed';
+              const isFailed = h.status === 'failed';
+              const isRejected = h.status === 'rejected';
+
+              const badgeColor = isSent ? 'var(--accent-secondary)' : (isMissed ? 'var(--warning)' : (isFailed ? 'var(--danger)' : 'var(--text-muted)'));
+
+              return `
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 6px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                      ${escapeHtml(recipient)} • <span style="font-weight: 400; color: var(--text-muted); font-size: 11px;">${time}</span>
+                    </div>
+                    <span style="font-size: 10px; font-weight: 800; color: ${badgeColor}; text-transform: uppercase;">
+                      ${h.status || 'LOG'}
+                    </span>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-main); margin-bottom: 4px; line-height: 1.4;">
+                    ${escapeHtml(h.sentText || h.text || h.note || '')}
+                  </div>
+                  <div style="font-size: 10.5px; color: var(--text-muted);">
+                    Purpose: ${escapeHtml(h.purpose || 'Direct')} ${h.error ? `• Error: <span style="color:var(--danger);">${escapeHtml(h.error)}</span>` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+      } catch (err) {
+        console.warn('Failed to fetch schedules:', err.message);
+      }
+    }
+
+    // Window Schedule Actions
+    window.openEditSchedule = async function(id) {
+      try {
+        const s = await api(`/api/schedules/${id}`);
+        openScheduleEditor(s, s.contactJid);
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    window.toggleSchedulePause = async function(id, isCurrentlyPaused) {
+      try {
+        await api(`/api/schedules/${id}/${isCurrentlyPaused ? 'resume' : 'pause'}`, { method: 'POST' });
+        showToast(isCurrentlyPaused ? 'Schedule resumed' : 'Schedule paused');
+        if (activeChatJid) fetchContactSchedules(activeChatJid);
+        fetchScheduled();
+        fetchState();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    window.deleteScheduleItem = async function(id) {
+      if (!confirm('Are you sure you want to delete this schedule?')) return;
+      try {
+        await api(`/api/schedules/${id}`, { method: 'DELETE' });
+        showToast('Schedule deleted');
+        if (activeChatJid) fetchContactSchedules(activeChatJid);
+        fetchScheduled();
+        fetchState();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    window.runScheduleItemNow = async function(id) {
+      if (!confirm('Send this scheduled message now?')) return;
+      try {
+        const res = await api(`/api/schedules/${id}/run-now`, { method: 'POST' });
+        showToast(res.message || 'Scheduled message triggered');
+        if (activeChatJid) fetchContactSchedules(activeChatJid);
+        fetchScheduled();
+        fetchState();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    window.approveScheduleItem = async function(id) {
+      const textarea = document.getElementById(`sch-approval-text-${id}`);
+      const modifiedText = textarea ? textarea.value.trim() : '';
+      try {
+        const res = await api(`/api/schedules/${id}/approve`, {
+          method: 'POST',
+          body: { modifiedText }
+        });
+        showToast(res.message || 'Message approved and sent!');
+        fetchScheduled();
+        fetchState();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
+
+    window.rejectScheduleItem = async function(id) {
+      if (!confirm('Reject this scheduled message? It will not be sent.')) return;
+      try {
+        await api(`/api/schedules/${id}/reject`, {
+          method: 'POST',
+          body: { reason: 'Rejected by owner from dashboard' }
+        });
+        showToast('Message rejected');
+        fetchScheduled();
+        fetchState();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    };
 
     // Teach Me Screen: Tabs & Data
     const tabTeachMePending = document.getElementById('tab-btn-teachme-pending');
@@ -3852,6 +4954,33 @@
             document.getElementById('set-pacing-global-limit').value = s.pacing.maxHourlyRepliesGlobal;
           }
         }
+
+        if (s.scheduledLimits) {
+          if (s.scheduledLimits.maxHourlyScheduledTotal !== undefined) {
+            document.getElementById('set-sch-hourly-limit').value = s.scheduledLimits.maxHourlyScheduledTotal;
+          }
+          if (s.scheduledLimits.maxDailyScheduledTotal !== undefined) {
+            document.getElementById('set-sch-daily-limit').value = s.scheduledLimits.maxDailyScheduledTotal;
+          }
+          if (s.scheduledLimits.maxDailyScheduledPerContact !== undefined) {
+            document.getElementById('set-sch-contact-limit').value = s.scheduledLimits.maxDailyScheduledPerContact;
+          }
+          if (s.scheduledLimits.minGapMinutesSameContact !== undefined) {
+            document.getElementById('set-sch-gap-mins').value = s.scheduledLimits.minGapMinutesSameContact;
+          }
+          if (s.scheduledLimits.quietHoursEnabled !== undefined) {
+            document.getElementById('set-sch-quiet-toggle').checked = Boolean(s.scheduledLimits.quietHoursEnabled);
+          }
+          if (s.scheduledLimits.quietHoursStart) {
+            document.getElementById('set-sch-quiet-start').value = s.scheduledLimits.quietHoursStart;
+          }
+          if (s.scheduledLimits.quietHoursEnd) {
+            document.getElementById('set-sch-quiet-end').value = s.scheduledLimits.quietHoursEnd;
+          }
+          if (s.scheduledLimits.wakingGraceHours !== undefined) {
+            document.getElementById('set-sch-grace-hours').value = s.scheduledLimits.wakingGraceHours;
+          }
+        }
       } catch (_) {}
     }
 
@@ -3911,6 +5040,17 @@
         maxHourlyRepliesGlobal: parseInt(document.getElementById('set-pacing-global-limit').value, 10) || 150
       };
 
+      const scheduledLimits = {
+        maxHourlyScheduledTotal: parseInt(document.getElementById('set-sch-hourly-limit').value, 10) || 10,
+        maxDailyScheduledTotal: parseInt(document.getElementById('set-sch-daily-limit').value, 10) || 30,
+        maxDailyScheduledPerContact: parseInt(document.getElementById('set-sch-contact-limit').value, 10) || 2,
+        minGapMinutesSameContact: parseInt(document.getElementById('set-sch-gap-mins').value, 10) || 60,
+        quietHoursEnabled: document.getElementById('set-sch-quiet-toggle').checked,
+        quietHoursStart: document.getElementById('set-sch-quiet-start').value || '22:00',
+        quietHoursEnd: document.getElementById('set-sch-quiet-end').value || '07:00',
+        wakingGraceHours: parseInt(document.getElementById('set-sch-grace-hours').value, 10) || 3
+      };
+
       try {
         await api('/api/cfg', {
           method: 'POST',
@@ -3928,7 +5068,8 @@
             dailySummaryEnabled,
             dailySummaryTime,
             contactRules: { mode: selectedMode, allowlist, blocklist },
-            pacing
+            pacing,
+            scheduledLimits
           }
         });
         showToast('Settings saved successfully');

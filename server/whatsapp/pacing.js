@@ -37,6 +37,7 @@ export function sanitizeOutboundText(text) {
     .replace(/\[NO_REPLY\]/gi, '')
     .replace(/\[FOR_OWNER\]/gi, '')
     .replace(/\[UNKNOWN:\s*[^\]]+\]/gi, '')
+    .replace(/\[STOP_SCHEDULE\]/gi, '')
     .trim();
 }
 

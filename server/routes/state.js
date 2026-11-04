@@ -11,6 +11,7 @@ import {
   GEMINI_API_KEY,
   GROQ_API_KEY
 } from '../config.js';
+import { getSchedulerSummary } from '../lib/scheduler.js';
 import { requireAuth } from './auth.js';
 
 const router = express.Router();
@@ -29,7 +30,8 @@ router.get('/state', requireAuth, async (req, res) => {
       upstashStatus,
       rawTeachMe,
       rawSummary,
-      rawLearnedStyle
+      rawLearnedStyle,
+      schedulerSummary
     ] = await Promise.all([
       redis.get(`stats:replies:${today}`),
       redis.get('stats:provider:gemini'),
@@ -38,7 +40,8 @@ router.get('/state', requireAuth, async (req, res) => {
       redis.ping(),
       redis.hgetall('teachme:items'),
       redis.get('summary:latest'),
-      redis.get('owner:style:global')
+      redis.get('owner:style:global'),
+      getSchedulerSummary()
     ]);
 
     let teachMeCount = 0;
@@ -110,6 +113,9 @@ router.get('/state', requireAuth, async (req, res) => {
       teachMeCount,
       latestDailySummary,
       learnedStyle: rawLearnedStyle || '',
+      nextScheduled: schedulerSummary?.nextScheduled || null,
+      pendingApprovalCount: schedulerSummary?.pendingApprovalCount || 0,
+      totalSchedules: schedulerSummary?.totalCount || 0,
       // Backward-compatible fields:
       uptime: Math.floor(process.uptime()),
       status: state.whatsappState,

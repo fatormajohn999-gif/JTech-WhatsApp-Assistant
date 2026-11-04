@@ -26,11 +26,9 @@ import {
   getLearnedStyle,
   getLearnedExamples
 } from '../memory/owner-style.js';
-import {
-  recordTeachMeItem,
-  getKnowledgeForPrompt
-} from '../memory/knowledge.js';
+import { recordTeachMeItem, getKnowledgeForPrompt } from '../memory/knowledge.js';
 import { markChatActiveToday } from '../lib/daily-summary.js';
+import { pauseSchedulesForContact } from '../lib/scheduler.js';
 
 export function matchesContactRule(jid, list, knownPhone = '') {
   if (!Array.isArray(list) || list.length === 0) return false;
@@ -256,6 +254,33 @@ export async function handleIncomingMessage(m) {
               originalMessage: combinedUserText,
               question: unknownQuestion
             });
+          }
+
+          // Check for [STOP_SCHEDULE] request marker
+          if (trimmedText.includes('[STOP_SCHEDULE]')) {
+            await pauseSchedulesForContact(senderJid, 'Recipient asked to stop messaging');
+            const metaRaw = await redis.get(`chat:${senderJid}:meta`);
+            if (metaRaw) {
+              try {
+                const meta = JSON.parse(metaRaw);
+                meta.needsOwner = true;
+                await redis.set(`chat:${senderJid}:meta`, JSON.stringify(meta));
+              } catch (_) {}
+            }
+            await redis.set(`contact:${senderJid}:needs_owner`, 'true');
+            logEvent('warn', `Contact ${senderJid} asked to stop messaging ([STOP_SCHEDULE] detected). Schedules paused and flagged "Needs Owner".`);
+
+            if (liveSettings.notifyOwnerOnWhatsApp && state.activePhone) {
+              const ownerJid = `${state.activePhone}@s.whatsapp.net`;
+              if (ownerJid !== senderJid) {
+                try {
+                  const contactDisplayName = memory.settings?.displayName || memory.profile?.displayName || pushName || phone || senderJid;
+                  const alertMsg = `🛑 [Unsubscribe Alert] ${contactDisplayName} asked to stop receiving messages. Their schedules have been paused automatically.`;
+                  const alertSent = await state.sock.sendMessage(ownerJid, { text: alertMsg });
+                  if (alertSent?.key?.id) state.botSentMessageIds.add(alertSent.key.id);
+                } catch (_) {}
+              }
+            }
           }
 
           // Check for [FOR_OWNER] escalation marker
