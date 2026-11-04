@@ -2,7 +2,15 @@ import express from 'express';
 import { state } from '../state.js';
 import { redis } from '../lib/redis.js';
 import { logEvent } from '../lib/logger.js';
-import { getChatMemory, jidToPhone, getResolvedContactName } from '../memory/store.js';
+import {
+  getChatMemory,
+  jidToPhone,
+  getResolvedContactName,
+  normalizeJid,
+  isChatPaused,
+  pauseChat,
+  resumeChat
+} from '../memory/store.js';
 import { requireAuth } from './auth.js';
 
 const router = express.Router();
@@ -10,19 +18,31 @@ const router = express.Router();
 router.get('/chats', requireAuth, async (req, res) => {
   try {
     const recentRaw = await redis.get('chats:recent');
-    let jids = [];
+    let rawJids = [];
     if (recentRaw) {
-      try { jids = JSON.parse(recentRaw); } catch (_) {}
+      try { rawJids = JSON.parse(recentRaw); } catch (_) {}
+    }
+
+    // Deduplicate to canonical JIDs
+    const canonicalJidSet = new Set();
+    const orderedCanonicalJids = [];
+    for (const raw of rawJids) {
+      const canon = await normalizeJid(raw);
+      if (canon && !canonicalJidSet.has(canon)) {
+        canonicalJidSet.add(canon);
+        orderedCanonicalJids.push(canon);
+      }
     }
 
     const conversations = [];
-    for (const jid of jids.slice(0, 30)) {
+    for (const jid of orderedCanonicalJids.slice(0, 30)) {
       try {
-        const [metaRaw, handoffVal, settingsRaw, resolvedName] = await Promise.all([
+        const [metaRaw, handoffVal, settingsRaw, resolvedName, pauseInfo] = await Promise.all([
           redis.get(`chat:${jid}:meta`),
           redis.get(`handoff:${jid}`),
           redis.get(`contact:${jid}:settings`),
-          getResolvedContactName(jid)
+          getResolvedContactName(jid),
+          isChatPaused(jid)
         ]);
 
         let isHandoff = false;
@@ -56,7 +76,10 @@ router.get('/chats', requireAuth, async (req, res) => {
           lastFromMe: Boolean(meta?.fromMe || meta?.lastRole === 'assistant'),
           timestamp: meta?.timestamp || 0,
           needsOwner: Boolean(meta?.needsOwner),
-          isHandoff
+          isHandoff,
+          isPaused: Boolean(pauseInfo.isPaused),
+          pauseUntil: pauseInfo.until || null,
+          pauseMode: pauseInfo.mode || null
         });
       } catch (_) {}
     }
@@ -73,8 +96,9 @@ router.get('/chats', requireAuth, async (req, res) => {
 
 router.get('/chats/:jid/avatar', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
-    if (!jid) return res.status(404).send('Not found');
+    const rawJid = req.params.jid;
+    if (!rawJid) return res.status(404).send('Not found');
+    const jid = await normalizeJid(rawJid);
 
     const cacheKey = `wa:avatar:${jid}`;
     let url = await redis.get(cacheKey);
@@ -83,7 +107,7 @@ router.get('/chats/:jid/avatar', requireAuth, async (req, res) => {
       try {
         url = await state.sock.profilePictureUrl(jid, 'image');
         if (url) {
-          await redis.set(cacheKey, url, { ex: 86400 }); // Cache for 24h
+          await redis.set(cacheKey, url, { ex: 86400 });
         }
       } catch (_) {}
     }
@@ -109,11 +133,14 @@ router.get('/chats/:jid/avatar', requireAuth, async (req, res) => {
 
 router.get('/chats/:jid', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
-    const [memory, metaRaw, settingsRaw] = await Promise.all([
+    const rawJid = req.params.jid;
+    const jid = await normalizeJid(rawJid);
+
+    const [memory, metaRaw, settingsRaw, pauseInfo] = await Promise.all([
       getChatMemory(jid),
       redis.get(`chat:${jid}:meta`),
-      redis.get(`contact:${jid}:settings`)
+      redis.get(`contact:${jid}:settings`),
+      isChatPaused(jid)
     ]);
 
     let meta = null;
@@ -143,10 +170,13 @@ router.get('/chats/:jid', requireAuth, async (req, res) => {
       settings,
       needsOwner: Boolean(meta?.needsOwner),
       isHandoff: memory.isHandoff,
+      isPaused: Boolean(pauseInfo.isPaused),
+      pauseUntil: pauseInfo.until || null,
+      pauseMode: pauseInfo.mode || null,
       summary: memory.summary,
       facts: memory.facts,
       profile: memory.profile,
-      messages: memory.messages.slice(-12)
+      messages: memory.messages.slice(-35)
     });
   } catch (err) {
     res.status(500).json({
@@ -159,7 +189,8 @@ router.get('/chats/:jid', requireAuth, async (req, res) => {
 
 router.get('/chats/:jid/settings', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
+    const rawJid = req.params.jid;
+    const jid = await normalizeJid(rawJid);
     const raw = await redis.get(`contact:${jid}:settings`);
     let settings = {
       displayName: '',
@@ -182,7 +213,8 @@ router.get('/chats/:jid/settings', requireAuth, async (req, res) => {
 
 router.put('/chats/:jid/settings', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
+    const rawJid = req.params.jid;
+    const jid = await normalizeJid(rawJid);
     const { displayName, relationship, prompt } = req.body || {};
     const cleanPrompt = String(prompt || '').slice(0, 1000);
     const cleanName = String(displayName || '').slice(0, 100).trim();
@@ -197,7 +229,6 @@ router.put('/chats/:jid/settings', requireAuth, async (req, res) => {
 
     await redis.set(`contact:${jid}:settings`, JSON.stringify(settingsObj));
 
-    // Sync displayName to meta and profile if provided
     if (cleanName) {
       const metaRaw = await redis.get(`chat:${jid}:meta`);
       if (metaRaw) {
@@ -220,10 +251,50 @@ router.put('/chats/:jid/settings', requireAuth, async (req, res) => {
   }
 });
 
+// Per-Chat Pause & Resume Endpoints
+router.post('/chats/:jid/pause', requireAuth, async (req, res) => {
+  try {
+    const rawJid = req.params.jid;
+    const mode = req.body.mode || 'indefinite'; // 'indefinite' | '1h' | 'tomorrow'
+    const result = await pauseChat(rawJid, mode);
+    res.json({
+      success: true,
+      isPaused: true,
+      mode: result.mode,
+      until: result.until,
+      message: `Chat paused (${mode}).`
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      code: 'CHAT_PAUSE_FAILED',
+      hint: 'Failed to pause chat in Redis.'
+    });
+  }
+});
+
+router.post('/chats/:jid/resume', requireAuth, async (req, res) => {
+  try {
+    const rawJid = req.params.jid;
+    const jid = await normalizeJid(rawJid);
+    await Promise.all([
+      resumeChat(jid),
+      redis.del(`handoff:${jid}`)
+    ]);
+    res.json({ success: true, isPaused: false, message: `Bot resumed for ${jid}.` });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      code: 'CHAT_RESUME_FAILED',
+      hint: 'Failed to resume chat.'
+    });
+  }
+});
 
 router.post('/chats/:jid/takeover', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
+    const rawJid = req.params.jid;
+    const jid = await normalizeJid(rawJid);
     await redis.set(`handoff:${jid}`, 'manual_takeover');
     logEvent('info', `Human takeover activated for ${jid}`);
     res.json({ success: true, message: `Bot paused for ${jid}. Human takeover active.` });
@@ -236,24 +307,10 @@ router.post('/chats/:jid/takeover', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/chats/:jid/resume', requireAuth, async (req, res) => {
-  try {
-    const { jid } = req.params;
-    await redis.del(`handoff:${jid}`);
-    logEvent('info', `Bot resumed for ${jid}`);
-    res.json({ success: true, message: `Bot resumed for ${jid}.` });
-  } catch (err) {
-    res.status(500).json({
-      error: err.message,
-      code: 'RESUME_FAILED',
-      hint: 'Unable to remove handoff status in Redis.'
-    });
-  }
-});
-
 router.post('/chats/:jid/resolve-owner', requireAuth, async (req, res) => {
   try {
-    const { jid } = req.params;
+    const rawJid = req.params.jid;
+    const jid = await normalizeJid(rawJid);
     const metaRaw = await redis.get(`chat:${jid}:meta`);
     if (metaRaw) {
       try {

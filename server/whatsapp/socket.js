@@ -139,24 +139,32 @@ export async function startWhatsApp() {
           triggerPairingCodeIfRequested('connecting-2s', startWhatsApp);
         }, 2000);
       } else if (connection === 'open') {
+        state.hasSavedSession = true;
         state.setWhatsappState('connected');
         state.clearPairing();
         state.lastError = null;
         state.reconnectAttempts = 0;
         const rawUser = state.sock?.user?.id;
         if (rawUser) {
-          state.activePhone = rawUser.split(':')[0].split('@')[0];
+          const phone = rawUser.split(':')[0].split('@')[0];
+          state.activePhone = phone;
+          state.linkedNumber = phone;
+          redis.set('wa:linked_number', phone).catch(() => {});
         }
         logEvent('info', `WhatsApp connection established successfully. Active phone: ${state.activePhone || 'unknown'}`);
       } else if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const isRegistered = Boolean(state.sock?.authState?.creds?.registered);
+        const isRegistered = Boolean(state.sock?.authState?.creds?.registered || state.hasSavedSession);
 
         logEvent('warn', `WhatsApp connection closed. Status code: ${statusCode}, registered: ${isRegistered}`);
 
         if (statusCode === DisconnectReason.loggedOut) { // 401
           if (isRegistered) {
             logEvent('warn', 'Session logged out from device. Wiping credentials.');
+            state.hasSavedSession = false;
+            state.activePhone = '';
+            state.linkedNumber = '';
+            await redis.del('wa:linked_number');
             await clearWhatsAppAuth();
             state.setWhatsappState('logged_out');
             state.setLastError({
@@ -167,7 +175,7 @@ export async function startWhatsApp() {
             state.clearPairing();
           } else {
             logEvent('error', 'WhatsApp rejected the pairing attempt (401). Stopping retry loop.');
-            // FIX: throw away the half-registered identity so the next attempt starts fresh
+            state.hasSavedSession = false;
             await clearWhatsAppAuth();
             state.pairingCodeRequestedOnSocket = false;
             state.setWhatsappState('error');
@@ -186,14 +194,14 @@ export async function startWhatsApp() {
               logEvent('info', 'Recoverable timeout while pairing code is pending. Waiting for user code entry.');
               state.setWhatsappState('code_ready');
             } else {
-              state.setWhatsappState('not_linked');
+              state.setWhatsappState(state.hasSavedSession ? 'reconnecting' : 'not_linked');
             }
           }
         } else {
           if (isRegistered) {
             scheduleReconnect();
           } else {
-            state.setWhatsappState('not_linked');
+            state.setWhatsappState(state.hasSavedSession ? 'reconnecting' : 'not_linked');
           }
         }
       }
@@ -219,6 +227,11 @@ export async function startWhatsApp() {
           const name = c.name || c.notify || c.verifiedName;
           await redis.set(`contact:${c.id}:phonebookName`, name);
         }
+        if (c.id && c.lid) {
+          const cleanPhoneJid = c.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
+          await redis.set(`jid:alias:${c.lid}`, cleanPhoneJid);
+          await redis.set(`jid:alias:${c.id}`, cleanPhoneJid);
+        }
       }
     });
 
@@ -228,6 +241,11 @@ export async function startWhatsApp() {
         if (c.id && (c.name || c.notify || c.verifiedName)) {
           const name = c.name || c.notify || c.verifiedName;
           await redis.set(`contact:${c.id}:phonebookName`, name);
+        }
+        if (c.id && c.lid) {
+          const cleanPhoneJid = c.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
+          await redis.set(`jid:alias:${c.lid}`, cleanPhoneJid);
+          await redis.set(`jid:alias:${c.id}`, cleanPhoneJid);
         }
       }
     });
@@ -248,16 +266,30 @@ export async function initWhatsAppOnStartup() {
     const rawCreds = await redis.get('wa:creds');
     if (rawCreds) {
       const parsed = JSON.parse(rawCreds, BufferJSON.reviver);
-      if (parsed?.registered) {
-        logEvent('info', 'Found existing registered WhatsApp session. Connecting...');
-        state.setWhatsappState('connecting');
+      if (parsed?.registered || parsed?.me) {
+        state.hasSavedSession = true;
+        const phone = parsed?.me?.id ? parsed.me.id.split(':')[0].split('@')[0] : '';
+        if (phone) {
+          state.activePhone = phone;
+          state.linkedNumber = phone;
+        } else {
+          const redisNum = await redis.get('wa:linked_number');
+          if (redisNum) {
+            state.activePhone = redisNum;
+            state.linkedNumber = redisNum;
+          }
+        }
+        logEvent('info', `Found existing saved WhatsApp session (+${state.activePhone || 'saved'}). Reconnecting immediately...`);
+        state.setWhatsappState('reconnecting');
         startWhatsApp();
         return;
       }
     }
+    state.hasSavedSession = false;
     logEvent('info', 'No registered WhatsApp session found in Redis. Awaiting user pairing.');
     state.setWhatsappState('not_linked');
   } catch (e) {
+    state.hasSavedSession = false;
     logEvent('warn', `Startup session check error: ${e.message}`);
     state.setWhatsappState('not_linked');
   }
@@ -269,6 +301,10 @@ export async function logoutWhatsApp() {
       await state.sock.logout();
     } catch (_) {}
   }
+  state.hasSavedSession = false;
+  state.activePhone = '';
+  state.linkedNumber = '';
+  await redis.del('wa:linked_number');
   await clearWhatsAppAuth();
   state.setWhatsappState('not_linked');
   state.clearPairing();

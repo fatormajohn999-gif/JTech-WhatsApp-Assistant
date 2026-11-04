@@ -4,14 +4,15 @@ import fs from 'fs';
 import { ROOT_DIR, RENDER_EXTERNAL_URL } from '../config.js';
 import { state } from '../state.js';
 import { redis } from '../lib/redis.js';
-import { logEvent } from '../lib/logger.js';
+import { logEvent, getLiveLogs } from '../lib/logger.js';
 import { requireAuth } from './auth.js';
 
 const router = express.Router();
 
-// Public health check routes
+// Public health check routes (Fast, no secrets, no auth for uptime monitors)
 router.get('/health', (req, res) => {
   res.status(200).json({
+    ok: true,
     status: 'ok',
     app: 'JTech Assistant',
     uptime: Math.floor(process.uptime()),
@@ -22,12 +23,30 @@ router.get('/health', (req, res) => {
 
 router.get('/api/health', (req, res) => {
   res.status(200).json({
+    ok: true,
     status: 'ok',
     app: 'JTech Assistant',
     uptime: Math.floor(process.uptime()),
     timestamp: Date.now(),
     whatsapp: state.whatsappState
   });
+});
+
+// Authenticated live server log stream (ring buffer of stdout/stderr)
+router.get('/api/logs', requireAuth, (req, res) => {
+  const afterId = parseInt(req.query.after || '0', 10) || 0;
+  const limit = Math.min(500, parseInt(req.query.limit || '200', 10) || 200);
+  const level = req.query.level || 'all';
+  const logs = getLiveLogs(afterId, limit, level);
+  res.json({ logs, after: logs.length > 0 ? logs[logs.length - 1].id : afterId });
+});
+
+router.get('/logs', requireAuth, (req, res) => {
+  const afterId = parseInt(req.query.after || '0', 10) || 0;
+  const limit = Math.min(500, parseInt(req.query.limit || '200', 10) || 200);
+  const level = req.query.level || 'all';
+  const logs = getLiveLogs(afterId, limit, level);
+  res.json({ logs, after: logs.length > 0 ? logs[logs.length - 1].id : afterId });
 });
 
 // Telemetry statistics

@@ -3,7 +3,7 @@ import { logEvent } from './logger.js';
 import { state } from '../state.js';
 import { getSettings } from './settings.js';
 import { runAiCompletion } from '../ai/index.js';
-import { getChatMemory, getResolvedContactName, recordMessage } from '../memory/store.js';
+import { getChatMemory, getResolvedContactName, recordMessage, isChatPaused } from '../memory/store.js';
 import { getLearnedStyle } from '../memory/owner-style.js';
 import { sanitizeOutboundText, parseSplitChunks, calculateTypingDelay } from '../whatsapp/pacing.js';
 import { matchesContactRule } from '../whatsapp/handler.js';
@@ -771,8 +771,15 @@ export async function checkScheduledTasks() {
         continue;
       }
 
-      // 4. Check if contact is in human takeover
-      const handoff = await redis.get(`handoff:${contactJid}`);
+      // 4. Check if contact is in human takeover or chat is paused
+      const [handoff, chatPause] = await Promise.all([
+        redis.get(`handoff:${contactJid}`),
+        isChatPaused(contactJid)
+      ]);
+      if (chatPause.isPaused) {
+        logEvent('info', `Schedule [${schedule.id}] postponed because chat with ${contactJid} is paused.`);
+        continue;
+      }
       if (handoff) {
         logEvent('info', `Schedule [${schedule.id}] postponed because chat with ${contactJid} is in human takeover.`);
         continue;

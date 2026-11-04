@@ -49,49 +49,49 @@ export function buildPrompt({
 
   let factsSection = 'None recorded yet.';
   if (Array.isArray(contactFacts) && contactFacts.length > 0) {
-    factsSection = contactFacts.map(f => `- ${f}`).join('\n');
+    factsSection = contactFacts.slice(0, 5).map(f => `- ${String(f).slice(0, 80)}`).join('\n');
   }
 
-  const summarySection = chatSummary ? chatSummary : 'First conversation or no older summary yet.';
+  const summarySection = chatSummary ? String(chatSummary).slice(0, 300) : 'First conversation or no older summary yet.';
 
   const ownerName = profile.ownerName || profile.name || 'JTech';
   const ownerFirstName = profile.ownerFirstName || ownerName;
-  const ownerAbout = profile.ownerAbout || profile.about || profile.facts || 'Tech brand and software solutions';
+  const ownerAbout = String(profile.ownerAbout || profile.about || profile.facts || 'Tech software solutions in Freetown').slice(0, 150);
   const ownerLanguages = profile.ownerLanguages || profile.languages || 'English, Krio';
   const writingStyle = profile.writingStyle || 'Casual, natural, short, respectful, and direct. Sounds like a real person texting from their phone.';
 
   const contactLang = contactProfile?.preferredLanguage || 'English';
   const contactMsgLen = contactProfile?.typicalMessageLength || 'short';
 
-  const customInstructions = (personalPrompt || '').trim();
+  const customInstructions = (personalPrompt || '').trim().slice(0, 400);
 
   // Contact-specific settings
   const targetDisplayName = contactSettings?.displayName || contactProfile?.displayName || contactName || 'Contact';
   const targetRelationship = contactSettings?.relationship || 'Not specified';
-  const contactCustomPrompt = (contactSettings?.prompt || '').trim();
+  const contactCustomPrompt = (contactSettings?.prompt || '').trim().slice(0, 300);
 
   // Learned style section
   let styleSection = '';
   if (ownerLearnedStyle) {
     const parts = [];
     if (ownerLearnedStyle.globalStyle) {
-      parts.push(`General texting voice:\n${ownerLearnedStyle.globalStyle}`);
+      parts.push(`General texting voice:\n${String(ownerLearnedStyle.globalStyle).slice(0, 250)}`);
     }
     if (ownerLearnedStyle.contactStyle) {
-      parts.push(`How the owner texts this specific person:\n${ownerLearnedStyle.contactStyle}`);
+      parts.push(`How owner texts this contact:\n${String(ownerLearnedStyle.contactStyle).slice(0, 200)}`);
     }
     if (parts.length > 0) {
       styleSection = `\n=== HOW THE OWNER TEXTS (LEARNED STYLE) ===\n${parts.join('\n\n')}\n`;
     }
   }
 
-  // Learned examples section (3 to 5 real reply pairs)
+  // Learned examples section (3 real reply pairs maximum, compact)
   let examplesSection = '';
   if (Array.isArray(learnedExamples) && learnedExamples.length > 0) {
-    const formattedPairs = learnedExamples.slice(0, 5).map((ex, i) => 
-      `Example ${i + 1}:\nContact: "${ex.contactMessage || '(incoming message)'}"\nOwner: "${ex.ownerReply}"`
-    ).join('\n\n');
-    examplesSection = `\n=== EXAMPLES OF HOW THE OWNER ACTUALLY ANSWERED ===\n(Follow the spirit, tone, and brevity of these answers; do not copy them word-for-word unless identical situation)\n${formattedPairs}\n`;
+    const formattedPairs = learnedExamples.slice(0, 3).map((ex, i) => 
+      `Example ${i + 1}:\nThem: "${String(ex.contactMessage || '').slice(0, 80)}"\nYou: "${String(ex.ownerReply || '').slice(0, 100)}"`
+    ).join('\n');
+    examplesSection = `\n=== REAL EXAMPLES OF HOW THE OWNER TEXTS ===\n${formattedPairs}\n`;
   }
 
   return `

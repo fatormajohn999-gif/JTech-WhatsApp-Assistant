@@ -75,6 +75,12 @@ router.get('/state', requireAuth, async (req, res) => {
       try { recentErrors.push(JSON.parse(item)); } catch (_) { recentErrors.push({ message: item, timestamp: Date.now() }); }
     }
 
+    const effectiveWhatsappState = state.sock?.user
+      ? 'connected'
+      : (state.hasSavedSession ? 'reconnecting' : state.whatsappState);
+
+    const linkedNumber = state.linkedNumber || state.activePhone || '';
+
     res.json({
       server: {
         live: true,
@@ -82,10 +88,14 @@ router.get('/state', requireAuth, async (req, res) => {
         nodeVersion: process.version
       },
       whatsapp: {
-        state: state.whatsappState,
-        phone: state.activePhone,
+        state: effectiveWhatsappState,
+        phone: linkedNumber,
+        linkedNumber,
+        hasSavedSession: Boolean(state.hasSavedSession),
         since: state.whatsappStateSince
       },
+      hasSavedSession: Boolean(state.hasSavedSession),
+      linkedNumber,
       pairing: {
         code: state.currentPairingCode,
         expiresAt: state.pairingExpiresAt,
@@ -95,6 +105,7 @@ router.get('/state', requireAuth, async (req, res) => {
         qrSecondsLeft: state.latestQrExpiresAt ? Math.max(0, Math.ceil((state.latestQrExpiresAt - Date.now()) / 1000)) : 0
       },
       lastError: state.lastError,
+      aiLimited: state.aiLimited && state.aiLimited.until > Date.now() ? state.aiLimited : null,
       currentModels: {
         gemini: settings.geminiModel || DEFAULT_GEMINI_MODEL,
         groq: settings.groqModel || DEFAULT_GROQ_MODEL
@@ -118,11 +129,11 @@ router.get('/state', requireAuth, async (req, res) => {
       totalSchedules: schedulerSummary?.totalCount || 0,
       // Backward-compatible fields:
       uptime: Math.floor(process.uptime()),
-      status: state.whatsappState,
-      connectionPill: state.whatsappState === 'connected' ? 'Connected' : (state.whatsappState === 'connecting' || state.whatsappState === 'reconnecting' ? 'Connecting' : (state.whatsappState === 'code_ready' ? 'Code Ready' : 'Offline')),
-      activePhone: state.activePhone,
-      isAutoPaused: isPaused,
-      remainingPauseSecs,
+      status: effectiveWhatsappState,
+      connectionPill: effectiveWhatsappState === 'connected' ? 'Connected' : (effectiveWhatsappState === 'reconnecting' || effectiveWhatsappState === 'connecting' ? 'Reconnecting...' : (effectiveWhatsappState === 'code_ready' ? 'Code Ready' : 'Not linked')),
+      activePhone: linkedNumber,
+      isAutoPaused: false, // Master switch is owner-only
+      remainingPauseSecs: 0,
       isManualPaused: settings.isPaused,
       consecutiveFailures: state.consecutiveFailures,
       activeProvider: settings.provider,

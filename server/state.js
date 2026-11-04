@@ -5,10 +5,13 @@ class ServerState {
     this.sock = null;
     this.whatsappState = 'not_linked'; // 'not_linked' | 'connecting' | 'code_ready' | 'connected' | 'reconnecting' | 'logged_out' | 'error'
     this.whatsappStateSince = Date.now();
+    this.hasSavedSession = false;
+    this.linkedNumber = '';
     this.currentPairingCode = null;
     this.pairingExpiresAt = 0;
     this.activePhone = '';
     this.lastError = null; // { code, message, hint, at }
+    this.aiLimited = null; // { isLimited: boolean, reason: string, until: number }
 
     this.latestQrString = null;
     this.latestQrDataUrl = null;
