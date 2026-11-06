@@ -1,0 +1,116 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:        # lets you tap "Run workflow" from your phone
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: write           # needed to publish the APK as a release
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+env:
+  # ---- Edit these three lines if your app needs different values ----
+  APP_NAME: JTech Assistant
+  APP_ID: com.jtech.assistant   # must be unique, lowercase, like com.yourname.app
+  WEB_DIR: dist                 # the folder your web build creates (Vite = dist)
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Choose Java version from the Capacitor version
+        id: java
+        run: |
+          CAP=$(node -e "
+            const p=require('./package.json');
+            const v=(p.dependencies&&p.dependencies['@capacitor/core'])||(p.devDependencies&&p.devDependencies['@capacitor/core'])||'7';
+            console.log(parseInt(String(v).replace(/[^0-9.]/g,'').split('.')[0],10)||7);
+          ")
+          if [ "$CAP" -ge 7 ]; then echo "version=21" >> "$GITHUB_OUTPUT"; else echo "version=17" >> "$GITHUB_OUTPUT"; fi
+          echo "Capacitor major version: $CAP"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.java.outputs.version }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --legacy-peer-deps
+
+      - name: Make sure Capacitor is installed
+        run: |
+          for pkg in @capacitor/core @capacitor/cli @capacitor/android; do
+            node -e "
+              const p=require('./package.json');
+              const all={...(p.dependencies||{}),...(p.devDependencies||{})};
+              process.exit(all['$pkg']?0:1);
+            " || { echo "Installing $pkg"; npm install "$pkg" --no-audit --no-fund --legacy-peer-deps; }
+          done
+
+      - name: Build the web app
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: npm run build --if-present
+
+      - name: Create Capacitor config if missing
+        run: |
+          if [ ! -f capacitor.config.ts ] && [ ! -f capacitor.config.json ] && [ ! -f capacitor.config.js ]; then
+            npx cap init "$APP_NAME" "$APP_ID" --web-dir "$WEB_DIR"
+          fi
+
+      - name: Add Android platform if missing
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+
+      - name: Sync web build into Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          echo "Found APK: $APK"
+          cp "$APK" app-debug.apk
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK to a release (easy phone download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-apk
+          name: Latest APK (debug)
+          body: Debug build from the latest push. Download app-debug.apk, open it on your phone, and allow installs from this source if asked.
+          files: app-debug.apk
+          prerelease: true
