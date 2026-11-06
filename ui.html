@@ -258,6 +258,7 @@
 
     .nav-item {
       flex: 1;
+      min-width: 0;
       height: var(--bottom-bar-h);
       min-height: 44px;
       display: flex;
@@ -282,7 +283,7 @@
     }
 
     .nav-item span {
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 500;
       letter-spacing: -0.1px;
     }
@@ -2635,14 +2636,6 @@
         <span class="teachme-nav-badge" id="nav-scheduled-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--warning); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);">0</span>
       </a>
 
-      <a href="#teachme" class="nav-item" data-target="screen-teachme" style="position: relative;">
-        <!-- Teach Me SVG -->
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-        <span>Teach me</span>
-        <span class="teachme-nav-badge" id="nav-teachme-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--accent-primary); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px var(--accent-glow);">0</span>
-      </a>
 
       <!-- Large Raised Center Link Button -->
       <a href="#link" class="nav-item nav-center-link" data-target="screen-link">
@@ -2652,6 +2645,15 @@
           </svg>
         </div>
         <span>Link</span>
+      </a>
+
+      <a href="#teachme" class="nav-item" data-target="screen-teachme" style="position: relative;">
+        <!-- Teach Me SVG -->
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span>Teach me</span>
+        <span class="teachme-nav-badge" id="nav-teachme-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--accent-primary); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px var(--accent-glow);">0</span>
       </a>
 
       <a href="#dashboard" class="nav-item" data-target="screen-dashboard">
