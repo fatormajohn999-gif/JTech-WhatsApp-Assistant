@@ -1584,8 +1584,14 @@
               </div>
             </div>
 
+            <div style="margin: 14px 0 4px;">
+              <button class="btn btn-secondary btn-sm" id="btn-link-reconnect" style="width: 100%; justify-content: center; font-weight: 600; padding: 9px;">
+                Reconnect WhatsApp
+              </button>
+            </div>
+
             <!-- Collapsible Unlink Section (Accordion so it's never accidentally tapped) -->
-            <details class="unlink-details" style="margin-top: 14px; text-align: center;">
+            <details class="unlink-details" style="margin-top: 10px; text-align: center;">
               <summary>
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 14px; height: 14px;">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -1741,15 +1747,31 @@
           </div>
         </div>
 
-        <!-- Last 5 AI Errors -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Last 5 provider errors</div>
-          </div>
-          <div id="dash-error-list">
-            <div style="color: var(--text-muted); font-size: 12.5px; text-align: center; padding: 12px;">
-              No AI errors recorded.
+        <!-- Live System Logs Terminal Card -->
+        <div class="card" id="card-live-logs" style="padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;" id="log-live-dot" class="pulse-dot"></span>
+              <span class="card-title" style="margin: 0; font-size: 14.5px;">Live System Logs</span>
+              <span style="font-size: 11px; color: var(--text-muted); font-family: monospace;" id="logs-count-badge">0 lines</span>
             </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="btn btn-sm btn-secondary" id="btn-toggle-log-pause" style="padding: 3px 8px; font-size: 11px;">Pause</button>
+              <button class="btn btn-sm btn-secondary" id="btn-copy-logs" style="padding: 3px 8px; font-size: 11px;">Copy</button>
+              <button class="btn btn-sm btn-secondary" id="btn-clear-logs" style="padding: 3px 8px; font-size: 11px;">Clear</button>
+            </div>
+          </div>
+
+          <!-- Filter chips -->
+          <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+            <button type="button" class="chip active-log-filter" data-filter="all" id="filter-log-all" style="cursor: pointer; font-size: 11px; padding: 3px 10px; background: rgba(0, 242, 254, 0.15); color: var(--accent-primary); border-color: var(--accent-primary);">All</button>
+            <button type="button" class="chip" data-filter="warn" id="filter-log-warn" style="cursor: pointer; font-size: 11px; padding: 3px 10px; color: #f59e0b;">Warn</button>
+            <button type="button" class="chip" data-filter="error" id="filter-log-error" style="cursor: pointer; font-size: 11px; padding: 3px 10px; color: #ef4444;">Error</button>
+          </div>
+
+          <!-- Monospace Terminal Screen -->
+          <div id="live-logs-terminal" style="background: #090d16; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; line-height: 1.5; height: 260px; overflow-y: auto; color: #e2e8f0; word-break: break-all;">
+            <div style="color: #64748b; font-style: italic;">Connecting to live logs stream...</div>
           </div>
         </div>
       </section>
@@ -1758,17 +1780,12 @@
       <section class="app-screen" id="screen-settings">
         <div class="card-title" style="margin-bottom: 12px;">Assistant settings</div>
 
-        <!-- NEW: System Status Section -->
+        <!-- System Status Section -->
         <div class="card" id="settings-sys-status-card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">System status</div>
-              <div class="card-desc">Runtime diagnostics, service health & event log.</div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm btn-secondary" id="btn-copy-diagnostics">Copy diagnostics</button>
-              <button class="btn btn-sm btn-secondary" id="btn-refresh-sys">Refresh</button>
-            </div>
+          <!-- Full-width row for title & description -->
+          <div style="margin-bottom: 12px;">
+            <div class="card-title" style="font-size: 16px;">System status</div>
+            <div class="card-desc" style="margin-top: 3px;">Runtime diagnostics, service health & event log.</div>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
@@ -1788,10 +1805,14 @@
             <span class="chip" id="sys-chip-groq">Groq: checking...</span>
           </div>
 
-          <!-- Diagnostics Actions: Test AI & Reconnect WhatsApp -->
+          <!-- 2-column balanced grid of 6 equal-size buttons -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
-            <button class="btn btn-secondary btn-sm" id="btn-test-ai">Test AI</button>
-            <button class="btn btn-secondary btn-sm" id="btn-reconnect-wa">Reconnect WhatsApp</button>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-sys" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Refresh</button>
+            <button class="btn btn-secondary btn-sm" id="btn-copy-diagnostics" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Copy diagnostics</button>
+            <button class="btn btn-secondary btn-sm" id="btn-test-ai" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Test AI</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reconnect-wa" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Reconnect WhatsApp</button>
+            <button class="btn btn-secondary btn-sm" id="btn-view-logs" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">View live logs</button>
+            <button class="btn btn-secondary btn-sm" id="btn-check-connection" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Check connection</button>
           </div>
 
           <!-- Test AI Output: 2 Separate Cards for Gemini & Groq -->
@@ -2186,6 +2207,11 @@
         </div>
 
         <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+          <button class="icon-btn" id="btn-chat-pause" title="Pause / resume bot for this contact" style="color: var(--text-muted);">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 17px; height: 17px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
           <button class="icon-btn" id="btn-contact-profile" title="Contact Profile" style="color: var(--accent-primary);">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 17px; height: 17px;">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -2288,6 +2314,28 @@
               </div>
             </div>
 
+            <!-- Per-Contact Pause Section -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 13px;">⏸️</span>
+                  <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                    Bot Auto-Replies
+                  </div>
+                </div>
+                <span class="chat-tag" id="cp-pause-badge">Active</span>
+              </div>
+              <div id="cp-pause-status-desc" style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">
+                Bot automatically replies to this contact.
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <button type="button" class="btn btn-sm btn-secondary" id="cp-btn-pause-1h" style="padding: 7px 4px; font-size: 11px;">Pause 1 hr</button>
+                <button type="button" class="btn btn-sm btn-secondary" id="cp-btn-pause-tomorrow" style="padding: 7px 4px; font-size: 11px;">Until 8 AM</button>
+                <button type="button" class="btn btn-sm btn-secondary" id="cp-btn-pause-indefinite" style="padding: 7px 4px; font-size: 11px; color: #f59e0b;">Pause indefinite</button>
+                <button type="button" class="btn btn-sm btn-primary" id="cp-btn-resume" style="padding: 7px 4px; font-size: 11px; background: var(--accent-secondary); color: #fff;">Resume bot</button>
+              </div>
+            </div>
+
             <!-- Scheduled messages section for this contact -->
             <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -2318,6 +2366,45 @@
                 <div style="color: var(--text-muted); font-size: 11.5px;">No learned replies for this contact yet.</div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-Chat Pause Modal / Bottom Sheet -->
+      <div id="modal-chat-pause" class="profile-drawer-overlay">
+        <div class="profile-drawer-card" style="max-width: 360px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <div style="font-weight: 700; font-size: 15px;" id="pause-modal-title">Pause Bot Replies</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="pause-modal-sub">Choose pause duration for this chat</div>
+            </div>
+            <button class="icon-btn" id="btn-close-pause-modal" type="button" style="width: 30px; height: 30px;">✕</button>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn btn-secondary" id="modal-btn-pause-1h" type="button" style="justify-content: flex-start; padding: 10px 12px; text-align: left;">
+              <div>
+                <div style="font-weight: 600; font-size: 13px;">Pause for 1 hour</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Bot stays quiet for 60 minutes</div>
+              </div>
+            </button>
+            <button class="btn btn-secondary" id="modal-btn-pause-tomorrow" type="button" style="justify-content: flex-start; padding: 10px 12px; text-align: left;">
+              <div>
+                <div style="font-weight: 600; font-size: 13px;">Pause until tomorrow 8:00 AM</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Quiet overnight, resumes in the morning (UTC)</div>
+              </div>
+            </button>
+            <button class="btn btn-secondary" id="modal-btn-pause-indefinite" type="button" style="justify-content: flex-start; padding: 10px 12px; text-align: left;">
+              <div>
+                <div style="font-weight: 600; font-size: 13px; color: #f59e0b;">Pause indefinitely</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Bot will not answer until manually resumed</div>
+              </div>
+            </button>
+            <button class="btn btn-primary" id="modal-btn-resume" type="button" style="justify-content: flex-start; padding: 10px 12px; text-align: left; background: var(--accent-secondary); color: #fff;">
+              <div>
+                <div style="font-weight: 600; font-size: 13px;">Resume bot now</div>
+                <div style="font-size: 11px; opacity: 0.9;">Re-enable automated replies immediately</div>
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -2919,6 +3006,13 @@
         }
       }
 
+      // Manage logs polling on #dashboard screen
+      if (hash === 'dashboard') {
+        if (typeof startLogsPolling === 'function') startLogsPolling();
+      } else {
+        if (typeof stopLogsPolling === 'function') stopLogsPolling();
+      }
+
       // Lazy fetch on screen switch
       if (hash === 'home') { fetchHomeActivity(); fetchState(); }
       if (hash === 'chats') { fetchChats(); }
@@ -3020,8 +3114,10 @@
 
         // Quick Pause toggle state
         const pauseToggle = document.getElementById('home-pause-toggle');
-        pauseToggle.checked = !s.isManualPaused;
-        document.getElementById('pause-status-sub').textContent = s.isManualPaused ? 'Automated replies are paused' : 'Bot replies are currently active';
+        if (!isSavingPauseToggle && pauseToggle) {
+          pauseToggle.checked = !s.isManualPaused;
+          document.getElementById('pause-status-sub').textContent = s.isManualPaused ? 'Automated replies are paused' : 'Bot replies are currently active';
+        }
 
         // Teach-Me badge & Home card
         const teachMeCount = s.teachMeCount || 0;
@@ -3094,19 +3190,57 @@
         }
 
         // 3. Link Screen Management
-        if (waState === 'connected') {
+        const hasSavedSession = Boolean(s.hasSavedSession || s.whatsapp?.hasSavedSession || (activePhoneNum && waState !== 'logged_out'));
+        const isConnected = waState === 'connected';
+
+        if (isConnected || hasSavedSession) {
           if (linkConnectedView) linkConnectedView.style.display = 'block';
           if (linkSetupView) linkSetupView.style.display = 'none';
 
-          if (connMaskedPhone) connMaskedPhone.textContent = formatMaskedPhone(activePhoneNum);
+          const phoneToShow = s.linkedNumber || activePhoneNum;
+          if (connMaskedPhone) connMaskedPhone.textContent = formatMaskedPhone(phoneToShow);
           if (connUptimeVal) connUptimeVal.textContent = `Live (${uptimeMins}m, Node ${nodeVer})`;
           if (connRepliesVal) connRepliesVal.textContent = String(s.repliesToday ?? 0);
+
+          // Update Connected / Reconnecting Badge
+          const badgeWrap = linkConnectedView.querySelector('.badge-breathe');
+          const connHeaderTitle = linkConnectedView.querySelector('div[style*="font-size: 15px"]');
+          if (badgeWrap) {
+            if (isConnected) {
+              badgeWrap.innerHTML = '<span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-secondary); display: inline-block;"></span><span>Connected</span>';
+              if (connHeaderTitle) connHeaderTitle.textContent = 'Live WhatsApp Link Active';
+            } else {
+              badgeWrap.innerHTML = '<span style="width: 8px; height: 8px; border-radius: 50%; background: var(--warning); display: inline-block;" class="pulse-dot"></span><span>Reconnecting...</span>';
+              if (connHeaderTitle) connHeaderTitle.textContent = 'Reconnecting saved session...';
+            }
+          }
 
           if (lastSeenReplies >= 0 && (s.repliesToday ?? 0) > lastSeenReplies && linkConnScene) {
             linkConnScene.classList.add('pulse-burst');
             setTimeout(() => linkConnScene.classList.remove('pulse-burst'), 700);
           }
           lastSeenReplies = s.repliesToday ?? 0;
+
+          // Wire Reconnect button in Link view
+          const btnLinkRec = document.getElementById('btn-link-reconnect');
+          if (btnLinkRec && !btnLinkRec.dataset.bound) {
+            btnLinkRec.dataset.bound = 'true';
+            btnLinkRec.addEventListener('click', async () => {
+              btnLinkRec.disabled = true;
+              btnLinkRec.textContent = 'Reconnecting...';
+              try {
+                const res = await api('/api/reconnect-wa', { method: 'POST' });
+                showToast(res.message || 'Reconnecting WhatsApp socket...');
+                fetchState();
+              } catch (e) { showToast(e.message, true); }
+              finally {
+                setTimeout(() => {
+                  btnLinkRec.disabled = false;
+                  btnLinkRec.textContent = 'Reconnect WhatsApp';
+                }, 3000);
+              }
+            });
+          }
 
           if (btnUnlinkWa && !btnUnlinkWa.dataset.bound) {
             btnUnlinkWa.dataset.bound = 'true';
@@ -3280,23 +3414,37 @@
               <div style="color:var(--text-main);">${e.message || 'Error'}</div>
             </div>
           `).join('');
-        } else {
+        } else if (errList) {
           errList.innerHTML = '<div style="color:var(--text-muted); font-size:12.5px; text-align:center; padding:12px;">No errors recorded. All systems healthy.</div>';
         }
       } catch (_) {}
     }
 
     // Quick Pause/Resume Switch Handler (POST /api/cfg)
-    document.getElementById('home-pause-toggle').addEventListener('change', async (e) => {
-      const isPaused = !e.target.checked;
-      try {
-        await api('/api/cfg', { method: 'POST', body: { isPaused } });
-        showToast(isPaused ? 'Auto-reply paused' : 'Auto-reply resumed');
-        fetchState();
-      } catch (err) {
-        showToast(err.message, true, err.hint);
-      }
-    });
+    let isSavingPauseToggle = false;
+    const pauseToggleEl = document.getElementById('home-pause-toggle');
+    if (pauseToggleEl) {
+      pauseToggleEl.addEventListener('change', async (e) => {
+        const isPaused = !e.target.checked;
+        isSavingPauseToggle = true;
+        const sub = document.getElementById('pause-status-sub');
+        if (sub) sub.textContent = isPaused ? 'Automated replies are paused' : 'Bot replies are currently active';
+
+        try {
+          await api('/api/cfg', { method: 'POST', body: { isPaused } });
+          showToast(isPaused ? 'Auto-reply paused' : 'Auto-reply active');
+        } catch (err) {
+          // Revert toggle on error
+          e.target.checked = !e.target.checked;
+          if (sub) sub.textContent = !e.target.checked ? 'Automated replies are paused' : 'Bot replies are currently active';
+          showToast(err.message, true, err.hint);
+        } finally {
+          setTimeout(() => {
+            isSavingPauseToggle = false;
+          }, 1000);
+        }
+      });
+    }
 
     // Home screen: Last 5 activity items (from GET /api/chats)
     async function fetchHomeActivity() {
@@ -3447,6 +3595,9 @@
 
         const cleanBase = API_BASE.replace(/\/+$/, '');
 
+        const offlineBanner = document.getElementById('chats-offline-banner');
+        if (offlineBanner) offlineBanner.style.display = 'none';
+
         // Update or insert each conversation row in order
         convos.forEach((c) => {
           const initials = (c.displayName || c.name || c.jid).slice(0, 2).toUpperCase();
@@ -3458,13 +3609,17 @@
           const relLabel = c.relationship && c.relationship !== 'acquaintance' ? ` • ${c.relationship.replace('_', ' ')}` : '';
           const youPrefix = c.lastFromMe ? '<span style="color:var(--accent-primary); font-weight:600;">You: </span>' : '';
           const needsOwnerBadge = c.needsOwner ? '<span class="chat-tag" style="background:rgba(239, 68, 68, 0.2); color:var(--danger); border:1px solid rgba(239,68,68,0.3); margin-right:4px;">Needs Owner</span>' : '';
+          const pauseBadge = c.isPaused ? '<span class="chat-tag" style="background:rgba(245, 158, 11, 0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); margin-right:4px;">⏸ Paused</span>' : '';
 
           let row = list.querySelector(`.chat-row[data-jid="${CSS.escape(c.jid)}"]`);
           if (!row) {
             row = document.createElement('div');
             row.className = 'chat-row';
             row.dataset.jid = c.jid;
-            row.onclick = () => openChatDetail(c.jid);
+            row.onclick = (e) => {
+              if (e.target.closest('.row-pause-btn')) return;
+              openChatDetail(c.jid);
+            };
             row.innerHTML = `
               <div class="chat-avatar" style="background:${avatarColor}22; color:${avatarColor};">
                 <img src="${avatarSrc}" onload="this.style.display='block'; if(this.nextElementSibling) this.nextElementSibling.style.display='none';" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" style="display:none;" alt="" />
@@ -3477,11 +3632,24 @@
                 </div>
                 <div class="chat-snippet">${youPrefix}${c.lastMessage || '[No text]'}</div>
                 <div style="margin-top: 4px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                  ${pauseBadge}
                   ${needsOwnerBadge}
                   <span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span>
                 </div>
               </div>
+              <button class="icon-btn row-pause-btn" data-jid="${c.jid}" style="width: 30px; height: 30px; min-width: 30px; margin-left: 6px; flex-shrink: 0; align-self: center; color: ${c.isPaused ? '#f59e0b' : 'var(--text-muted)'};" title="Pause / resume bot">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 15px; height: 15px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
             `;
+            const pauseBtn = row.querySelector('.row-pause-btn');
+            if (pauseBtn) {
+              pauseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openPauseModal(c.jid, c.displayName || c.name || c.jid, c.isPaused);
+              });
+            }
             list.appendChild(row);
           } else {
             // Update in place to avoid blinking
@@ -3501,14 +3669,22 @@
 
             const badgesContainer = row.querySelector('.chat-info > div:last-child');
             if (badgesContainer) {
-              const expectedBadgesHtml = `${needsOwnerBadge}<span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span>`;
+              const expectedBadgesHtml = `${pauseBadge}${needsOwnerBadge}<span class="chat-tag ${tagClass}">${tagLabel}${relLabel}</span>`;
               if (badgesContainer.innerHTML.trim() !== expectedBadgesHtml.trim()) {
                 badgesContainer.innerHTML = expectedBadgesHtml;
               }
             }
+
+            const pauseBtn = row.querySelector('.row-pause-btn');
+            if (pauseBtn) {
+              pauseBtn.style.color = c.isPaused ? '#f59e0b' : 'var(--text-muted)';
+            }
           }
         });
-      } catch (_) {}
+      } catch (_) {
+        const offlineBanner = document.getElementById('chats-offline-banner');
+        if (offlineBanner) offlineBanner.style.display = 'flex';
+      }
     }
 
     // Active Chat State Cache
@@ -3552,7 +3728,23 @@
         nameEl.textContent = displayName;
 
         const phoneDisplay = d.phone || (jid.includes('@') ? `+${jid.split('@')[0]}` : '');
-        subEl.textContent = `${phoneDisplay ? phoneDisplay + ' • ' : ''}${d.isHandoff ? 'Human takeover active' : 'AI bot active'}`;
+        let botStatus = d.isHandoff ? 'Human takeover active' : 'AI bot active';
+        if (d.isPaused) {
+          botStatus = d.pauseUntil 
+            ? `Bot paused until ${new Date(d.pauseUntil).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}` 
+            : 'Bot paused indefinitely';
+        }
+        subEl.textContent = `${phoneDisplay ? phoneDisplay + ' • ' : ''}${botStatus}`;
+
+        // Header Pause Button
+        const btnChatPause = document.getElementById('btn-chat-pause');
+        if (btnChatPause) {
+          btnChatPause.style.color = d.isPaused ? '#f59e0b' : 'var(--text-muted)';
+          btnChatPause.onclick = (e) => {
+            e.stopPropagation();
+            openPauseModal(jid, displayName, d.isPaused);
+          };
+        }
 
         // Header Avatar
         if (avatarWrap && avatarImg && avatarFallback) {
@@ -5198,6 +5390,276 @@
           btnReconnectWa.textContent = 'Reconnect WhatsApp';
         }, 3000);
       }
+    });
+
+    // System Status Actions: View Live Logs
+    const btnViewLogs = document.getElementById('btn-view-logs');
+    if (btnViewLogs) {
+      btnViewLogs.addEventListener('click', () => {
+        window.location.hash = '#dashboard';
+        setTimeout(() => {
+          const card = document.getElementById('card-live-logs');
+          if (card) card.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      });
+    }
+
+    // System Status Actions: Check Connection (Ping /api/health)
+    const btnCheckConn = document.getElementById('btn-check-connection');
+    if (btnCheckConn) {
+      btnCheckConn.addEventListener('click', async () => {
+        btnCheckConn.disabled = true;
+        const origText = btnCheckConn.textContent;
+        btnCheckConn.textContent = 'Checking...';
+        const start = performance.now();
+        try {
+          const res = await fetch(`${API_BASE}/api/health`);
+          const duration = Math.round(performance.now() - start);
+          const data = await res.json();
+          if (data.ok || data.status === 'ok') {
+            showToast(`Health OK (${duration}ms) — Server live`);
+          } else {
+            showToast(`Server returned status: ${data.status || 'unknown'}`, true);
+          }
+        } catch (err) {
+          showToast(`Connection failed: ${err.message}`, true);
+        } finally {
+          btnCheckConn.disabled = false;
+          btnCheckConn.textContent = origText;
+        }
+      });
+    }
+
+    // --- LIVE LOGS TERMINAL CONTROLLER ---
+    let liveLogsBuffer = [];
+    let lastLogId = 0;
+    let isLogsStreamPaused = false;
+    let logFilterLevel = 'all';
+    let logAutoScroll = true;
+    let logsPollInterval = null;
+
+    window.fetchLiveLogs = async function() {
+      if (!authToken || !API_BASE || isLogsStreamPaused) return;
+      try {
+        const data = await api(`/api/logs?after=${lastLogId}&limit=200`);
+        if (data && Array.isArray(data.logs) && data.logs.length > 0) {
+          liveLogsBuffer.push(...data.logs);
+          if (liveLogsBuffer.length > 500) {
+            liveLogsBuffer = liveLogsBuffer.slice(-500);
+          }
+          lastLogId = data.after || liveLogsBuffer[liveLogsBuffer.length - 1].id;
+          renderLiveLogs();
+        } else if (liveLogsBuffer.length === 0) {
+          const terminal = document.getElementById('live-logs-terminal');
+          if (terminal && terminal.textContent.includes('Connecting')) {
+            terminal.innerHTML = '<div style="color: #64748b; font-style: italic;">No logs recorded yet. All systems quiet.</div>';
+          }
+        }
+      } catch (_) {}
+    };
+
+    function renderLiveLogs() {
+      const terminal = document.getElementById('live-logs-terminal');
+      if (!terminal) return;
+
+      const filtered = liveLogsBuffer.filter(log => {
+        if (logFilterLevel === 'warn') return log.level === 'warn';
+        if (logFilterLevel === 'error') return log.level === 'error';
+        return true;
+      });
+
+      const countBadge = document.getElementById('logs-count-badge');
+      if (countBadge) countBadge.textContent = `${filtered.length} line${filtered.length === 1 ? '' : 's'}`;
+
+      if (filtered.length === 0) {
+        terminal.innerHTML = '<div style="color: #64748b; font-style: italic;">No logs matching current filter.</div>';
+        return;
+      }
+
+      terminal.innerHTML = filtered.map(log => {
+        const time = new Date(log.timestamp).toLocaleTimeString([], { hour12: false });
+        let color = '#94a3b8';
+        let levelBadge = '';
+        if (log.level === 'error') {
+          color = '#f87171';
+          levelBadge = '<span style="color:#ef4444; font-weight:700;">[ERR]</span> ';
+        } else if (log.level === 'warn') {
+          color = '#fbbf24';
+          levelBadge = '<span style="color:#f59e0b; font-weight:700;">[WRN]</span> ';
+        } else if (log.level === 'info') {
+          levelBadge = '<span style="color:#38bdf8;">[INF]</span> ';
+        }
+        const escaped = escapeHtml(log.message || '');
+        return `<div style="color:${color}; margin-bottom: 2px;"><span style="color:#475569;">${time}</span> ${levelBadge}${escaped}</div>`;
+      }).join('');
+
+      if (logAutoScroll) {
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+    }
+
+    window.startLogsPolling = function() {
+      if (logsPollInterval) clearInterval(logsPollInterval);
+      window.fetchLiveLogs();
+      logsPollInterval = setInterval(window.fetchLiveLogs, 2000);
+    };
+
+    window.stopLogsPolling = function() {
+      if (logsPollInterval) {
+        clearInterval(logsPollInterval);
+        logsPollInterval = null;
+      }
+    };
+
+    // Live Logs UI Controls
+    const terminalEl = document.getElementById('live-logs-terminal');
+    if (terminalEl) {
+      terminalEl.addEventListener('scroll', () => {
+        const distanceFromBottom = terminalEl.scrollHeight - terminalEl.scrollTop - terminalEl.clientHeight;
+        logAutoScroll = distanceFromBottom < 30;
+      });
+    }
+
+    const btnToggleLogPause = document.getElementById('btn-toggle-log-pause');
+    const logLiveDot = document.getElementById('log-live-dot');
+    if (btnToggleLogPause) {
+      btnToggleLogPause.addEventListener('click', () => {
+        isLogsStreamPaused = !isLogsStreamPaused;
+        btnToggleLogPause.textContent = isLogsStreamPaused ? 'Resume' : 'Pause';
+        if (logLiveDot) {
+          logLiveDot.style.background = isLogsStreamPaused ? '#64748b' : '#10b981';
+          logLiveDot.classList.toggle('pulse-dot', !isLogsStreamPaused);
+        }
+        if (!isLogsStreamPaused) window.fetchLiveLogs();
+      });
+    }
+
+    const btnCopyLogs = document.getElementById('btn-copy-logs');
+    if (btnCopyLogs) {
+      btnCopyLogs.addEventListener('click', () => {
+        if (liveLogsBuffer.length === 0) {
+          showToast('No logs to copy');
+          return;
+        }
+        const text = liveLogsBuffer.map(l => `${new Date(l.timestamp).toISOString()} [${l.level.toUpperCase()}] ${l.message}`).join('\n');
+        navigator.clipboard.writeText(text).then(() => showToast('Live logs copied to clipboard'));
+      });
+    }
+
+    const btnClearLogs = document.getElementById('btn-clear-logs');
+    if (btnClearLogs) {
+      btnClearLogs.addEventListener('click', () => {
+        liveLogsBuffer = [];
+        renderLiveLogs();
+        showToast('Live log view cleared');
+      });
+    }
+
+    // Log filter chips
+    ['all', 'warn', 'error'].forEach(lvl => {
+      const btn = document.getElementById(`filter-log-${lvl}`);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          logFilterLevel = lvl;
+          ['all', 'warn', 'error'].forEach(l => {
+            const b = document.getElementById(`filter-log-${l}`);
+            if (b) {
+              const isActive = l === lvl;
+              b.style.background = isActive ? 'rgba(0, 242, 254, 0.15)' : 'var(--bg-surface)';
+              b.style.borderColor = isActive ? 'var(--accent-primary)' : 'var(--border-subtle)';
+            }
+          });
+          renderLiveLogs();
+        });
+      }
+    });
+
+    // --- PER-CHAT PAUSE CONTROLLER ---
+    let targetPauseJid = null;
+    window.openPauseModal = function(jid, name, isPaused) {
+      targetPauseJid = jid;
+      const modal = document.getElementById('modal-chat-pause');
+      const title = document.getElementById('pause-modal-title');
+      const sub = document.getElementById('pause-modal-sub');
+      if (title) title.textContent = `Pause Bot for ${name || jid}`;
+      if (sub) sub.textContent = isPaused ? 'Currently paused. Select a duration or resume.' : 'Choose pause duration for this chat';
+      if (modal) modal.classList.add('open');
+    };
+
+    window.closePauseModal = function() {
+      const modal = document.getElementById('modal-chat-pause');
+      if (modal) modal.classList.remove('open');
+      targetPauseJid = null;
+    };
+
+    const btnClosePauseModal = document.getElementById('btn-close-pause-modal');
+    if (btnClosePauseModal) {
+      btnClosePauseModal.addEventListener('click', window.closePauseModal);
+    }
+    const modalChatPause = document.getElementById('modal-chat-pause');
+    if (modalChatPause) {
+      modalChatPause.addEventListener('click', (e) => {
+        if (e.target === modalChatPause) window.closePauseModal();
+      });
+    }
+
+    window.pauseContact = async function(jid, mode) {
+      if (!jid) return;
+      try {
+        const res = await api(`/api/chats/${encodeURIComponent(jid)}/pause`, {
+          method: 'POST',
+          body: { mode }
+        });
+        showToast(res.message || 'Chat paused');
+        window.closePauseModal();
+        if (activeChatJid === jid) openChatDetail(jid);
+        fetchChats();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    };
+
+    window.resumeContact = async function(jid) {
+      if (!jid) return;
+      try {
+        const res = await api(`/api/chats/${encodeURIComponent(jid)}/resume`, {
+          method: 'POST'
+        });
+        showToast(res.message || 'Bot resumed for this contact');
+        window.closePauseModal();
+        if (activeChatJid === jid) openChatDetail(jid);
+        fetchChats();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    };
+
+    // Modal pause duration buttons
+    document.getElementById('modal-btn-pause-1h')?.addEventListener('click', () => {
+      if (targetPauseJid) window.pauseContact(targetPauseJid, '1h');
+    });
+    document.getElementById('modal-btn-pause-tomorrow')?.addEventListener('click', () => {
+      if (targetPauseJid) window.pauseContact(targetPauseJid, 'tomorrow_8am');
+    });
+    document.getElementById('modal-btn-pause-indefinite')?.addEventListener('click', () => {
+      if (targetPauseJid) window.pauseContact(targetPauseJid, 'indefinite');
+    });
+    document.getElementById('modal-btn-resume')?.addEventListener('click', () => {
+      if (targetPauseJid) window.resumeContact(targetPauseJid);
+    });
+
+    // Contact Profile Drawer pause buttons
+    document.getElementById('cp-btn-pause-1h')?.addEventListener('click', () => {
+      if (activeChatJid) window.pauseContact(activeChatJid, '1h');
+    });
+    document.getElementById('cp-btn-pause-tomorrow')?.addEventListener('click', () => {
+      if (activeChatJid) window.pauseContact(activeChatJid, 'tomorrow_8am');
+    });
+    document.getElementById('cp-btn-pause-indefinite')?.addEventListener('click', () => {
+      if (activeChatJid) window.pauseContact(activeChatJid, 'indefinite');
+    });
+    document.getElementById('cp-btn-resume')?.addEventListener('click', () => {
+      if (activeChatJid) window.resumeContact(activeChatJid);
     });
 
     // Session Actions: Clear Memory (POST /api/clear-memory)

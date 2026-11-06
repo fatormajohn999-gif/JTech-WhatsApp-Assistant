@@ -36,8 +36,11 @@ export function buildAlternatingTurns(messages, latestUserText) {
     }
   }
 
-  // Take the last 12 messages maximum for context
-  const sliced = mapped.slice(-12);
+  // Take the last 8 messages maximum for context and compact text
+  const sliced = mapped.slice(-8).map(m => ({
+    role: m.role,
+    text: m.text.slice(0, 300)
+  }));
 
   // Merge consecutive same-role messages
   const merged = [];
@@ -56,18 +59,15 @@ export function buildAlternatingTurns(messages, latestUserText) {
 
   // Must end with a user turn (latest user message)
   if (merged.length === 0 || merged[merged.length - 1].role !== 'user') {
-    merged.push({ role: 'user', text: latestUserText.trim() || 'Hello' });
+    merged.push({ role: 'user', text: (latestUserText || 'Hello').slice(0, 300) });
   }
 
   return merged;
 }
 
 export async function checkAutoPause() {
-  const until = await redis.get('autopause:until');
-  if (until) {
-    state.autoPauseUntil = parseInt(until, 10) || 0;
-  }
-  return Date.now() < state.autoPauseUntil;
+  // Master auto-reply switch is owner-only: automatic background system pause is disabled
+  return false;
 }
 
 export async function recordAiFailure(provider, errorMsg) {
@@ -84,17 +84,17 @@ export async function recordAiFailure(provider, errorMsg) {
 
 export async function handleBothProvidersFailed(summary) {
   state.consecutiveFailures += 1;
-  logEvent('warn', `Consecutive AI failure count: ${state.consecutiveFailures}/3`);
-  if (state.consecutiveFailures >= 3) {
-    state.autoPauseUntil = Date.now() + 10 * 60 * 1000;
-    await redis.set('autopause:until', String(state.autoPauseUntil));
-    await recordAiFailure('System (Auto-Pause)', `Paused replies for 10 min after 3 dual-failures: ${summary}`);
-    logEvent('error', `Auto-pause triggered! Replies paused until ${new Date(state.autoPauseUntil).toLocaleTimeString()}`);
-  }
+  state.aiLimited = {
+    isLimited: true,
+    reason: String(summary).slice(0, 140),
+    until: Date.now() + 60000
+  };
+  logEvent('warn', `Both AI providers failed. AI temporarily limited for 60s. Reason: ${summary}`);
 }
 
 export async function handleAiSuccess(provider) {
   state.consecutiveFailures = 0;
+  state.aiLimited = null;
   const today = new Date().toISOString().slice(0, 10);
   try {
     await Promise.all([
@@ -115,13 +115,9 @@ async function callProvider(provider, turns, systemInstruction, modelName, timeo
 export async function generateAiReply(turns, promptBuilderArgs) {
   const settings = await getSettings();
 
+  // ONLY the owner's master switch can pause replies
   if (settings.isPaused) {
     return { text: null, paused: true, reason: 'Manual pause active' };
-  }
-
-  if (await checkAutoPause()) {
-    const remainingSecs = Math.max(0, Math.ceil((state.autoPauseUntil - Date.now()) / 1000));
-    return { text: null, paused: true, remainingSecs, reason: 'Auto-pause active' };
   }
 
   const systemInstruction = buildPrompt({

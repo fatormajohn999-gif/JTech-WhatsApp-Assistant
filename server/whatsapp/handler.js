@@ -6,7 +6,9 @@ import { formatLastSeen } from '../brain/prompt-builder.js';
 import {
   getChatMemory,
   recordMessage,
-  jidToPhone
+  jidToPhone,
+  normalizeJid,
+  isChatPaused
 } from '../memory/store.js';
 import {
   generateAiReply,
@@ -55,14 +57,15 @@ export function matchesContactRule(jid, list, knownPhone = '') {
 export async function handleIncomingMessage(m) {
   if (!m || !m.message) return;
 
-  const senderJid = m.key.remoteJid || '';
-  if (!senderJid) return;
+  const rawSenderJid = m.key.remoteJid || '';
+  if (!rawSenderJid) return;
 
   // Skip group chats, broadcasts, newsletters
-  if (senderJid.endsWith('@g.us')) return;
-  if (senderJid.includes('@broadcast') || senderJid === 'status@broadcast') return;
-  if (senderJid.endsWith('@newsletter')) return;
+  if (rawSenderJid.endsWith('@g.us')) return;
+  if (rawSenderJid.includes('@broadcast') || rawSenderJid === 'status@broadcast') return;
+  if (rawSenderJid.endsWith('@newsletter')) return;
 
+  const senderJid = await normalizeJid(rawSenderJid);
   const msgId = m.key.id;
 
   // Owner human reply detection (silences bot for 10 minutes and captures reply)
@@ -99,6 +102,15 @@ export async function handleIncomingMessage(m) {
 
   // Feature 5: Track contact message activity today
   await markChatActiveToday(senderJid);
+
+  // Check Per-Chat Pause status
+  const chatPause = await isChatPaused(senderJid);
+  if (chatPause.isPaused) {
+    const text = m.message.conversation || m.message.extendedTextMessage?.text || '[Media]';
+    await recordMessage(senderJid, 'user', text, false, m.pushName || 'Contact');
+    logEvent('info', `Chat with ${senderJid} is paused (${chatPause.pauseUntil ? 'until ' + new Date(chatPause.pauseUntil).toISOString() : 'indefinitely'}). Message recorded, bot reply skipped.`);
+    return;
+  }
 
   // Check Handoff Status
   const handoffVal = await redis.get(`handoff:${senderJid}`);
@@ -172,6 +184,9 @@ export async function handleIncomingMessage(m) {
       // Double check handoff did not activate during batch window
       const currentHandoff = await redis.get(`handoff:${senderJid}`);
       if (currentHandoff) return;
+
+      const livePause = await isChatPaused(senderJid);
+      if (livePause.isPaused) return;
 
       // Check auto-pause and manual pause
       const isAutoPaused = await checkAutoPause();
@@ -334,6 +349,15 @@ export async function handleIncomingMessage(m) {
           try { await state.sock.sendPresenceUpdate('paused', senderJid); } catch (_) {}
         }
         logEvent('error', `Error answering ${senderJid}: ${err.message}`);
+        try {
+          await redis.set(`contact:${senderJid}:needs_owner`, 'true');
+          const metaRaw = await redis.get(`chat:${senderJid}:meta`);
+          if (metaRaw) {
+            const meta = JSON.parse(metaRaw);
+            meta.needsOwner = true;
+            await redis.set(`chat:${senderJid}:meta`, JSON.stringify(meta));
+          }
+        } catch (_) {}
       }
     }
   });

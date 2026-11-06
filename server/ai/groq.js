@@ -64,7 +64,7 @@ async function executeGroqRequest(turnsOrText, systemInstruction, modelName, tim
 }
 
 /**
- * Call Groq with timeout and 1 automatic retry on 503 or timeout.
+ * Call Groq with timeout and 1 automatic retry on 429, 503, or timeout, honoring retry-after hints.
  */
 export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelName = DEFAULT_GROQ_MODEL, timeoutMs = AI_CALL_TIMEOUT_MS) {
   try {
@@ -73,9 +73,20 @@ export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelN
     const errText = (err.message || '').toLowerCase();
     const isTimeout = /timeout|aborterror/i.test(errText);
     const is503 = /503|overloaded|unavailable/i.test(errText);
+    const is429 = /429|rate limit|quota|tokens per minute/i.test(errText);
 
-    if (isTimeout || is503) {
-      logEvent('warn', `Groq returned ${isTimeout ? 'timeout' : '503/overload'}. Retrying once before fallback...`);
+    if (isTimeout || is503 || is429) {
+      let waitMs = 1500;
+      // Parse "try again in X.Xs" if present
+      const match = errText.match(/try again in ([\d.]+)s/);
+      if (match && match[1]) {
+        const parsedSecs = parseFloat(match[1]);
+        if (!isNaN(parsedSecs) && parsedSecs > 0) {
+          waitMs = Math.min(3500, Math.ceil(parsedSecs * 1000) + 200);
+        }
+      }
+      logEvent('warn', `Groq returned ${is429 ? '429/rate-limit' : (isTimeout ? 'timeout' : '503')}. Waiting ${waitMs}ms to retry once before fallback...`);
+      await new Promise(r => setTimeout(r, waitMs));
       return await executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs);
     }
     throw err;

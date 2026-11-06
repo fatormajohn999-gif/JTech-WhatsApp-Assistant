@@ -94,7 +94,7 @@ async function executeGeminiRequest(turnsOrText, systemInstruction, modelName, t
 }
 
 /**
- * Call Gemini with timeout and 1 automatic retry on 503 or timeout.
+ * Call Gemini with timeout and 1 automatic retry on 429, 503, or timeout.
  */
 export async function callGeminiWithTimeout(turnsOrText, systemInstruction, modelName = DEFAULT_GEMINI_MODEL, timeoutMs = AI_CALL_TIMEOUT_MS) {
   try {
@@ -103,9 +103,11 @@ export async function callGeminiWithTimeout(turnsOrText, systemInstruction, mode
     const errText = (err.message || '').toLowerCase();
     const isTimeout = /timeout|aborterror/i.test(errText);
     const is503 = /503|overloaded|unavailable/i.test(errText);
+    const is429 = /429|quota|rate limit|resource exhausted/i.test(errText);
 
-    if (isTimeout || is503) {
-      logEvent('warn', `Gemini returned ${isTimeout ? 'timeout' : '503/overload'}. Retrying once before fallback...`);
+    if (isTimeout || is503 || is429) {
+      logEvent('warn', `Gemini returned ${is429 ? '429/quota' : (isTimeout ? 'timeout' : '503')}. Retrying once before fallback...`);
+      await new Promise(r => setTimeout(r, 1200));
       return await executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs);
     }
     throw err;
