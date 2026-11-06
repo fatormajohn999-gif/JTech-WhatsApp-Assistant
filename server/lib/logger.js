@@ -37,7 +37,8 @@ function pushLogLine(level, rawText) {
     id: ++logSequence,
     timestamp: Date.now(),
     level, // 'info' | 'warn' | 'error'
-    text: clean
+    text: clean,
+    message: clean // FIX: the dashboard reads `message`, so send both names
   };
 
   liveLogs.push(entry);
