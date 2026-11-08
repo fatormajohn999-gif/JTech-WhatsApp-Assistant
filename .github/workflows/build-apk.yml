@@ -1,30 +1,16 @@
 name: Build Android APK
-
 on:
-  workflow_dispatch:        # lets you tap "Run workflow" from your phone
+  workflow_dispatch:
   push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
+    branches:
+      - main
 
 permissions:
-  contents: write           # needed to publish the APK as a release
-
-concurrency:
-  group: build-apk
-  cancel-in-progress: true
-
-env:
-  # ---- Edit these three lines if your app needs different values ----
-  APP_NAME: JTech Assistant
-  APP_ID: com.jtech.assistant   # must be unique, lowercase, like com.yourname.app
-  WEB_DIR: dist                 # the folder your web build creates (Vite = dist)
+  contents: write
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,22 +20,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Choose Java version from the Capacitor version
-        id: java
-        run: |
-          CAP=$(node -e "
-            const p=require('./package.json');
-            const v=(p.dependencies&&p.dependencies['@capacitor/core'])||(p.devDependencies&&p.devDependencies['@capacitor/core'])||'7';
-            console.log(parseInt(String(v).replace(/[^0-9.]/g,'').split('.')[0],10)||7);
-          ")
-          if [ "$CAP" -ge 7 ]; then echo "version=21" >> "$GITHUB_OUTPUT"; else echo "version=17" >> "$GITHUB_OUTPUT"; fi
-          echo "Capacitor major version: $CAP"
-
-      - name: Setup Java
+      - name: Setup Java JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: ${{ steps.java.outputs.version }}
+          distribution: 'zulu'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -57,60 +32,52 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --legacy-peer-deps
 
-      - name: Make sure Capacitor is installed
+      - name: Generate assets from logo SVG
         run: |
-          for pkg in @capacitor/core @capacitor/cli @capacitor/android; do
-            node -e "
-              const p=require('./package.json');
-              const all={...(p.dependencies||{}),...(p.devDependencies||{})};
-              process.exit(all['$pkg']?0:1);
-            " || { echo "Installing $pkg"; npm install "$pkg" --no-audit --no-fund --legacy-peer-deps; }
-          done
+          sudo apt-get update && sudo apt-get install -y librsvg2-bin
+          mkdir -p assets
+          rsvg-convert -w 1024 -h 1024 assets/logo.svg -o assets/icon-only.png
+          cp assets/icon-only.png assets/icon-foreground.png
+          cp assets/icon-only.png assets/icon.png
+          rsvg-convert -w 2732 -h 2732 assets/logo.svg -o assets/splash.png
+          mkdir -p public
+          rsvg-convert -w 192 -h 192 public/logo.svg -o public/icon-192.png
+          rsvg-convert -w 512 -h 512 public/logo.svg -o public/icon-512.png
+          rsvg-convert -w 512 -h 512 public/logo.svg -o public/icon-maskable-512.png
+          rsvg-convert -w 180 -h 180 public/logo.svg -o public/apple-touch-icon.png
 
-      - name: Build the web app
+      - name: Build web assets with Vite
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
-        run: npm run build --if-present
+        run: npm run build
 
-      - name: Create Capacitor config if missing
+      - name: Add Android platform and sync Capacitor
         run: |
-          if [ ! -f capacitor.config.ts ] && [ ! -f capacitor.config.json ] && [ ! -f capacitor.config.js ]; then
-            npx cap init "$APP_NAME" "$APP_ID" --web-dir "$WEB_DIR"
-          fi
-
-      - name: Add Android platform if missing
-        run: |
-          if [ ! -d android ]; then
+          if [ ! -d "android" ]; then
             npx cap add android
           fi
+          npx cap sync android
 
-      - name: Sync web build into Android project
-        run: npx cap sync android
-
-      - name: Build debug APK
-        working-directory: android
+      - name: Build Android Debug APK
         run: |
+          cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK
-        run: |
-          APK=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
-          echo "Found APK: $APK"
-          cp "$APK" app-debug.apk
-
-      - name: Upload APK as workflow artifact
+      - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app-debug.apk
-          if-no-files-found: error
+          name: jtech-assistant-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
 
-      - name: Publish APK to a release (easy phone download)
+      - name: Update GitHub Release (Latest APK)
         uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
         with:
           tag_name: latest-apk
-          name: Latest APK (debug)
-          body: Debug build from the latest push. Download app-debug.apk, open it on your phone, and allow installs from this source if asked.
-          files: app-debug.apk
-          prerelease: true
+          name: 'Latest APK (debug)'
+          body: 'Latest Android APK debug build for JTech Assistant generated automatically by GitHub Actions.'
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -54,6 +54,15 @@ router.delete('/teachme/:id', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/teachme/:id/dismiss', requireAuth, async (req, res) => {
+  try {
+    const success = await dismissTeachMeItem(req.params.id);
+    res.json({ success });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 2. Knowledge Base CRUD
 router.get('/knowledge', requireAuth, async (req, res) => {
   try {

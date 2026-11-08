@@ -15,12 +15,42 @@ import { initScheduler } from './server/lib/scheduler.js';
 
 const app = express();
 app.use(express.json());
+const configuredOrigins = (ALLOWED_ORIGIN || '*')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const defaultAllowedPrefixes = [
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+  'http://127.0.0.1'
+];
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  const reqOrigin = req.headers.origin;
+  let allowOrigin = '*';
+
+  if (configuredOrigins.includes('*')) {
+    allowOrigin = reqOrigin || '*';
+  } else if (reqOrigin) {
+    const isExplicit = configuredOrigins.includes(reqOrigin);
+    const isDefault = defaultAllowedPrefixes.some(prefix => reqOrigin.startsWith(prefix));
+    if (isExplicit || isDefault) {
+      allowOrigin = reqOrigin;
+    } else {
+      allowOrigin = configuredOrigins[0] || '*';
+    }
+  }
+
+  res.header('Access-Control-Allow-Origin', allowOrigin);
   res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-pass');
-  req.method === 'OPTIONS' ? res.sendStatus(204) : next();
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
 });
 app.use('/api', [authRouter, stateRouter, linkRouter, settingsRouter, chatsRouter, aiRouter, learningRouter, schedulesRouter]);
 app.use(systemRouter);

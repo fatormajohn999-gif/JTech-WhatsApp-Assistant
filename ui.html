@@ -6,10 +6,13 @@
   <title>JTech Assistant</title>
   
   <!-- Add-to-Home-Screen & PWA meta tags -->
+  <link rel="icon" type="image/svg+xml" href="./logo.svg">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="JTech Assistant">
+  <meta name="apple-mobile-web-app-title" content="JTech">
   <meta name="theme-color" content="#0b0f17" id="meta-theme-color">
 
   <style>
@@ -55,7 +58,7 @@
       --bubble-user: #e0f2fe;
     }
 
-    * {
+    *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
@@ -66,7 +69,10 @@
     html, body {
       height: 100%;
       height: 100dvh;
+      width: 100%;
+      max-width: 100vw;
       overflow: hidden;
+      overflow-x: hidden;
       background-color: var(--bg-base);
       color: var(--text-main);
       user-select: none;
@@ -84,8 +90,24 @@
       flex-direction: column;
       height: 100%;
       height: 100dvh;
+      width: 100%;
+      max-width: 100vw;
       position: relative;
       overflow: hidden;
+      overflow-x: hidden;
+    }
+
+    /* Zero horizontal overflow on cards and all nested items */
+    .card, .stat-box, .toggle-row, .banner, .chips-row {
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    .card *, .stat-row *, .toggle-row *, .form-group * {
+      min-width: 0;
     }
 
     /* Fixed Top App Header - Strict 1 Row with Safe-Area */
@@ -210,16 +232,23 @@
       flex: 1;
       position: relative;
       overflow: hidden;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
     }
 
     .app-screen {
       position: absolute;
       inset: 0;
+      width: 100%;
+      max-width: 100%;
       overflow-y: auto;
+      overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: 16px 16px calc(var(--bottom-bar-h) + env(safe-area-inset-bottom, 0px) + 20px);
+      padding: 16px 16px calc(var(--bottom-bar-h) + env(safe-area-inset-bottom, 0px) + 36px);
       opacity: 0;
       pointer-events: none;
       transform: translateY(6px);
@@ -258,7 +287,6 @@
 
     .nav-item {
       flex: 1;
-      min-width: 0;
       height: var(--bottom-bar-h);
       min-height: 44px;
       display: flex;
@@ -283,7 +311,7 @@
     }
 
     .nav-item span {
-      font-size: 10px;
+      font-size: 10.5px;
       font-weight: 500;
       letter-spacing: -0.1px;
     }
@@ -1216,12 +1244,7 @@
     <!-- Fixed Top Header (Strict 1 Row) -->
     <header class="app-header">
       <div class="brand-wrap">
-        <div class="brand-logo">
-          <!-- Sparkle / Lightning Icon -->
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-          </svg>
-        </div>
+        <img src="./logo.svg" alt="JTech Logo" class="brand-logo" style="width: 28px; height: 28px; border-radius: 7px; object-fit: contain;">
         <span class="brand-title">JTech Assistant</span>
       </div>
 
@@ -1246,26 +1269,58 @@
       <!-- SCREEN 1: HOME (#home) -->
       <section class="app-screen active" id="screen-home">
         
+        <!-- PWA / Add to Home Screen Banner (Dismissible) -->
+        <div class="card" id="home-pwa-install-card" style="display: none; border-color: rgba(0, 242, 254, 0.4); background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(16, 185, 129, 0.05)); padding: 12px 14px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #00f2fe, #10b981); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,242,254,0.3);">
+                <svg fill="none" viewBox="0 0 24 24" stroke="#0b0f17" style="width: 18px; height: 18px; stroke-width: 2.2;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+              </div>
+              <div style="min-width: 0; flex: 1;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-main);">Install JTech Assistant</div>
+                <div id="pwa-install-desc" style="font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4;">
+                  Add to your home screen for quick, full-screen mobile access.
+                </div>
+              </div>
+            </div>
+            <button class="icon-btn" id="btn-dismiss-pwa-install" title="Dismiss" style="width: 26px; height: 26px; min-width: 26px; flex-shrink: 0;">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 14px; height: 14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div style="margin-top: 8px; display: flex; gap: 8px;" id="pwa-action-row">
+            <button class="btn btn-primary btn-sm" id="btn-trigger-pwa-install" style="flex: 1; padding: 4px 12px; font-size: 11.5px; font-weight: 700;">
+              Install Now
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-later-pwa-install" style="padding: 4px 10px; font-size: 11.5px;">
+              Later
+            </button>
+          </div>
+        </div>
+
         <!-- Status & Freetown Overview Card (Below Header) -->
         <div class="card" id="home-status-card" style="margin-bottom: 12px; padding: 12px 14px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <svg style="width: 15px; height: 15px; color: var(--accent-primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 10px; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; overflow: hidden;">
+              <svg style="width: 15px; height: 15px; color: var(--accent-primary); flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);" id="home-freetown-time">Freetown: --:--</span>
+              <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="home-freetown-time">Freetown: --:--</span>
             </div>
-            <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-subtle);">Africa/Freetown</span>
+            <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-subtle); flex-shrink: 0; margin-left: 6px;">Africa/Freetown</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div style="background: var(--bg-surface); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+            <div style="background: var(--bg-surface); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0; overflow: hidden;">
               <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Server Runtime</div>
-              <div style="font-size: 12px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="home-server-full">Server: Live (0m)</div>
+              <div style="font-size: 12.5px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px; overflow-wrap: anywhere; word-break: break-word;" id="home-server-full">Live (0m)</div>
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="home-server-sub">Node v22</div>
             </div>
-            <div style="background: var(--bg-surface); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="background: var(--bg-surface); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0; overflow: hidden;">
               <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">WhatsApp Connection</div>
-              <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="home-wa-full">WhatsApp: Not connected</div>
+              <div style="font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; word-break: break-word;" id="home-wa-full">Not connected</div>
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="home-wa-sub">Standby</div>
             </div>
           </div>
         </div>
@@ -1779,24 +1834,317 @@
 
       <!-- SCREEN 5: SETTINGS (#settings) -->
       <section class="app-screen" id="screen-settings">
-        <div class="card-title" style="margin-bottom: 12px;">Assistant settings</div>
+        <div style="margin-bottom: 14px;">
+          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.4px; color: var(--text-main);">Settings</h2>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Customize behavior, voice personality, reply pacing, and diagnostics.</div>
+        </div>
 
-        <!-- System Status Section -->
-        <div class="card" id="settings-sys-status-card">
-          <!-- Full-width row for title & description -->
-          <div style="margin-bottom: 12px;">
-            <div class="card-title" style="font-size: 16px;">System status</div>
-            <div class="card-desc" style="margin-top: 3px;">Runtime diagnostics, service health & event log.</div>
+        <!-- 1. CONNECTION SECTION -->
+        <div class="card" id="sec-settings-connection">
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🔗</span>
+              <div>
+                <div class="card-title" style="font-size: 15px;">Connection</div>
+                <div class="card-desc">WhatsApp account linking and socket session status.</div>
+              </div>
+            </div>
+            <a href="#link" class="btn btn-sm btn-secondary" style="font-size: 11.5px; padding: 4px 10px;">Manage Link</a>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
-            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Server</div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 6px;">
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">WhatsApp Status</div>
+              <div id="sys-wa-val" style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 2px; overflow-wrap: break-word;">Not connected</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Linked Number</div>
+              <div id="sys-phone-val" style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-top: 2px; overflow-wrap: break-word;">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. AI & VOICE SECTION -->
+        <div class="card" id="sec-settings-ai">
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">✨</span>
+              <div>
+                <div class="card-title" style="font-size: 15px;">AI & Voice</div>
+                <div class="card-desc">Model engine, fallback provider, and personal personality.</div>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-secondary" id="btn-refresh-models" style="font-size: 11px; padding: 4px 8px;">Refresh models</button>
+          </div>
+
+          <div id="models-warning-banner" style="display: none; margin-bottom: 10px; padding: 8px 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); border-radius: var(--radius-sm); font-size: 11.5px; color: var(--warning); line-height: 1.4;"></div>
+
+          <div class="form-group" style="margin-top: 6px;">
+            <label for="set-provider" style="font-weight: 600;">Primary AI provider</label>
+            <select id="set-provider">
+              <option value="gemini">Google Gemini (Fallback: Groq)</option>
+              <option value="groq">Groq (Fallback: Gemini)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="set-gemini-model-select" style="font-weight: 600;">Gemini model</label>
+            <select id="set-gemini-model-select">
+              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Default)</option>
+              <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Fallback)</option>
+              <option value="gemini-flash-latest">gemini-flash-latest</option>
+              <option value="__custom__">Custom model name...</option>
+            </select>
+            <input type="text" id="set-gemini-model-custom" placeholder="Enter custom Gemini model" style="display: none; margin-top: 6px;">
+          </div>
+
+          <div class="form-group">
+            <label for="set-groq-model-select" style="font-weight: 600;">Groq model</label>
+            <select id="set-groq-model-select">
+              <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Default)</option>
+              <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fast)</option>
+              <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+              <option value="gemma2-9b-it">gemma2-9b-it</option>
+              <option value="__custom__">Custom model name...</option>
+            </select>
+            <input type="text" id="set-groq-model-custom" placeholder="Enter custom Groq model" style="display: none; margin-top: 6px;">
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 8px;">
+            <div class="form-group">
+              <label for="set-min-delay">Min delay (ms)</label>
+              <input type="number" id="set-min-delay" placeholder="300">
+            </div>
+            <div class="form-group">
+              <label for="set-max-delay">Max delay (ms)</label>
+              <input type="number" id="set-max-delay" placeholder="1200">
+            </div>
+          </div>
+
+          <!-- My instructions -->
+          <div class="form-group" style="margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+            <label for="set-base-rules" style="font-weight: 700; font-size: 13px;">My instructions (tone & personality)</label>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Guide how the assistant sounds when texting. Rules and safety are built into the server.</div>
+            <textarea id="set-base-rules" rows="3" placeholder="Sound like a real person texting on WhatsApp: short, warm, natural. Match the sender's language, dialect, and message length."></textarea>
+          </div>
+
+          <!-- Owner Profile Details -->
+          <div style="margin-top: 10px; border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Owner Profile</div>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+              <div class="form-group">
+                <label for="set-prof-name">Owner name</label>
+                <input type="text" id="set-prof-name" placeholder="JTech">
+              </div>
+              <div class="form-group">
+                <label for="set-prof-first-name">First name</label>
+                <input type="text" id="set-prof-first-name" placeholder="e.g. John">
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 4px;">
+              <label for="set-prof-about">About you / company</label>
+              <textarea id="set-prof-about" rows="2" placeholder="Software solutions in Freetown, Sierra Leone..."></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 4px;">
+              <div class="form-group">
+                <label for="set-prof-languages">Languages</label>
+                <input type="text" id="set-prof-languages" placeholder="English, Krio">
+              </div>
+              <div class="form-group">
+                <label for="set-prof-style">Writing tone</label>
+                <input type="text" id="set-prof-style" placeholder="Short, warm, natural">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. REPLIES & TIMING SECTION -->
+        <div class="card" id="sec-settings-replies">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 18px;">⚡</span>
+            <div>
+              <div class="card-title" style="font-size: 15px;">Replies & Timing</div>
+              <div class="card-desc">Human reply timing, burst batching, multi-part answers, and reactions.</div>
+            </div>
+          </div>
+
+          <!-- Typing delay toggle -->
+          <div class="toggle-row" style="margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Human-like typing delay</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Mark read, wait a moment, and show typing indicator</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-typing" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Typing speed -->
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label for="set-pacing-speed">Typing speed</label>
+            <select id="set-pacing-speed">
+              <option value="fast">Fast (~30ms/char)</option>
+              <option value="normal" selected>Normal (~55ms/char)</option>
+              <option value="slow">Slow (~85ms/char)</option>
+            </select>
+          </div>
+
+          <!-- Message Batching -->
+          <div class="toggle-row" style="margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Message burst batching</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Wait for consecutive messages and reply to all at once</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-batching" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Quiet window duration -->
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label for="set-pacing-batch-window">Quiet window before replying (2–12s)</label>
+            <input type="number" id="set-pacing-batch-window" min="2" max="12" value="5" placeholder="5">
+          </div>
+
+          <!-- Split replies toggle -->
+          <div class="toggle-row" style="margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Split replies [SPLIT]</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Send longer answers as 2–3 short natural texts</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-splits" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Emoji reactions toggle -->
+          <div class="toggle-row" style="margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Emoji reactions [REACT:👍]</div>
+              <div style="font-size: 11px; color: var(--text-muted);">React with emojis instead of texting when fitting</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-pacing-reactions" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Safety Rate Limits -->
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 8px;">
+            <div class="form-group">
+              <label for="set-pacing-contact-limit">Max replies/hr (per contact)</label>
+              <input type="number" id="set-pacing-contact-limit" min="1" max="200" value="30" placeholder="30">
+            </div>
+            <div class="form-group">
+              <label for="set-pacing-global-limit">Max replies/hr (global total)</label>
+              <input type="number" id="set-pacing-global-limit" min="1" max="1000" value="150" placeholder="150">
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. NOTIFICATIONS SECTION -->
+        <div class="card" id="sec-settings-notifications">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 18px;">🔔</span>
+            <div>
+              <div class="card-title" style="font-size: 15px;">Notifications</div>
+              <div class="card-desc">Alerts on WhatsApp when attention or approval is required.</div>
+            </div>
+          </div>
+
+          <!-- WhatsApp alerts when contact needs owner -->
+          <div class="toggle-row" style="margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">WhatsApp alerts</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Message you directly when someone requests to speak with you</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-notify-owner">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Daily Briefing Settings -->
+          <div class="toggle-row" style="margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Send daily briefing</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Evening summary of activity and pending questions on WhatsApp</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-daily-summary-toggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label for="set-daily-summary-time">Briefing time (Africa/Freetown)</label>
+            <input type="time" id="set-daily-summary-time" value="21:00">
+          </div>
+
+          <button class="btn btn-secondary btn-block" id="btn-test-summary" style="font-size: 12px; padding: 8px;">
+            Send a summary now (test)
+          </button>
+        </div>
+
+        <!-- 5. LEARNING SECTION -->
+        <div class="card" id="sec-settings-learning">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 18px;">🧠</span>
+            <div>
+              <div class="card-title" style="font-size: 15px;">Learning</div>
+              <div class="card-desc">Learns how you text from your actual phone replies.</div>
+            </div>
+          </div>
+
+          <!-- Learn from my replies toggle -->
+          <div class="toggle-row" style="margin-bottom: 12px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Learn from my replies</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Analyze your real texts to mirror your exact style</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-learn-replies" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Learned Style Display -->
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Learned texting style</span>
+              <button class="btn btn-secondary btn-sm" id="btn-reset-style" style="padding: 2px 8px; font-size: 10.5px;">Reset style</button>
+            </div>
+            <div id="set-learned-style-display" style="font-size: 12px; line-height: 1.5; color: var(--text-muted); user-select: text; -webkit-user-select: text;">
+              Learning in progress... As you reply to contacts from WhatsApp, your natural style will appear here.
+            </div>
+          </div>
+
+          <button class="btn btn-secondary btn-block" id="btn-action-clear-learned" style="font-size: 12px; padding: 8px;">
+            Clear learned data
+          </button>
+        </div>
+
+        <!-- 6. SYSTEM & HEALTH SECTION -->
+        <div class="card" id="settings-sys-status-card">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 18px;">🖥️</span>
+            <div>
+              <div class="card-title" style="font-size: 15px;">System & Health</div>
+              <div class="card-desc">Runtime diagnostics, service probes, and logs.</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 4px;">
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Server</div>
               <div id="sys-server-val" style="font-size: 13px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px;">Live</div>
             </div>
-            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">WhatsApp</div>
-              <div id="sys-wa-val" style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 2px;">Not connected</div>
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Cloud Database</div>
+              <div id="sys-redis-val" style="font-size: 13px; font-weight: 700; color: var(--accent-secondary); margin-top: 2px;">Connected</div>
             </div>
           </div>
 
@@ -1807,18 +2155,17 @@
           </div>
 
           <!-- 2-column balanced grid of 6 equal-size buttons -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
-            <button class="btn btn-secondary btn-sm" id="btn-refresh-sys" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Refresh</button>
-            <button class="btn btn-secondary btn-sm" id="btn-copy-diagnostics" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Copy diagnostics</button>
-            <button class="btn btn-secondary btn-sm" id="btn-test-ai" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Test AI</button>
-            <button class="btn btn-secondary btn-sm" id="btn-reconnect-wa" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Reconnect WhatsApp</button>
-            <button class="btn btn-secondary btn-sm" id="btn-view-logs" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">View live logs</button>
-            <button class="btn btn-secondary btn-sm" id="btn-check-connection" style="padding: 9px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Check connection</button>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 14px;">
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-sys" style="padding: 10px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Refresh</button>
+            <button class="btn btn-secondary btn-sm" id="btn-copy-diagnostics" style="padding: 10px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Copy diagnostics</button>
+            <button class="btn btn-secondary btn-sm" id="btn-test-ai" style="padding: 10px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Test AI</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reconnect-wa" style="padding: 10px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Reconnect WhatsApp</button>
+            <button class="btn btn-secondary btn-sm" id="btn-view-logs" style="padding: 10px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">View live logs</button>
+            <button class="btn btn-secondary btn-sm" id="btn-check-connection" style="padding: 10px 8px; font-weight: 600; width: 100%; text-align: center; justify-content: center;">Check connection</button>
           </div>
 
           <!-- Test AI Output: 2 Separate Cards for Gemini & Groq -->
-          <div id="test-ai-container" style="display: none; margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
-            <!-- Gemini Card -->
+          <div id="test-ai-container" style="display: none; margin-top: 12px; flex-direction: column; gap: 8px;">
             <div class="card" id="card-gemini-probe" style="margin-bottom: 0; background: var(--bg-surface); padding: 12px; border: 1px solid var(--border-subtle);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -1832,7 +2179,6 @@
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;" id="gemini-probe-hint"></div>
             </div>
 
-            <!-- Groq Card -->
             <div class="card" id="card-groq-probe" style="margin-bottom: 0; background: var(--bg-surface); padding: 12px; border: 1px solid var(--border-subtle);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -1856,274 +2202,67 @@
               <div style="color: var(--text-muted); text-align: center; padding: 6px;">No events recorded yet.</div>
             </div>
           </div>
+
+          <!-- Collapsible Advanced Session Actions -->
+          <details style="margin-top: 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px;">
+            <summary style="font-size: 12.5px; font-weight: 700; color: var(--text-muted); cursor: pointer; user-select: none;">Advanced Session Controls</summary>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+              <button class="btn btn-secondary btn-sm" id="btn-action-clear-mem">Clear chat memory</button>
+              <button class="btn btn-secondary btn-sm" id="btn-action-logout-wa">Log out WhatsApp</button>
+              <button class="btn btn-danger btn-sm" id="btn-action-signout">Sign out of dashboard</button>
+            </div>
+          </details>
         </div>
 
-        <!-- Personal Instructions & Tone -->
-        <div class="card">
-          <div class="card-title">My instructions (how I want replies to sound)</div>
-          <div class="card-desc">The JTech Assistant's core brain and safety rules are built into the server.</div>
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-base-rules">My instructions (how I want replies to sound)</label>
-            <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.4;">The JTech Assistant's core brain and safety rules are built into the server.</div>
-            <textarea id="set-base-rules" rows="4" placeholder="Sound like a real person texting on WhatsApp: short, warm, natural. Match the sender's language, dialect, and message length. Keep replies concise and friendly."></textarea>
+        <!-- Contact Rules Card -->
+        <div class="card" id="sec-settings-rules">
+          <div class="card-title" style="font-size: 15px;">Contact rules</div>
+          <div class="card-desc">Control which contacts receive automated replies. Contacts can appear as @lid IDs or phone numbers.</div>
+          <div class="mode-bar" style="margin-top: 10px;">
+            <button class="mode-btn selected" data-mode="all">Everyone</button>
+            <button class="mode-btn" data-mode="allowlist">Only allowlist</button>
+            <button class="mode-btn" data-mode="blocklist">Blocklist</button>
           </div>
-        </div>
-
-        <!-- AI Provider Switch & Dynamic Models -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">AI engine & models</div>
-              <div class="card-desc">Dynamic model selection populated live from providers.</div>
-            </div>
-            <button class="btn btn-sm btn-secondary" id="btn-refresh-models">Refresh models</button>
-          </div>
-
-          <div id="models-warning-banner" style="display: none; margin-top: 8px; padding: 8px 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); border-radius: var(--radius-sm); font-size: 11.5px; color: var(--warning); line-height: 1.4;">
-          </div>
-
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-provider">Primary provider</label>
-            <select id="set-provider">
-              <option value="gemini">Google Gemini (Fallback: Groq)</option>
-              <option value="groq">Groq (Fallback: Gemini)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="set-gemini-model-select">Gemini model</label>
-            <select id="set-gemini-model-select">
-              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Default)</option>
-              <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Fallback)</option>
-              <option value="gemini-flash-latest">gemini-flash-latest</option>
-              <option value="__custom__">Custom model name...</option>
-            </select>
-            <input type="text" id="set-gemini-model-custom" placeholder="Enter custom Gemini model" style="display: none; margin-top: 6px;">
-          </div>
-
-          <div class="form-group">
-            <label for="set-groq-model-select">Groq model</label>
-            <select id="set-groq-model-select">
-              <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Default)</option>
-              <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fast)</option>
-              <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
-              <option value="gemma2-9b-it">gemma2-9b-it</option>
-              <option value="__custom__">Custom model name...</option>
-            </select>
-            <input type="text" id="set-groq-model-custom" placeholder="Enter custom Groq model" style="display: none; margin-top: 6px;">
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div class="form-group">
-              <label for="set-min-delay">Min delay (ms)</label>
-              <input type="number" id="set-min-delay" placeholder="300">
-            </div>
-            <div class="form-group">
-              <label for="set-max-delay">Max delay (ms)</label>
-              <input type="number" id="set-max-delay" placeholder="1200">
-            </div>
-          </div>
-        </div>
-
-        <!-- Natural Replies & Pacing -->
-        <div class="card">
-          <div class="card-title">Natural replies & pacing</div>
-          <div class="card-desc">Human-like reply delays, message burst batching, split answers, reactions, and anti-ban protection.</div>
-
-          <!-- Typing delay toggle -->
-          <div class="toggle-row" style="margin-top: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Human-like typing delay</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Mark message as read and show typing indicator based on length</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-pacing-typing" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <!-- Typing speed -->
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-pacing-speed">Typing speed</label>
-            <select id="set-pacing-speed">
-              <option value="fast">Fast (~30ms/char)</option>
-              <option value="normal" selected>Normal (~55ms/char)</option>
-              <option value="slow">Slow (~85ms/char)</option>
-            </select>
-          </div>
-
-          <!-- Message Batching -->
-          <div class="toggle-row" style="margin-top: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Message burst batching</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Wait for consecutive messages from the same sender and answer together</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-pacing-batching" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <!-- Quiet window duration -->
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-pacing-batch-window">Quiet window before replying (2–12s, max 20s wait)</label>
-            <input type="number" id="set-pacing-batch-window" min="2" max="12" value="5" placeholder="5">
-          </div>
-
-          <!-- Split replies toggle -->
-          <div class="toggle-row" style="margin-top: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Split replies [SPLIT]</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Send multi-part answers as 1–3 short messages with natural pauses</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-pacing-splits" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <!-- Emoji reactions toggle -->
-          <div class="toggle-row" style="margin-top: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Emoji reactions [REACT:👍]</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">React with emojis instead of texting (max 1 per 15 min per contact)</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-pacing-reactions" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <!-- Safety Rate Limits -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-            <div class="form-group">
-              <label for="set-pacing-contact-limit">Max replies/hr (per contact)</label>
-              <input type="number" id="set-pacing-contact-limit" min="1" max="200" value="30" placeholder="30">
-            </div>
-            <div class="form-group">
-              <label for="set-pacing-global-limit">Max replies/hr (global total)</label>
-              <input type="number" id="set-pacing-global-limit" min="1" max="1000" value="150" placeholder="150">
-            </div>
-          </div>
-        </div>
-
-        <!-- Owner Profile & Voice Cloning -->
-        <div class="card">
-          <div class="card-title">Owner profile & personality</div>
-          <div class="card-desc">The assistant represents you and speaks in your personal style.</div>
-
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-prof-name">Owner name</label>
-            <input type="text" id="set-prof-name" placeholder="JTech">
+          <div class="form-group" style="margin-top: 8px;">
+            <label for="set-allowlist">Allowlist numbers / @lid IDs</label>
+            <textarea id="set-allowlist" rows="2" placeholder="23276123456&#10;120363028392@lid"></textarea>
           </div>
           <div class="form-group">
-            <label for="set-prof-first-name">Owner first name (how assistant refers to you)</label>
-            <input type="text" id="set-prof-first-name" placeholder="e.g. John">
+            <label for="set-blocklist">Blocklist numbers</label>
+            <textarea id="set-blocklist" rows="2" placeholder="9876543210@s.whatsapp.net"></textarea>
           </div>
-          <div class="form-group">
-            <label for="set-prof-about">About owner</label>
-            <textarea id="set-prof-about" rows="2" placeholder="Tech company & software solutions in Freetown, Sierra Leone..."></textarea>
-          </div>
-          <div class="form-group">
-            <label for="set-prof-languages">Languages spoken</label>
-            <input type="text" id="set-prof-languages" placeholder="English, Krio">
-          </div>
-          <div class="form-group">
-            <label for="set-prof-style">Writing style</label>
-            <input type="text" id="set-prof-style" placeholder="Short, warm, natural, respectful, and direct. Sounds like a real person texting.">
-          </div>
-
-          <!-- WhatsApp alerts when contact needs owner -->
-          <div class="toggle-row" style="margin-top: 12px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">WhatsApp alerts</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Notify me on WhatsApp when a contact needs me</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-notify-owner">
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <!-- Learn from my replies toggle -->
-          <div class="toggle-row" style="margin-top: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Learn from my replies</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Learn your writing style and real examples when you text directly</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-learn-replies" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Learned Style Card (Read-only with reset button) -->
-        <div class="card">
-          <div class="card-header" style="margin-bottom: 6px;">
-            <div>
-              <div class="card-title">Learned texting style</div>
-              <div class="card-desc">How the assistant mimics your texting habits (replaces static templates).</div>
-            </div>
-            <button class="btn btn-secondary btn-sm" id="btn-reset-style" style="flex-shrink: 0;">Reset</button>
-          </div>
-          <div id="set-learned-style-display" style="font-size: 12.5px; line-height: 1.5; color: var(--text-main); background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-height: 50px; user-select: text; -webkit-user-select: text;">
-            Learning in progress... As you reply to contacts from WhatsApp, your natural style will appear here.
-          </div>
-        </div>
-
-        <!-- Daily Briefing Settings Card -->
-        <div class="card">
-          <div class="card-title">Daily WhatsApp briefing</div>
-          <div class="card-desc">Receive an evening summary on WhatsApp listing today's activity, contacts needing you, and pending questions.</div>
-
-          <div class="toggle-row" style="margin-top: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Send daily briefing</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Send briefing to your own WhatsApp number</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="set-daily-summary-toggle" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-daily-summary-time">Briefing time (Africa/Freetown)</label>
-            <input type="time" id="set-daily-summary-time" value="21:00">
-          </div>
-
-          <button class="btn btn-secondary btn-block" id="btn-test-summary" style="margin-top: 8px;">
-            Send a summary now (test)
-          </button>
         </div>
 
         <!-- Scheduled message safety limits card -->
-        <div class="card">
-          <div class="card-title">Scheduled message limits</div>
+        <div class="card" id="sec-settings-sch-limits">
+          <div class="card-title" style="font-size: 15px;">Scheduled message limits</div>
           <div class="card-desc">Safety controls to protect your WhatsApp account from rate limits and bans.</div>
 
-          <div class="form-group" style="margin-top: 10px;">
-            <label for="set-sch-hourly-limit">Max scheduled messages/hr (global total)</label>
-            <input type="number" id="set-sch-hourly-limit" min="1" max="100" value="10">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px;">
+            <div class="form-group">
+              <label for="set-sch-hourly-limit">Max messages/hr</label>
+              <input type="number" id="set-sch-hourly-limit" min="1" max="100" value="10">
+            </div>
+            <div class="form-group">
+              <label for="set-sch-daily-limit">Max messages/day</label>
+              <input type="number" id="set-sch-daily-limit" min="1" max="500" value="30">
+            </div>
           </div>
-          <div class="form-group">
-            <label for="set-sch-daily-limit">Max scheduled messages/day (global total)</label>
-            <input type="number" id="set-sch-daily-limit" min="1" max="500" value="30">
-          </div>
-          <div class="form-group">
-            <label for="set-sch-contact-limit">Max scheduled messages/day (per contact)</label>
-            <input type="number" id="set-sch-contact-limit" min="1" max="50" value="2">
-          </div>
-          <div class="form-group">
-            <label for="set-sch-gap-mins">Minimum gap between messages to same contact (minutes)</label>
-            <input type="number" id="set-sch-gap-mins" min="0" max="1440" value="60">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+            <div class="form-group">
+              <label for="set-sch-contact-limit">Max per contact/day</label>
+              <input type="number" id="set-sch-contact-limit" min="1" max="50" value="2">
+            </div>
+            <div class="form-group">
+              <label for="set-sch-gap-mins">Min gap (minutes)</label>
+              <input type="number" id="set-sch-gap-mins" min="0" max="1440" value="60">
+            </div>
           </div>
 
           <div class="toggle-row" style="margin-top: 10px;">
             <div>
-              <div style="font-weight: 700; font-size: 13.5px;">Enforce quiet hours</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Hold scheduled messages during nighttime</div>
+              <div style="font-weight: 600; font-size: 13px;">Enforce quiet hours</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Hold scheduled messages during nighttime</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="set-sch-quiet-toggle" checked>
@@ -2131,7 +2270,7 @@
             </label>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 6px;">
             <div class="form-group">
               <label for="set-sch-quiet-start">Quiet start (Freetown)</label>
               <input type="time" id="set-sch-quiet-start" value="22:00">
@@ -2142,46 +2281,15 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 10px;">
+          <div class="form-group" style="margin-top: 6px;">
             <label for="set-sch-grace-hours">Waking grace period (hours)</label>
             <input type="number" id="set-sch-grace-hours" min="1" max="24" value="3">
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">If server was sleeping at send time, send if within this window; otherwise record missed.</div>
           </div>
         </div>
 
-        <!-- Contact Rules -->
-        <div class="card">
-          <div class="card-title">Contact rules</div>
-          <div class="card-desc">Control which contacts receive automated replies. Contacts can appear as @lid IDs or phone numbers.</div>
-          <div class="mode-bar" style="margin-top: 10px;">
-            <button class="mode-btn selected" data-mode="all">Everyone</button>
-            <button class="mode-btn" data-mode="allowlist">Only allowlist</button>
-            <button class="mode-btn" data-mode="blocklist">Blocklist</button>
-          </div>
-          <div class="form-group">
-            <label for="set-allowlist">Allowlist numbers / @lid IDs</label>
-            <textarea id="set-allowlist" rows="3" placeholder="23276123456&#10;120363028392@lid"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="set-blocklist">Blocklist numbers</label>
-            <textarea id="set-blocklist" rows="2" placeholder="9876543210@s.whatsapp.net"></textarea>
-          </div>
-        </div>
-
-        <button class="btn btn-primary btn-block" id="btn-save-settings">
+        <button class="btn btn-primary btn-block" id="btn-save-settings" style="margin-top: 8px; margin-bottom: 24px; padding: 14px; font-weight: 700; font-size: 15px;">
           Save all settings
         </button>
-
-        <!-- Danger / Session Actions -->
-        <div class="card" style="margin-top: 20px; border-color: rgba(239, 68, 68, 0.2);">
-          <div class="card-title" style="color: var(--danger);">Session & memory</div>
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-            <button class="btn btn-secondary btn-sm" id="btn-action-clear-learned">Clear learned data</button>
-            <button class="btn btn-secondary btn-sm" id="btn-action-clear-mem">Clear chat memory</button>
-            <button class="btn btn-secondary btn-sm" id="btn-action-logout-wa">Log out WhatsApp</button>
-            <button class="btn btn-danger btn-sm" id="btn-action-signout">Sign out of dashboard</button>
-          </div>
-        </div>
       </section>
 
     </div>
@@ -2609,7 +2717,7 @@
     </div>
 
 
-    <!-- Fixed Bottom Nav (TikTok layout) -->
+    <!-- Fixed Bottom Nav (Balanced 3-1-3 layout) -->
     <nav class="app-bottom-nav">
       <a href="#home" class="nav-item active" data-target="screen-home">
         <!-- Home SVG -->
@@ -2627,15 +2735,14 @@
         <span>Chats</span>
       </a>
 
-      <a href="#scheduled" class="nav-item" data-target="screen-scheduled" style="position: relative;">
-        <!-- Clock / Schedule SVG -->
+      <a href="#teachme" class="nav-item" data-target="screen-teachme" style="position: relative;">
+        <!-- Teach Me SVG -->
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
-        <span>Scheduled</span>
-        <span class="teachme-nav-badge" id="nav-scheduled-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--warning); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);">0</span>
+        <span>Teach me</span>
+        <span class="teachme-nav-badge" id="nav-teachme-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--accent-primary); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px var(--accent-glow);">0</span>
       </a>
-
 
       <!-- Large Raised Center Link Button -->
       <a href="#link" class="nav-item nav-center-link" data-target="screen-link">
@@ -2647,13 +2754,13 @@
         <span>Link</span>
       </a>
 
-      <a href="#teachme" class="nav-item" data-target="screen-teachme" style="position: relative;">
-        <!-- Teach Me SVG -->
+      <a href="#scheduled" class="nav-item" data-target="screen-scheduled" style="position: relative;">
+        <!-- Clock / Schedule SVG -->
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>Teach me</span>
-        <span class="teachme-nav-badge" id="nav-teachme-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--accent-primary); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px var(--accent-glow);">0</span>
+        <span>Scheduled</span>
+        <span class="teachme-nav-badge" id="nav-scheduled-badge" style="display: none; position: absolute; top: 4px; right: 10px; background: var(--warning); color: #0b0f17; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 15px; text-align: center; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);">0</span>
       </a>
 
       <a href="#dashboard" class="nav-item" data-target="screen-dashboard">
@@ -3060,27 +3167,65 @@
           }
         }
 
-        // 2. Home Screen Status Card: Freetown Time, Server Details, WhatsApp Connection
-        if (s.freetownTime && homeFreetownTime) {
-          const parts = s.freetownTime.split(',');
-          homeFreetownTime.textContent = 'Freetown: ' + (parts[1] || s.freetownTime).trim();
+        // Helper for human-friendly uptime
+        const totalUptimeSec = s.server?.uptimeSec ?? s.uptime ?? 0;
+        let friendlyUptime = 'Live (<1m)';
+        if (uptimeMins < 60) {
+          friendlyUptime = `Up ${uptimeMins}m`;
+        } else if (uptimeMins < 1440) {
+          const h = Math.floor(uptimeMins / 60);
+          const m = uptimeMins % 60;
+          friendlyUptime = `Up ${h}h ${m}m`;
+        } else {
+          const d = Math.floor(uptimeMins / 1440);
+          const h = Math.floor((uptimeMins % 1440) / 60);
+          friendlyUptime = `Up ${d}d ${h}h`;
         }
+
+        // 2. Home Screen Status Card: Clean Freetown Time, Friendly Server Details, WhatsApp
+        if (homeFreetownTime) {
+          let cleanFreetown = '';
+          try {
+            cleanFreetown = new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'Africa/Freetown',
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            }).format(new Date());
+          } catch (_) {
+            cleanFreetown = (s.freetownTime || '').split('at')[1]?.trim() || s.freetownTime || '--:--';
+          }
+          homeFreetownTime.textContent = 'Freetown: ' + cleanFreetown;
+        }
+
         if (homeServerFull) {
-          homeServerFull.textContent = `Server: Live (${uptimeMins}m, Node ${nodeVer})`;
+          homeServerFull.textContent = friendlyUptime;
         }
+        const homeServerSub = document.getElementById('home-server-sub');
+        if (homeServerSub) {
+          homeServerSub.textContent = `Node ${nodeVer}`;
+        }
+
+        const homeWaSub = document.getElementById('home-wa-sub');
         if (homeWaFull) {
           if (waState === 'connected') {
-            homeWaFull.textContent = activePhoneNum ? `Connected (+${activePhoneNum})` : 'Connected';
+            homeWaFull.textContent = 'Connected';
             homeWaFull.style.color = 'var(--accent-secondary)';
+            if (homeWaSub) homeWaSub.textContent = activePhoneNum ? `+${activePhoneNum}` : 'Ready';
           } else if (waState === 'code_ready') {
-            homeWaFull.textContent = `Code Active (${currentSecondsLeft}s)`;
+            homeWaFull.textContent = `Pairing Code`;
             homeWaFull.style.color = 'var(--accent-primary)';
+            if (homeWaSub) homeWaSub.textContent = `${currentSecondsLeft}s left`;
           } else if (waState === 'connecting' || waState === 'reconnecting') {
-            homeWaFull.textContent = 'Connecting...';
+            homeWaFull.textContent = 'Reconnecting...';
             homeWaFull.style.color = 'var(--warning)';
+            if (homeWaSub) homeWaSub.textContent = activePhoneNum ? `+${activePhoneNum}` : 'Saved session';
           } else {
             homeWaFull.textContent = 'Not connected';
             homeWaFull.style.color = 'var(--text-muted)';
+            if (homeWaSub) homeWaSub.textContent = 'Standby';
           }
         }
 
@@ -3094,7 +3239,7 @@
         document.getElementById('home-stat-today').textContent = s.repliesToday ?? 0;
         document.getElementById('home-stat-provider').textContent = s.activeProvider || 'Gemini';
         document.getElementById('chip-phone').textContent = activePhoneNum ? `Number: +${activePhoneNum}` : 'Number: Not linked';
-        document.getElementById('chip-uptime').textContent = `Uptime: ${uptimeMins}m`;
+        document.getElementById('chip-uptime').textContent = `Uptime: ${friendlyUptime}`;
 
         const homeDesc = document.getElementById('home-conn-desc');
         const homeCta = document.getElementById('home-link-cta');
@@ -3339,8 +3484,19 @@
         // 4. Settings Screen: System Status Section
         document.getElementById('sys-server-val').textContent = `Live (${uptimeMins}m)`;
         const sysWa = document.getElementById('sys-wa-val');
-        sysWa.textContent = waState === 'connected' ? 'Connected' : (waState === 'code_ready' ? `Code Ready (${currentSecondsLeft}s)` : (waState === 'connecting' ? 'Connecting...' : (waState === 'reconnecting' ? 'Reconnecting...' : 'Not connected')));
-        sysWa.style.color = waState === 'connected' ? 'var(--accent-secondary)' : (waState === 'code_ready' ? 'var(--accent-primary)' : (waState === 'connecting' || waState === 'reconnecting' ? 'var(--warning)' : 'var(--danger)'));
+        if (sysWa) {
+          sysWa.textContent = waState === 'connected' ? 'Connected' : (waState === 'code_ready' ? `Code Ready (${currentSecondsLeft}s)` : (waState === 'connecting' ? 'Connecting...' : (waState === 'reconnecting' ? 'Reconnecting...' : 'Not connected')));
+          sysWa.style.color = waState === 'connected' ? 'var(--accent-secondary)' : (waState === 'code_ready' ? 'var(--accent-primary)' : (waState === 'connecting' || waState === 'reconnecting' ? 'var(--warning)' : 'var(--danger)'));
+        }
+        const sysPhone = document.getElementById('sys-phone-val');
+        if (sysPhone) {
+          sysPhone.textContent = activePhoneNum ? `+${activePhoneNum}` : 'Not linked';
+        }
+        const sysRedisVal = document.getElementById('sys-redis-val');
+        if (sysRedisVal) {
+          sysRedisVal.textContent = s.services?.upstash === 'ok' ? 'Connected' : 'Error';
+          sysRedisVal.style.color = s.services?.upstash === 'ok' ? 'var(--accent-secondary)' : 'var(--danger)';
+        }
 
         const setChip = (id, label, ok) => {
           const el = document.getElementById(id);
@@ -4768,44 +4924,79 @@
               <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
-              <div class="empty-title">All caught up!</div>
-              <div class="empty-desc">When someone asks a question the assistant doesn't know, it will appear here so you can teach it.</div>
+              <div class="empty-title">No questions yet</div>
+              <div class="empty-desc">When someone asks something I do not know, it will appear here.</div>
             </div>
           `;
           return;
         }
 
         listEl.innerHTML = items.map(it => {
-          const time = it.timestamp ? new Date(it.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+          const timestamp = it.lastAskedAt || it.askedAt || it.timestamp;
+          const time = timestamp ? new Date(timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
           const sender = it.contactName || it.contactJid || 'Contact';
+          const initial = (sender.replace(/[^a-zA-Z0-9]/g, '')[0] || 'C').toUpperCase();
+          const askCount = it.askCount || (Array.isArray(it.askers) ? it.askers.length : 1);
+          const askedBadge = askCount > 1
+            ? `<span class="chip" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border-color: rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 700; padding: 2px 6px;">Asked ${askCount} times</span>`
+            : '';
+
+          const origQuote = it.originalMessage
+            ? `<div style="font-size: 11.5px; color: var(--text-muted); font-style: italic; background: var(--bg-surface); padding: 7px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin: 6px 0;">“${escapeHtml(it.originalMessage)}”</div>`
+            : '';
+
           return `
-            <div class="card" style="margin-bottom:0; border-left:3px solid var(--accent-primary);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                <div>
-                  <div style="font-weight:700; font-size:13.5px; color:var(--text-main);">${escapeHtml(it.question)}</div>
-                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Asked by <strong>${escapeHtml(sender)}</strong> • ${time}</div>
+            <div class="card" style="margin-bottom: 0; border-left: 3px solid var(--accent-primary); padding: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div style="display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1;">
+                  <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #0b0f17; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    ${escapeHtml(initial)}
+                  </div>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">${escapeHtml(it.question)}</span>
+                      ${askedBadge}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                      Asked by <strong>${escapeHtml(sender)}</strong> • ${time}
+                    </div>
+                  </div>
                 </div>
-                <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:11px;" onclick="dismissTeachMe('${it.id}')">Dismiss</button>
+                <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 10.5px; flex-shrink: 0;" onclick="dismissTeachMe('${it.id}')">Dismiss</button>
               </div>
-              <div class="form-group" style="margin-top:8px;">
-                <label style="font-size:11.5px;">Your confirmed answer</label>
-                <textarea id="tm-ans-${it.id}" rows="2" placeholder="Teach the assistant what to answer..."></textarea>
+
+              ${origQuote}
+
+              <div class="form-group" style="margin-top: 8px; margin-bottom: 8px;">
+                <label style="font-size: 11.5px; font-weight: 600;">Your confirmed answer</label>
+                <textarea id="tm-ans-${it.id}" rows="2" placeholder="Teach the assistant the verified answer..."></textarea>
               </div>
-              <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-                <div style="display:flex; align-items:center; gap:12px; font-size:12px;">
-                  <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
-                    <input type="radio" name="tm-scope-${it.id}" value="everyone" checked> Everyone
+
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 14px; font-size: 12px;">
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="radio" name="tm-scope-${it.id}" value="everyone" checked>
+                    <span>Everyone</span>
                   </label>
-                  <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
-                    <input type="radio" name="tm-scope-${it.id}" value="this contact"> Only ${escapeHtml(sender)}
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="radio" name="tm-scope-${it.id}" value="this contact">
+                    <span>Only for ${escapeHtml(sender)}</span>
                   </label>
                 </div>
-                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
-                  <input type="checkbox" id="tm-send-${it.id}" checked>
-                  <span>Send this answer to ${escapeHtml(sender)} now</span>
-                </label>
-                <button class="btn btn-primary btn-sm" style="align-self:flex-start; padding:6px 14px; margin-top:4px;" onclick="answerTeachMe('${it.id}')">
-                  Save & Teach Assistant
+
+                <div class="toggle-row" style="margin-bottom: 0; padding: 8px 10px; background: var(--bg-surface);">
+                  <div>
+                    <div style="font-weight: 600; font-size: 12px;">Send answer now</div>
+                    <div style="font-size: 10.5px; color: var(--text-muted);">Reply to ${escapeHtml(sender)} on WhatsApp immediately</div>
+                  </div>
+                  <label class="switch" style="width: 40px; height: 22px;">
+                    <input type="checkbox" id="tm-send-${it.id}" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <button class="btn btn-primary btn-sm" style="align-self: flex-start; padding: 6px 14px; margin-top: 2px;" onclick="answerTeachMe('${it.id}')">
+                  Save answer
                 </button>
               </div>
             </div>
@@ -4843,7 +5034,7 @@
           method: 'POST',
           body: { answer, scope, sendToContact }
         });
-        showToast(sendToContact ? 'Answer saved and queued to send!' : 'Answer saved to knowledge base');
+        showToast(sendToContact ? 'Answer saved and sent to contact!' : 'Answer saved to knowledge base');
         fetchTeachMe();
       } catch (e) {
         showToast(e.message, true);
@@ -4861,23 +5052,54 @@
         if (badgeEl) badgeEl.textContent = items.length;
 
         if (items.length === 0) {
-          listEl.innerHTML = '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:16px;">No knowledge items yet. Add one above or answer pending questions.</div>';
+          listEl.innerHTML = '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:16px;">No saved answers yet. Add one above or answer pending questions.</div>';
           return;
         }
 
         listEl.innerHTML = items.map(it => {
           const isEveryone = it.scope !== 'this contact' && !it.contactJid;
-          const scopeBadge = isEveryone
-            ? '<span class="chat-tag bot">Everyone</span>'
-            : `<span class="chat-tag human">Contact: ${escapeHtml(it.contactJid || 'Private')}</span>`;
+          const scopeLabel = isEveryone ? 'Everyone' : `Contact: ${it.contactJid || 'Private'}`;
           return `
-            <div class="card" style="margin-bottom:0;">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                <div style="font-weight:700; font-size:13px; color:var(--text-main);">${escapeHtml(it.question)}</div>
-                <button class="btn btn-danger btn-sm" style="padding:2px 6px; font-size:10px;" onclick="deleteKnowledgeItem('${it.id}')">Delete</button>
+            <div class="card" id="kb-card-${it.id}" style="margin-bottom:0; padding: 12px 14px;">
+              <div id="kb-view-${it.id}">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 8px; margin-bottom:6px;">
+                  <div style="font-weight:700; font-size:13.5px; color:var(--text-main);">${escapeHtml(it.question)}</div>
+                  <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                    <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:10.5px;" onclick="startEditKnowledge('${it.id}')">Edit</button>
+                    <button class="btn btn-danger btn-sm" style="padding:2px 8px; font-size:10.5px;" onclick="deleteKnowledgeItem('${it.id}')">Delete</button>
+                  </div>
+                </div>
+                <div style="font-size:12px; color:var(--text-main); line-height:1.4; margin-bottom:8px; white-space:pre-wrap;">${escapeHtml(it.answer)}</div>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <button class="chat-tag ${isEveryone ? 'bot' : 'human'}" style="cursor: pointer; border: none; background: ${isEveryone ? 'rgba(0, 242, 254, 0.12)' : 'rgba(16, 185, 129, 0.12)'};" onclick="toggleKnowledgeScope('${it.id}', '${it.scope}')" title="Click to toggle scope">
+                    ${escapeHtml(scopeLabel)} ⇄
+                  </button>
+                  <span style="font-size: 10px; color: var(--text-muted);">${it.updatedAt ? new Date(it.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</span>
+                </div>
               </div>
-              <div style="font-size:12px; color:var(--text-main); line-height:1.4; margin-bottom:8px; white-space:pre-wrap;">${escapeHtml(it.answer)}</div>
-              <div>${scopeBadge}</div>
+
+              <!-- Inline Edit Form (Hidden by default) -->
+              <div id="kb-edit-${it.id}" style="display: none;">
+                <div class="form-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 11px;">Question</label>
+                  <input type="text" id="kb-edit-q-${it.id}" value="${escapeHtml(it.question)}">
+                </div>
+                <div class="form-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 11px;">Answer</label>
+                  <textarea id="kb-edit-a-${it.id}" rows="2">${escapeHtml(it.answer)}</textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 8px;">
+                  <label style="font-size: 11px;">Scope</label>
+                  <select id="kb-edit-s-${it.id}">
+                    <option value="everyone" ${isEveryone ? 'selected' : ''}>Everyone (public)</option>
+                    <option value="this contact" ${!isEveryone ? 'selected' : ''}>This contact only</option>
+                  </select>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn btn-primary btn-sm" style="padding: 4px 12px; font-size: 11px;" onclick="saveKnowledgeEdit('${it.id}')">Save</button>
+                  <button class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" onclick="cancelEditKnowledge('${it.id}')">Cancel</button>
+                </div>
+              </div>
             </div>
           `;
         }).join('');
@@ -4885,6 +5107,52 @@
         listEl.innerHTML = `<div style="color:var(--danger); font-size:12px; padding:12px;">Error: ${err.message}</div>`;
       }
     }
+
+    window.startEditKnowledge = function(id) {
+      const v = document.getElementById(`kb-view-${id}`);
+      const e = document.getElementById(`kb-edit-${id}`);
+      if (v && e) { v.style.display = 'none'; e.style.display = 'block'; }
+    };
+
+    window.cancelEditKnowledge = function(id) {
+      const v = document.getElementById(`kb-view-${id}`);
+      const e = document.getElementById(`kb-edit-${id}`);
+      if (v && e) { v.style.display = 'block'; e.style.display = 'none'; }
+    };
+
+    window.saveKnowledgeEdit = async function(id) {
+      const q = document.getElementById(`kb-edit-q-${id}`)?.value.trim();
+      const a = document.getElementById(`kb-edit-a-${id}`)?.value.trim();
+      const s = document.getElementById(`kb-edit-s-${id}`)?.value;
+      if (!q || !a) {
+        showToast('Question and answer required', true);
+        return;
+      }
+      try {
+        await api(`/api/knowledge/${id}`, {
+          method: 'PUT',
+          body: { question: q, answer: a, scope: s }
+        });
+        showToast('Knowledge item updated');
+        fetchKnowledge();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    };
+
+    window.toggleKnowledgeScope = async function(id, currentScope) {
+      const newScope = currentScope === 'this contact' ? 'everyone' : 'this contact';
+      try {
+        await api(`/api/knowledge/${id}`, {
+          method: 'PUT',
+          body: { scope: newScope }
+        });
+        showToast(`Scope changed to ${newScope}`);
+        fetchKnowledge();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    };
 
     window.deleteKnowledgeItem = async function(id) {
       if (!confirm('Delete this knowledge item? The assistant will no longer know this answer.')) return;
@@ -5781,6 +6049,67 @@
       }, 5000);
     }
 
+
+    // PWA Service Worker & Install Flow
+    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    let deferredInstallPrompt = null;
+    const pwaCard = document.getElementById('home-pwa-install-card');
+    const btnTriggerInstall = document.getElementById('btn-trigger-pwa-install');
+    const btnLaterInstall = document.getElementById('btn-later-pwa-install');
+    const btnDismissInstall = document.getElementById('btn-dismiss-pwa-install');
+    const pwaDesc = document.getElementById('pwa-install-desc');
+
+    function hidePwaCard(persist = true) {
+      if (pwaCard) pwaCard.style.display = 'none';
+      if (persist) {
+        try { localStorage.setItem('jtech_pwa_dismissed', '1'); } catch (_) {}
+      }
+    }
+
+    if (btnDismissInstall) btnDismissInstall.addEventListener('click', () => hidePwaCard(true));
+    if (btnLaterInstall) btnLaterInstall.addEventListener('click', () => hidePwaCard(false));
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const isDismissed = localStorage.getItem('jtech_pwa_dismissed') === '1';
+      if (!isDismissed && pwaCard) {
+        pwaCard.style.display = 'block';
+      }
+    });
+
+    if (btnTriggerInstall) {
+      btnTriggerInstall.addEventListener('click', async () => {
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          const { outcome } = await deferredInstallPrompt.userChoice;
+          if (outcome === 'accepted') {
+            hidePwaCard(true);
+          }
+          deferredInstallPrompt = null;
+        } else {
+          hidePwaCard(true);
+        }
+      });
+    }
+
+    // iOS Add to Home Screen detection
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    const isStandalone = ('standalone' in window.navigator && window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+    if (isIos && !isStandalone) {
+      const isDismissed = localStorage.getItem('jtech_pwa_dismissed') === '1';
+      if (!isDismissed && pwaCard && pwaDesc) {
+        pwaCard.style.display = 'block';
+        pwaDesc.innerHTML = 'To install on iPhone: tap <strong>Share</strong>, then tap <strong>Add to Home Screen</strong>.';
+        const actionRow = document.getElementById('pwa-action-row');
+        if (actionRow) actionRow.style.display = 'none';
+      }
+    }
 
     // Start App Flow
     if (verifyBackendUrl()) {

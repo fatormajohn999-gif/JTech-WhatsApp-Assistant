@@ -33,6 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --legacy-peer-deps
 
+      - name: Generate PWA PNG icons from SVG
+        run: |
+          sudo apt-get update && sudo apt-get install -y librsvg2-bin
+          rsvg-convert -w 192 -h 192 public/logo.svg -o public/icon-192.png
+          rsvg-convert -w 512 -h 512 public/logo.svg -o public/icon-512.png
+          rsvg-convert -w 512 -h 512 public/logo.svg -o public/icon-maskable-512.png
+          rsvg-convert -w 180 -h 180 public/logo.svg -o public/apple-touch-icon.png
+
       - name: Build frontend with Vite
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}

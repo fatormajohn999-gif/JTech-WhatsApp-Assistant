@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="jtech-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Background rounded squircle -->
+  <rect x="32" y="32" width="448" height="448" rx="108" fill="#0b0f17" />
+  <rect x="32" y="32" width="448" height="448" rx="108" fill="none" stroke="url(#jtech-grad)" stroke-width="12" opacity="0.35" />
+  
+  <!-- Subtle inner gradient glow -->
+  <circle cx="256" cy="256" r="160" fill="url(#jtech-grad)" opacity="0.12" filter="url(#glow)" />
+
+  <!-- Lightning bolt symbol scaled from 24x24 viewBox (offset: x=76, y=76, scale=15) -->
+  <path d="M280 180 V76 L144 240 h104 v104 l136 -164 h-104 z" 
+        fill="url(#jtech-grad)" 
+        stroke="#00f2fe" 
+        stroke-width="6" 
+        stroke-linejoin="round" 
+        stroke-linecap="round"
+        filter="url(#glow)" />
+</svg>

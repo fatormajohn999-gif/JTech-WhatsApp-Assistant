@@ -7,19 +7,87 @@ import { dispatchPacedReply, DEFAULT_PACING_SETTINGS } from '../whatsapp/pacing.
 
 /**
  * Record a question the assistant did not know into the Teach-Me inbox.
+ * Semantically deduplicates against existing pending questions.
  */
 export async function recordTeachMeItem({ contactJid, contactName, originalMessage, question }) {
-  if (!question) return;
+  if (!question || !question.trim()) return;
+
+  const cleanQuestion = question.trim();
+  const normalizedNew = cleanQuestion.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const newWords = new Set(normalizedNew.split(' ').filter(w => w.length > 2));
 
   try {
+    const existingItems = await getPendingTeachMe();
+    
+    // Check for exact or high word-overlap match among pending items
+    let matchedItem = null;
+    for (const pending of existingItems) {
+      const normalizedExisting = (pending.question || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (normalizedNew === normalizedExisting) {
+        matchedItem = pending;
+        break;
+      }
+      
+      const existingWords = new Set(normalizedExisting.split(' ').filter(w => w.length > 2));
+      if (newWords.size > 0 && existingWords.size > 0) {
+        let intersection = 0;
+        for (const w of newWords) {
+          if (existingWords.has(w)) intersection++;
+        }
+        const union = new Set([...newWords, ...existingWords]).size;
+        const jaccard = union > 0 ? intersection / union : 0;
+        if (jaccard >= 0.6) {
+          matchedItem = pending;
+          break;
+        }
+      }
+    }
+
+    if (matchedItem) {
+      // Increment count on existing card
+      matchedItem.askCount = (matchedItem.askCount || 1) + 1;
+      matchedItem.lastAskedAt = Date.now();
+      if (!Array.isArray(matchedItem.askers)) {
+        matchedItem.askers = [{
+          contactJid: matchedItem.contactJid,
+          contactName: matchedItem.contactName,
+          askedAt: matchedItem.askedAt,
+          originalMessage: matchedItem.originalMessage
+        }];
+      }
+      matchedItem.askers.push({
+        contactJid: contactJid || '',
+        contactName: contactName || contactJid || 'Contact',
+        askedAt: Date.now(),
+        originalMessage: (originalMessage || '').slice(0, 300)
+      });
+      // Update most recent asker for quick reference
+      matchedItem.contactJid = contactJid || matchedItem.contactJid;
+      matchedItem.contactName = contactName || matchedItem.contactName;
+      matchedItem.originalMessage = (originalMessage || '').slice(0, 300) || matchedItem.originalMessage;
+
+      await redis.hset('teachme:items', matchedItem.id, JSON.stringify(matchedItem));
+      logEvent('info', `Updated question in Teach-Me (Asked ${matchedItem.askCount} times): "${matchedItem.question}"`);
+      return matchedItem;
+    }
+
+    // New question card
     const id = `tm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const item = {
       id,
       contactJid: contactJid || '',
       contactName: contactName || contactJid || 'Contact',
       originalMessage: (originalMessage || '').slice(0, 300),
-      question: question.trim(),
+      question: cleanQuestion,
       askedAt: Date.now(),
+      lastAskedAt: Date.now(),
+      askCount: 1,
+      askers: [{
+        contactJid: contactJid || '',
+        contactName: contactName || contactJid || 'Contact',
+        askedAt: Date.now(),
+        originalMessage: (originalMessage || '').slice(0, 300)
+      }],
       status: 'pending'
     };
 
