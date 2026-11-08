@@ -6,9 +6,29 @@ import {
   DEFAULT_GROQ_MODEL,
   SETTINGS_CACHE_TTL
 } from '../config.js';
+import { getApiKeysStatus } from './keys.js';
 
 let cachedSettings = null;
 let lastSettingsFetch = 0;
+
+export const DEFAULT_IDENTITY = {
+  assistantName: 'JTech Assistant',
+  ownerName: 'JTech',
+  ownerFirstName: '',
+  ownerPreferredName: '',
+  appTitle: 'JTech Assistant',
+  ownerAbout: 'Leading tech brand and software solutions in Freetown, Sierra Leone. Dedicated to building innovative software, web, and mobile solutions.',
+  languages: 'English, Krio',
+  writingStyle: 'Warm, natural, respectful, and direct. Sounds like a real person texting from their phone.'
+};
+
+export const DEFAULT_PERSONALITY = {
+  replyLength: 'medium', // 'short' (1 short sentence, 10-25 words), 'medium' (1-3 natural sentences, 15-50 words), 'detailed' (2-4 thoughtful sentences)
+  playfulness: 'medium', // 'low', 'medium', 'high'
+  formality: 'balanced', // 'casual', 'balanced', 'formal'
+  emojiLevel: 'low',     // 'none', 'low', 'moderate', 'high'
+  temperature: 0.85      // 0.0 to 1.0 (default 0.85)
+};
 
 export async function getSettings(forceRefresh = false) {
   const now = Date.now();
@@ -19,6 +39,9 @@ export async function getSettings(forceRefresh = false) {
   try {
     const [
       rawProfile,
+      rawIdentity,
+      rawPersonality,
+      rawTemperature,
       rawPersonalPrompt,
       legacyRules,
       provider,
@@ -36,6 +59,9 @@ export async function getSettings(forceRefresh = false) {
       rawScheduledLimits
     ] = await Promise.all([
       redis.get('config:owner_profile'),
+      redis.get('config:identity'),
+      redis.get('config:personality'),
+      redis.get('config:temperature'),
       redis.get('config:personal_prompt'),
       redis.get('config:base_rules'),
       redis.get('config:ai_provider'),
@@ -60,15 +86,39 @@ export async function getSettings(forceRefresh = false) {
         profile = { ...DEFAULT_PROFILE, ...parsed };
       } catch (_) {}
     }
-    // Delete legacy sample messages and city if present
     delete profile.city;
     delete profile.sampleMessage1;
     delete profile.sampleMessage2;
     delete profile.sampleMessage3;
 
+    let identity = {
+      ...DEFAULT_IDENTITY,
+      ownerName: profile.ownerName || DEFAULT_IDENTITY.ownerName,
+      ownerFirstName: profile.ownerFirstName || DEFAULT_IDENTITY.ownerFirstName,
+      ownerAbout: profile.ownerAbout || DEFAULT_IDENTITY.ownerAbout,
+      languages: profile.ownerLanguages || profile.languages || DEFAULT_IDENTITY.languages,
+      writingStyle: profile.writingStyle || DEFAULT_IDENTITY.writingStyle
+    };
+    if (rawIdentity) {
+      try {
+        identity = { ...identity, ...JSON.parse(rawIdentity) };
+      } catch (_) {}
+    }
+
+    let personality = { ...DEFAULT_PERSONALITY };
+    if (rawPersonality) {
+      try {
+        personality = { ...DEFAULT_PERSONALITY, ...JSON.parse(rawPersonality) };
+      } catch (_) {}
+    }
+
+    const temperature = rawTemperature !== null && rawTemperature !== undefined
+      ? Math.max(0.0, Math.min(1.0, parseFloat(rawTemperature) || 0.85))
+      : (personality.temperature ?? 0.85);
+    personality.temperature = temperature;
+
     let rules = contactRules ? JSON.parse(contactRules) : { mode: 'all', allowlist: [], blocklist: [] };
 
-    // Automatic migration of legacy baseRules to personalPrompt on first load if personalPrompt is not yet set
     let personalPrompt = rawPersonalPrompt;
     if (!personalPrompt && legacyRules) {
       personalPrompt = legacyRules;
@@ -110,10 +160,15 @@ export async function getSettings(forceRefresh = false) {
       } catch (_) {}
     }
 
+    const apiKeys = await getApiKeysStatus();
+
     cachedSettings = {
       profile,
+      identity,
+      personality,
+      temperature,
       personalPrompt,
-      baseRules: personalPrompt, // Maintain backward compatibility for UI/API
+      baseRules: personalPrompt,
       provider: provider || 'gemini',
       geminiModel: geminiModel || DEFAULT_GEMINI_MODEL,
       groqModel: groqModel || DEFAULT_GROQ_MODEL,
@@ -126,7 +181,8 @@ export async function getSettings(forceRefresh = false) {
       learnFromReplies: rawLearnReplies !== 'false',
       dailySummaryEnabled: rawDailySummaryEnabled !== 'false',
       dailySummaryTime: rawDailySummaryTime || '21:00',
-      scheduledLimits
+      scheduledLimits,
+      apiKeys
     };
     lastSettingsFetch = now;
     return cachedSettings;
@@ -134,6 +190,9 @@ export async function getSettings(forceRefresh = false) {
     console.error('[Settings] Cache refresh error:', err.message);
     return cachedSettings || {
       profile: DEFAULT_PROFILE,
+      identity: DEFAULT_IDENTITY,
+      personality: DEFAULT_PERSONALITY,
+      temperature: 0.85,
       personalPrompt: DEFAULT_PERSONAL_PROMPT,
       baseRules: DEFAULT_PERSONAL_PROMPT,
       provider: 'gemini',
@@ -155,7 +214,11 @@ export async function getSettings(forceRefresh = false) {
       },
       learnFromReplies: true,
       dailySummaryEnabled: true,
-      dailySummaryTime: '21:00'
+      dailySummaryTime: '21:00',
+      apiKeys: {
+        gemini: { configured: false, masked: null },
+        groq: { configured: false, masked: null }
+      }
     };
   }
 }

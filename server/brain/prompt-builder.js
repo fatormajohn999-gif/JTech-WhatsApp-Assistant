@@ -27,13 +27,15 @@ export function formatLastSeen(lastSeenTimestamp) {
 
 /**
  * Builds the complete multi-layer prompt for the AI model:
- * Layer 1: Core Brain (Immutable backend rules)
- * Layer 2: Personal Prompt (Owner customizable instructions & style)
- * Layer 3: Context Layer (Live Freetown clock, contact facts, rolling summary)
+ * Layer 1: Core Brain (Immutable backend rules & conversation intelligence)
+ * Layer 2: Dynamic Identity, Personality & Voice Tuning
+ * Layer 3: Contact Context & Conversation History
  */
 export function buildPrompt({
   personalPrompt = '',
   profile = {},
+  identity = {},
+  personality = {},
   contactFacts = [],
   chatSummary = '',
   senderJid = '',
@@ -54,78 +56,111 @@ export function buildPrompt({
 
   const summarySection = chatSummary ? String(chatSummary).slice(0, 300) : 'First conversation or no older summary yet.';
 
-  const ownerName = profile.ownerName || profile.name || 'JTech';
-  const ownerFirstName = profile.ownerFirstName || ownerName;
-  const ownerAbout = String(profile.ownerAbout || profile.about || profile.facts || 'Tech software solutions in Freetown').slice(0, 150);
-  const ownerLanguages = profile.ownerLanguages || profile.languages || 'English, Krio';
-  const writingStyle = profile.writingStyle || 'Casual, natural, short, respectful, and direct. Sounds like a real person texting from their phone.';
+  // Resolve identity dynamically from identity object or fallback to profile
+  const assistantName = identity.assistantName || 'JTech Assistant';
+  const ownerName = identity.ownerName || profile.ownerName || profile.name || 'JTech';
+  const ownerFirstName = identity.ownerFirstName || profile.ownerFirstName || ownerName;
+  const ownerPreferredName = identity.ownerPreferredName || ownerFirstName;
+  const ownerAbout = String(identity.ownerAbout || profile.ownerAbout || profile.about || profile.facts || 'Tech software solutions in Freetown').slice(0, 200);
+  const ownerLanguages = identity.languages || profile.ownerLanguages || profile.languages || 'English, Krio';
+  const writingStyle = identity.writingStyle || profile.writingStyle || 'Warm, natural, respectful, and direct. Sounds like a real person texting from their phone.';
+
+  // Personality tuning parameters
+  const replyLength = personality.replyLength || 'medium';
+  let lengthGuidance = 'Target length: 1 to 3 natural sentences (around 15 to 50 words). Complete thoughts, never truncated.';
+  if (replyLength === 'short') {
+    lengthGuidance = 'Target length: Short and concise (1 crisp sentence, around 10 to 25 words).';
+  } else if (replyLength === 'detailed') {
+    lengthGuidance = 'Target length: Detailed (2 to 4 thoughtful sentences, complete and thorough).';
+  }
+
+  const playfulness = personality.playfulness || 'medium';
+  let playfulGuidance = 'Playfulness: Balanced warmth and friendly engagement.';
+  if (playfulness === 'high') {
+    playfulGuidance = 'Playfulness: High. Be witty, playful, and match banter enthusiastically when appropriate.';
+  } else if (playfulness === 'low') {
+    playfulGuidance = 'Playfulness: Low. Keep tone straightforward, polite, and directly to the point.';
+  }
+
+  const formality = personality.formality || 'balanced';
+  let formalityGuidance = 'Formality: Balanced, polite, and conversational.';
+  if (formality === 'casual') {
+    formalityGuidance = 'Formality: Casual and relaxed peer tone.';
+  } else if (formality === 'formal') {
+    formalityGuidance = 'Formality: Formal, elevated respect, polished manners.';
+  }
+
+  const emojiLevel = personality.emojiLevel || 'low';
+  let emojiGuidance = 'Emoji usage: Low (at most 1 emoji per message when natural).';
+  if (emojiLevel === 'none') {
+    emojiGuidance = 'Emoji usage: None. Do not include emojis in text.';
+  } else if (emojiLevel === 'moderate') {
+    emojiGuidance = 'Emoji usage: Moderate (1 emoji per message where natural).';
+  } else if (emojiLevel === 'high') {
+    emojiGuidance = 'Emoji usage: High (expressive and lively emoji use).';
+  }
 
   const contactLang = contactProfile?.preferredLanguage || 'English';
-  const contactMsgLen = contactProfile?.typicalMessageLength || 'short';
+  const contactMsgLen = contactProfile?.typicalMessageLength || 'medium';
 
   const customInstructions = (personalPrompt || '').trim().slice(0, 400);
 
   // Contact-specific settings
   const targetDisplayName = contactSettings?.displayName || contactProfile?.displayName || contactName || 'Contact';
-  const targetRelationship = contactSettings?.relationship || 'Not specified';
+  const targetRelationship = contactSettings?.relationship || 'Friend / Contact';
   const contactCustomPrompt = (contactSettings?.prompt || '').trim().slice(0, 300);
 
-  // Learned style section
+  // Seniority / Elder detection in relationship
+  const relLower = targetRelationship.toLowerCase();
+  const isElder = /elder|parent|father|mother|uncle|aunt|senior|boss|director|pastor|imam|chief|dr\b|prof\b/i.test(relLower);
+
+  // Learned style section (behavioral description, not raw text to copy)
   let styleSection = '';
   if (ownerLearnedStyle) {
     const parts = [];
     if (ownerLearnedStyle.globalStyle) {
-      parts.push(`General texting voice:\n${String(ownerLearnedStyle.globalStyle).slice(0, 250)}`);
+      parts.push(`Owner's general texting habit: ${String(ownerLearnedStyle.globalStyle).slice(0, 220)}`);
     }
     if (ownerLearnedStyle.contactStyle) {
-      parts.push(`How owner texts this contact:\n${String(ownerLearnedStyle.contactStyle).slice(0, 200)}`);
+      parts.push(`How owner texts this specific person: ${String(ownerLearnedStyle.contactStyle).slice(0, 180)}`);
     }
     if (parts.length > 0) {
-      styleSection = `\n=== HOW THE OWNER TEXTS (LEARNED STYLE) ===\n${parts.join('\n\n')}\n`;
+      styleSection = `\n=== LEARNED TEXTING HABITS (GUIDE ONLY - DO NOT COPY WORDS) ===\n${parts.join('\n')}\n`;
     }
-  }
-
-  // Learned examples section (3 real reply pairs maximum, compact)
-  let examplesSection = '';
-  if (Array.isArray(learnedExamples) && learnedExamples.length > 0) {
-    const formattedPairs = learnedExamples.slice(0, 3).map((ex, i) => 
-      `Example ${i + 1}:\nThem: "${String(ex.contactMessage || '').slice(0, 80)}"\nYou: "${String(ex.ownerReply || '').slice(0, 100)}"`
-    ).join('\n');
-    examplesSection = `\n=== REAL EXAMPLES OF HOW THE OWNER TEXTS ===\n${formattedPairs}\n`;
   }
 
   return `
 ${CORE_BRAIN}
 
-=== INSTRUCTIONS FOR THIS SPECIFIC PERSON ===
-- Name / Nickname: ${targetDisplayName}
-- Relationship: ${targetRelationship}
-${contactCustomPrompt ? `- Custom instructions for this contact:\n${contactCustomPrompt}` : '- Custom instructions: Treat with standard respect and warmth according to the relationship.'}
-(Note: These specific person instructions customize your voice and topics for this chat, but core safety, honesty, and [FOR_OWNER] escalation remain strictly enforced.)
-
-=== OWNER PROFILE (WHO YOU WORK FOR) ===
-- Owner Name: ${ownerName}
-- Owner First Name (refer to them naturally as this): ${ownerFirstName}
+=== IDENTITY & WORKING RELATIONSHIP ===
+- Your Assistant Persona: ${assistantName}
+- The Owner: ${ownerName} (also known as ${ownerFirstName}${ownerPreferredName && ownerPreferredName !== ownerFirstName ? ` / "${ownerPreferredName}"` : ''})
 - About Owner: ${ownerAbout}
-- Time Zone: ${profile.timeZone || 'Africa/Freetown'}
+- Time Zone: Africa/Freetown
 - Languages: ${ownerLanguages}
-- Preferred Writing Style: ${writingStyle}
-${customInstructions ? `\n- General Texting Instructions:\n${customInstructions}` : ''}
-${styleSection}
-${examplesSection}
-${ownerKnowledge ? `\n${ownerKnowledge}\n` : ''}
-=== LIVE TIME & CONTEXT ===
-- Live Time Awareness (Freetown): ${timeNow}
-- Contact JID: ${senderJid}
-- Contact Preferred Language: ${contactLang}
-- Contact Texting Habit: ${contactMsgLen} messages
-- Recent Activity: ${lastSpokeText || 'First conversation'}
+- Baseline Style: ${writingStyle}
 
-Known Permanent Facts About This Contact:
+=== VOICE & PERSONALITY TUNING ===
+- ${lengthGuidance}
+- ${playfulGuidance}
+- ${formalityGuidance}
+- ${emojiGuidance}
+${customInstructions ? `\nOwner's Custom Instructions:\n${customInstructions}` : ''}
+${styleSection}
+${ownerKnowledge ? `\n=== OWNER KNOWLEDGE BASE ===\n${ownerKnowledge}\n` : ''}
+=== RECIPIENT CONTEXT ===
+- Contact Name: ${targetDisplayName}
+- Relationship to Owner: ${targetRelationship}${isElder ? ' [NOTE: ELDER / SENIOR - Use extra polite respect and deference]' : ''}
+${contactCustomPrompt ? `- Custom Notes For This Person: ${contactCustomPrompt}` : ''}
+- Contact Language: ${contactLang}
+- Contact Typing Habit: ${contactMsgLen} messages
+- Recent Activity: ${lastSpokeText || 'First conversation'}
+- Known Facts:
 ${factsSection}
 
-Rolling Conversation Context:
+=== LIVE ENVIRONMENT ===
+- Freetown Live Clock: ${timeNow}
+- Rolling Chat Context:
 ${summarySection}
 `.trim();
 }
-

@@ -415,8 +415,9 @@ export async function previewScheduledMessage(data) {
     getLearnedStyle(contactJid)
   ]);
 
-  const ownerName = settings.profile?.ownerName || 'JTech';
-  const ownerFirst = settings.profile?.ownerFirstName || ownerName;
+  const ownerName = settings.identity?.ownerName || settings.profile?.ownerName || 'JTech';
+  const ownerFirst = settings.identity?.ownerFirstName || settings.profile?.ownerFirstName || ownerName;
+  const assistantName = settings.identity?.assistantName || 'JTech Assistant';
   const targetName = memory.settings?.displayName || resolvedName || 'there';
   const relationship = memory.settings?.relationship || 'friend';
   const customContactPrompt = memory.settings?.prompt || '';

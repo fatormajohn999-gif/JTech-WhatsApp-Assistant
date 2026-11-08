@@ -55,8 +55,8 @@ export async function sendDailySummary(targetDateStr = null, isManualTest = fals
   const dateStr = targetDateStr || getTodayDateStringFreetown();
   const settings = await getSettings();
 
-  const ownerName = settings.profile?.ownerName || 'JTech';
-  const ownerFirstName = settings.profile?.ownerFirstName || ownerName;
+  const ownerName = settings.identity?.ownerName || settings.profile?.ownerName || 'JTech';
+  const ownerFirstName = settings.identity?.ownerFirstName || settings.profile?.ownerFirstName || ownerName;
 
   try {
     // 1. Gather active chats today

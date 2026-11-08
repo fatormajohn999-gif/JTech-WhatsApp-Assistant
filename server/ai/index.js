@@ -2,13 +2,12 @@ import { redis } from '../lib/redis.js';
 import { logEvent } from '../lib/logger.js';
 import { state } from '../state.js';
 import { getSettings } from '../lib/settings.js';
+import { getEffectiveApiKey } from '../lib/keys.js';
 import { buildPrompt } from '../brain/prompt-builder.js';
 import {
   DEFAULT_GEMINI_MODEL,
   FALLBACK_GEMINI_MODEL,
   DEFAULT_GROQ_MODEL,
-  GEMINI_API_KEY,
-  GROQ_API_KEY,
   MODELS_CACHE_TTL,
   AI_CALL_TIMEOUT_MS
 } from '../config.js';
@@ -66,7 +65,6 @@ export function buildAlternatingTurns(messages, latestUserText) {
 }
 
 export async function checkAutoPause() {
-  // Master auto-reply switch is owner-only: automatic background system pause is disabled
   return false;
 }
 
@@ -104,11 +102,11 @@ export async function handleAiSuccess(provider) {
   } catch (_) {}
 }
 
-async function callProvider(provider, turns, systemInstruction, modelName, timeoutMs) {
+async function callProvider(provider, turns, systemInstruction, modelName, timeoutMs, options = {}) {
   if (provider === 'gemini') {
-    return await callGeminiWithTimeout(turns, systemInstruction, modelName, timeoutMs);
+    return await callGeminiWithTimeout(turns, systemInstruction, modelName, timeoutMs, options);
   } else {
-    return await callGroqWithTimeout(turns, systemInstruction, modelName, timeoutMs);
+    return await callGroqWithTimeout(turns, systemInstruction, modelName, timeoutMs, options);
   }
 }
 
@@ -123,6 +121,8 @@ export async function generateAiReply(turns, promptBuilderArgs) {
   const systemInstruction = buildPrompt({
     personalPrompt: settings.personalPrompt,
     profile: settings.profile,
+    identity: settings.identity,
+    personality: settings.personality,
     contactFacts: promptBuilderArgs.contactFacts,
     chatSummary: promptBuilderArgs.chatSummary,
     senderJid: promptBuilderArgs.senderJid,
@@ -147,8 +147,13 @@ export async function generateAiReply(turns, promptBuilderArgs) {
   const timeoutMs = state.isFirstAiCall ? 20000 : AI_CALL_TIMEOUT_MS;
   state.isFirstAiCall = false;
 
+  const options = {
+    temperature: settings.temperature ?? 0.85,
+    maxOutputTokens: 400
+  };
+
   try {
-    const result = await callProvider(primary, turns, systemInstruction, primaryModel, timeoutMs);
+    const result = await callProvider(primary, turns, systemInstruction, primaryModel, timeoutMs, options);
     await handleAiSuccess(primary);
     return { text: result.text, provider: primary, fallbackUsed: false };
   } catch (primaryErr) {
@@ -156,7 +161,7 @@ export async function generateAiReply(turns, promptBuilderArgs) {
     await recordAiFailure(primary, primaryErr.message);
 
     try {
-      const fallbackResult = await callProvider(fallback, turns, systemInstruction, fallbackModel, AI_CALL_TIMEOUT_MS);
+      const fallbackResult = await callProvider(fallback, turns, systemInstruction, fallbackModel, AI_CALL_TIMEOUT_MS, options);
       await handleAiSuccess(fallback);
       return { text: fallbackResult.text, provider: fallback, fallbackUsed: true };
     } catch (fallbackErr) {
@@ -169,9 +174,36 @@ export async function generateAiReply(turns, promptBuilderArgs) {
 }
 
 /**
- * General-purpose AI completion runner for internal features (style analysis, summary, teach-me answers)
+ * General-purpose AI completion runner for internal features (style analysis, summary, teach-me answers, scheduler)
+ * Accepts either:
+ *   runAiCompletion(userPrompt, systemInstruction, timeoutMs)
+ * OR:
+ *   runAiCompletion({ userPrompt, turns, systemInstruction, timeoutMs })
  */
-export async function runAiCompletion(userPrompt, systemInstruction = '', timeoutMs = 25000) {
+export async function runAiCompletion(arg1, arg2 = '', arg3 = 25000) {
+  let userPrompt = '';
+  let systemInstruction = '';
+  let timeoutMs = 25000;
+  let turns = null;
+
+  if (typeof arg1 === 'object' && arg1 !== null) {
+    systemInstruction = arg1.systemInstruction || '';
+    timeoutMs = arg1.timeoutMs || 25000;
+    if (Array.isArray(arg1.turns)) {
+      turns = arg1.turns;
+    } else {
+      userPrompt = String(arg1.userPrompt || arg1.prompt || '');
+    }
+  } else {
+    userPrompt = String(arg1 || '');
+    systemInstruction = String(arg2 || '');
+    timeoutMs = arg3 || 25000;
+  }
+
+  if (!turns) {
+    turns = [{ role: 'user', text: userPrompt }];
+  }
+
   const settings = await getSettings();
   const primary = (settings.provider || 'gemini').toLowerCase();
   const fallback = primary === 'gemini' ? 'groq' : 'gemini';
@@ -182,14 +214,17 @@ export async function runAiCompletion(userPrompt, systemInstruction = '', timeou
     ? (settings.geminiModel || FALLBACK_GEMINI_MODEL)
     : (settings.groqModel || DEFAULT_GROQ_MODEL);
 
-  const turns = [{ role: 'user', text: userPrompt }];
+  const options = {
+    temperature: settings.temperature ?? 0.85,
+    maxOutputTokens: 400
+  };
 
   try {
-    const res = await callProvider(primary, turns, systemInstruction, primaryModel, timeoutMs);
+    const res = await callProvider(primary, turns, systemInstruction, primaryModel, timeoutMs, options);
     return res.text;
   } catch (primaryErr) {
     try {
-      const fb = await callProvider(fallback, turns, systemInstruction, fallbackModel, timeoutMs);
+      const fb = await callProvider(fallback, turns, systemInstruction, fallbackModel, timeoutMs, options);
       return fb.text;
     } catch (fallbackErr) {
       throw new Error(`AI completion failed on both providers: ${primaryErr.message} / ${fallbackErr.message}`);
@@ -212,7 +247,7 @@ export async function getAvailableModels(force = false) {
   let groqWarning = null;
 
   // Google Models
-  const gKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
+  const gKey = await getEffectiveApiKey('gemini');
   if (gKey) {
     try {
       const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${gKey}`, {
@@ -240,7 +275,7 @@ export async function getAvailableModels(force = false) {
   }
 
   // Groq Models
-  const qKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
+  const qKey = await getEffectiveApiKey('groq');
   if (qKey) {
     try {
       const qRes = await fetch('https://api.groq.com/openai/v1/models', {

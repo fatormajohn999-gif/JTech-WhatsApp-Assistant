@@ -1,16 +1,19 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_API_KEY, DEFAULT_GEMINI_MODEL, AI_CALL_TIMEOUT_MS } from '../config.js';
+import { DEFAULT_GEMINI_MODEL, AI_CALL_TIMEOUT_MS } from '../config.js';
 import { logEvent } from '../lib/logger.js';
+import { getEffectiveApiKey } from '../lib/keys.js';
 
 let geminiClient = null;
+let lastUsedKey = null;
 
-function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
+async function getGeminiClient() {
+  const apiKey = await getEffectiveApiKey('gemini');
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
-  if (!geminiClient) {
+  if (!geminiClient || lastUsedKey !== apiKey) {
     geminiClient = new GoogleGenAI({ apiKey });
+    lastUsedKey = apiKey;
   }
   return geminiClient;
 }
@@ -42,7 +45,7 @@ export function getAiErrorHint(status, message) {
     return 'Bad model or request parameters (400). Check model name.';
   }
   if (status === 401 || status === 403 || msg.includes('401') || msg.includes('403') || msg.includes('api_key_invalid') || msg.includes('unauthorized') || msg.includes('permission denied')) {
-    return 'Invalid or unauthorized API key (401/403). Check environment variable.';
+    return 'Invalid or unauthorized API key (401/403). Check your Gemini API key in Settings.';
   }
   if (status === 404 || msg.includes('404') || msg.includes('not found')) {
     return 'Model not found (404). Model name may be outdated or unavailable.';
@@ -59,8 +62,8 @@ export function getAiErrorHint(status, message) {
   return 'Provider error. Check server logs for details.';
 }
 
-async function executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs) {
-  const client = getGeminiClient();
+async function executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs, options = {}) {
+  const client = await getGeminiClient();
 
   const turns = Array.isArray(turnsOrText)
     ? turnsOrText
@@ -75,13 +78,16 @@ async function executeGeminiRequest(turnsOrText, systemInstruction, modelName, t
     setTimeout(() => reject(new Error(`Gemini timeout after ${timeoutMs}ms`)), timeoutMs)
   );
 
+  const temperature = typeof options?.temperature === 'number' ? options.temperature : 0.85;
+  const maxOutputTokens = options?.maxOutputTokens || 400;
+
   const apiPromise = client.models.generateContent({
     model: modelName,
     contents: geminiContents,
     config: {
       systemInstruction,
-      temperature: 0.65,
-      maxOutputTokens: 350
+      temperature,
+      maxOutputTokens
     }
   });
 
@@ -96,9 +102,9 @@ async function executeGeminiRequest(turnsOrText, systemInstruction, modelName, t
 /**
  * Call Gemini with timeout and 1 automatic retry on 429, 503, or timeout.
  */
-export async function callGeminiWithTimeout(turnsOrText, systemInstruction, modelName = DEFAULT_GEMINI_MODEL, timeoutMs = AI_CALL_TIMEOUT_MS) {
+export async function callGeminiWithTimeout(turnsOrText, systemInstruction, modelName = DEFAULT_GEMINI_MODEL, timeoutMs = AI_CALL_TIMEOUT_MS, options = {}) {
   try {
-    return await executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs);
+    return await executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs, options);
   } catch (err) {
     const errText = (err.message || '').toLowerCase();
     const isTimeout = /timeout|aborterror/i.test(errText);
@@ -108,7 +114,7 @@ export async function callGeminiWithTimeout(turnsOrText, systemInstruction, mode
     if (isTimeout || is503 || is429) {
       logEvent('warn', `Gemini returned ${is429 ? '429/quota' : (isTimeout ? 'timeout' : '503')}. Retrying once before fallback...`);
       await new Promise(r => setTimeout(r, 1200));
-      return await executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs);
+      return await executeGeminiRequest(turnsOrText, systemInstruction, modelName, timeoutMs, options);
     }
     throw err;
   }
@@ -119,14 +125,14 @@ export async function callGeminiWithTimeout(turnsOrText, systemInstruction, mode
  */
 export async function testGeminiProbe(modelName = DEFAULT_GEMINI_MODEL, timeout = 25000) {
   const start = Date.now();
-  const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
+  const apiKey = await getEffectiveApiKey('gemini');
   if (!apiKey) {
     return {
       ok: false,
       model: modelName,
       latencyMs: Date.now() - start,
       status: 401,
-      error: 'GEMINI_API_KEY is not configured in environment',
+      error: 'GEMINI_API_KEY is not configured',
       hint: getAiErrorHint(401, 'GEMINI_API_KEY is not configured')
     };
   }

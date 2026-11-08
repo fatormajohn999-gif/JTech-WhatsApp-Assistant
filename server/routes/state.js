@@ -12,6 +12,7 @@ import {
   GROQ_API_KEY
 } from '../config.js';
 import { getSchedulerSummary } from '../lib/scheduler.js';
+import { getApiKeysStatus } from '../lib/keys.js';
 import { requireAuth } from './auth.js';
 
 const router = express.Router();
@@ -81,12 +82,17 @@ router.get('/state', requireAuth, async (req, res) => {
 
     const linkedNumber = state.linkedNumber || state.activePhone || '';
 
+    const keysStatus = await getApiKeysStatus();
+
     res.json({
       server: {
         live: true,
         uptimeSec: Math.floor(process.uptime()),
         nodeVersion: process.version
       },
+      identity: settings.identity || null,
+      personality: settings.personality || null,
+      temperature: settings.temperature ?? 0.85,
       whatsapp: {
         state: effectiveWhatsappState,
         phone: linkedNumber,
@@ -111,11 +117,12 @@ router.get('/state', requireAuth, async (req, res) => {
         groq: settings.groqModel || DEFAULT_GROQ_MODEL
       },
       services: {
-        gemini: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
-        groq: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
+        gemini: keysStatus.gemini.configured,
+        groq: keysStatus.groq.configured,
         upstash: upstashStatus,
         lastAiTest: state.lastAiTest
       },
+      apiKeys: keysStatus,
       events: getEventLog().reverse(),
       globalRateLimit: {
         isLimited: state.isGlobalRateLimited && (state.globalRateLimitResetAt > Date.now()),
@@ -147,8 +154,8 @@ router.get('/state', requireAuth, async (req, res) => {
       },
       recentErrors,
       keys: {
-        gemini: Boolean(process.env.GEMINI_API_KEY || GEMINI_API_KEY),
-        groq: Boolean(process.env.GROQ_API_KEY || GROQ_API_KEY),
+        gemini: keysStatus.gemini.configured,
+        groq: keysStatus.groq.configured,
         redis: upstashStatus === 'ok'
       }
     });

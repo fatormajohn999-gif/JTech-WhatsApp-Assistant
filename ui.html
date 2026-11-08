@@ -1245,7 +1245,7 @@
     <header class="app-header">
       <div class="brand-wrap">
         <img src="./logo.svg" alt="JTech Logo" class="brand-logo" style="width: 28px; height: 28px; border-radius: 7px; object-fit: contain;">
-        <span class="brand-title">JTech Assistant</span>
+        <span class="brand-title" id="app-brand-title">JTech Assistant</span>
       </div>
 
       <div class="header-right">
@@ -1864,14 +1864,141 @@
           </div>
         </div>
 
-        <!-- 2. AI & VOICE SECTION -->
+        <!-- 2. IDENTITY SECTION -->
+        <div class="card" id="sec-settings-identity">
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">👤</span>
+              <div>
+                <div class="card-title" style="font-size: 15px;">Identity & Names</div>
+                <div class="card-desc">Assistant persona, app title, and owner details.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+            <div class="form-group">
+              <label for="set-assistant-name" style="font-weight: 600;">Assistant name</label>
+              <input type="text" id="set-assistant-name" placeholder="JTech Assistant">
+            </div>
+            <div class="form-group">
+              <label for="set-app-title" style="font-weight: 600;">App title (header)</label>
+              <input type="text" id="set-app-title" placeholder="JTech Assistant">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 6px;">
+            <div class="form-group">
+              <label for="set-prof-name" style="font-weight: 600;">Owner full name</label>
+              <input type="text" id="set-prof-name" placeholder="John Sesay">
+            </div>
+            <div class="form-group">
+              <label for="set-prof-first-name" style="font-weight: 600;">First name</label>
+              <input type="text" id="set-prof-first-name" placeholder="John">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 6px;">
+            <label for="set-prof-preferred-name">Preferred call name (e.g. John, Boss, Mr. John)</label>
+            <input type="text" id="set-prof-preferred-name" placeholder="John">
+          </div>
+
+          <div class="form-group" style="margin-top: 6px;">
+            <label for="set-prof-about">About you / Business</label>
+            <textarea id="set-prof-about" rows="2" placeholder="Software solutions and tech services in Freetown, Sierra Leone..."></textarea>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 6px;">
+            <div class="form-group">
+              <label for="set-prof-languages">Languages</label>
+              <input type="text" id="set-prof-languages" placeholder="English, Krio">
+            </div>
+            <div class="form-group">
+              <label for="set-prof-style">Writing tone</label>
+              <input type="text" id="set-prof-style" placeholder="Warm, natural, respectful">
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. PERSONALITY & REPLIES SECTION -->
+        <div class="card" id="sec-settings-personality">
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🎭</span>
+              <div>
+                <div class="card-title" style="font-size: 15px;">Personality & Tuning</div>
+                <div class="card-desc">Tone style, response length, playfulness, and temperature.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+            <div class="form-group">
+              <label for="set-reply-length" style="font-weight: 600;">Reply length</label>
+              <select id="set-reply-length">
+                <option value="short">Short (1 sentence, 10–25 words)</option>
+                <option value="medium" selected>Medium (1–3 sentences, 15–50 words)</option>
+                <option value="detailed">Detailed (2–4 sentences)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="set-reply-playfulness" style="font-weight: 600;">Playfulness</label>
+              <select id="set-reply-playfulness">
+                <option value="low">Low (Direct & straightforward)</option>
+                <option value="medium" selected>Medium (Warm & natural)</option>
+                <option value="high">High (Witty & playful banter)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 6px;">
+            <div class="form-group">
+              <label for="set-reply-formality" style="font-weight: 600;">Formality</label>
+              <select id="set-reply-formality">
+                <option value="casual">Casual (Relaxed peer tone)</option>
+                <option value="balanced" selected>Balanced (Conversational)</option>
+                <option value="formal">Formal (Professional respect)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="set-reply-emojis" style="font-weight: 600;">Emoji usage</label>
+              <select id="set-reply-emojis">
+                <option value="none">None</option>
+                <option value="low" selected>Low (Rarely, at most 1)</option>
+                <option value="moderate">Moderate (1 per message)</option>
+                <option value="high">High (Expressive)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="set-ai-temperature" style="font-weight: 600;">Temperature (creativity vs precision)</label>
+              <span id="val-ai-temperature" style="font-size: 12px; font-weight: 700; color: var(--accent-primary);">0.85</span>
+            </div>
+            <input type="range" id="set-ai-temperature" min="0.0" max="1.0" step="0.05" value="0.85" style="width: 100%; accent-color: var(--accent-primary);">
+            <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+              <span>0.0 (Precise)</span>
+              <span>0.85 (Natural human default)</span>
+              <span>1.0 (Creative)</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px; border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+            <label for="set-base-rules" style="font-weight: 700; font-size: 13px;">Personal texting instructions</label>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Custom instructions to guide tone and topics. Applied on the very next message.</div>
+            <textarea id="set-base-rules" rows="3" placeholder="Sound like a real person texting on WhatsApp: short, warm, natural. Match the sender's language, dialect, and message length."></textarea>
+          </div>
+        </div>
+
+        <!-- 4. AI & WRITE-ONLY API KEYS SECTION -->
         <div class="card" id="sec-settings-ai">
           <div class="card-header" style="margin-bottom: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 18px;">✨</span>
               <div>
-                <div class="card-title" style="font-size: 15px;">AI & Voice</div>
-                <div class="card-desc">Model engine, fallback provider, and personal personality.</div>
+                <div class="card-title" style="font-size: 15px;">AI Models & API Keys</div>
+                <div class="card-desc">Write-only API keys (masked for security) and model engines.</div>
               </div>
             </div>
             <button class="btn btn-sm btn-secondary" id="btn-refresh-models" style="font-size: 11px; padding: 4px 8px;">Refresh models</button>
@@ -1887,30 +2014,54 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="set-gemini-model-select" style="font-weight: 600;">Gemini model</label>
-            <select id="set-gemini-model-select">
-              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Default)</option>
-              <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Fallback)</option>
-              <option value="gemini-flash-latest">gemini-flash-latest</option>
-              <option value="__custom__">Custom model name...</option>
-            </select>
-            <input type="text" id="set-gemini-model-custom" placeholder="Enter custom Gemini model" style="display: none; margin-top: 6px;">
+          <!-- Google Gemini Model & Key -->
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Google Gemini</span>
+              <span class="chat-tag" id="gemini-key-status" style="font-size: 11px;">Checking key...</span>
+            </div>
+            <div class="form-group" style="margin-bottom: 6px;">
+              <label for="set-gemini-model-select">Gemini model</label>
+              <select id="set-gemini-model-select">
+                <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Default)</option>
+                <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Fallback)</option>
+                <option value="gemini-flash-latest">gemini-flash-latest</option>
+                <option value="__custom__">Custom model name...</option>
+              </select>
+              <input type="text" id="set-gemini-model-custom" placeholder="Enter custom Gemini model" style="display: none; margin-top: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="set-gemini-key">Gemini API key (Write-only)</label>
+              <input type="password" id="set-gemini-key" placeholder="Enter new Gemini API key to update or leave blank" autocomplete="off">
+              <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">Keys are stored encrypted and never displayed in browser or logs.</div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="set-groq-model-select" style="font-weight: 600;">Groq model</label>
-            <select id="set-groq-model-select">
-              <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Default)</option>
-              <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fast)</option>
-              <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
-              <option value="gemma2-9b-it">gemma2-9b-it</option>
-              <option value="__custom__">Custom model name...</option>
-            </select>
-            <input type="text" id="set-groq-model-custom" placeholder="Enter custom Groq model" style="display: none; margin-top: 6px;">
+          <!-- Groq Model & Key -->
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Groq</span>
+              <span class="chat-tag" id="groq-key-status" style="font-size: 11px;">Checking key...</span>
+            </div>
+            <div class="form-group" style="margin-bottom: 6px;">
+              <label for="set-groq-model-select">Groq model</label>
+              <select id="set-groq-model-select">
+                <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Default)</option>
+                <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fast)</option>
+                <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+                <option value="gemma2-9b-it">gemma2-9b-it</option>
+                <option value="__custom__">Custom model name...</option>
+              </select>
+              <input type="text" id="set-groq-model-custom" placeholder="Enter custom Groq model" style="display: none; margin-top: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="set-groq-key">Groq API key (Write-only)</label>
+              <input type="password" id="set-groq-key" placeholder="Enter new Groq API key to update or leave blank" autocomplete="off">
+              <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">Keys are stored encrypted and never displayed in browser or logs.</div>
+            </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 8px;">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 10px;">
             <div class="form-group">
               <label for="set-min-delay">Min delay (ms)</label>
               <input type="number" id="set-min-delay" placeholder="300">
@@ -1920,41 +2071,53 @@
               <input type="number" id="set-max-delay" placeholder="1200">
             </div>
           </div>
+        </div>
 
-          <!-- My instructions -->
-          <div class="form-group" style="margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 10px;">
-            <label for="set-base-rules" style="font-weight: 700; font-size: 13px;">My instructions (tone & personality)</label>
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Guide how the assistant sounds when texting. Rules and safety are built into the server.</div>
-            <textarea id="set-base-rules" rows="3" placeholder="Sound like a real person texting on WhatsApp: short, warm, natural. Match the sender's language, dialect, and message length."></textarea>
+        <!-- 5. SECURITY & SESSIONS SECTION -->
+        <div class="card" id="sec-settings-security">
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🛡️</span>
+              <div>
+                <div class="card-title" style="font-size: 15px;">Security & Password</div>
+                <div class="card-desc">Password protection, brute-force security, and active sessions.</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Owner Profile Details -->
-          <div style="margin-top: 10px; border-top: 1px solid var(--border-subtle); padding-top: 10px;">
-            <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Owner Profile</div>
+          <!-- Change password form -->
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 6px;">
+            <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Change dashboard password</div>
+            <div class="form-group" style="margin-bottom: 6px;">
+              <label for="sec-current-password">Current password</label>
+              <input type="password" id="sec-current-password" placeholder="Enter current password">
+            </div>
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
-              <div class="form-group">
-                <label for="set-prof-name">Owner name</label>
-                <input type="text" id="set-prof-name" placeholder="JTech">
+              <div class="form-group" style="margin-bottom: 6px;">
+                <label for="sec-new-password">New password</label>
+                <input type="password" id="sec-new-password" placeholder="At least 6 characters">
               </div>
-              <div class="form-group">
-                <label for="set-prof-first-name">First name</label>
-                <input type="text" id="set-prof-first-name" placeholder="e.g. John">
-              </div>
-            </div>
-            <div class="form-group" style="margin-top: 4px;">
-              <label for="set-prof-about">About you / company</label>
-              <textarea id="set-prof-about" rows="2" placeholder="Software solutions in Freetown, Sierra Leone..."></textarea>
-            </div>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 4px;">
-              <div class="form-group">
-                <label for="set-prof-languages">Languages</label>
-                <input type="text" id="set-prof-languages" placeholder="English, Krio">
-              </div>
-              <div class="form-group">
-                <label for="set-prof-style">Writing tone</label>
-                <input type="text" id="set-prof-style" placeholder="Short, warm, natural">
+              <div class="form-group" style="margin-bottom: 6px;">
+                <label for="sec-confirm-password">Confirm new password</label>
+                <input type="password" id="sec-confirm-password" placeholder="Re-enter new password">
               </div>
             </div>
+            <button class="btn btn-secondary btn-block" id="btn-change-password" style="font-size: 12px; padding: 9px; font-weight: 600; margin-top: 4px;">
+              Update password
+            </button>
+          </div>
+
+          <!-- Session controls -->
+          <div style="margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+            <button class="btn btn-secondary btn-sm" id="btn-signout-device" style="padding: 10px 8px; font-weight: 600; text-align: center; justify-content: center;">
+              Sign out this device
+            </button>
+            <button class="btn btn-danger btn-sm" id="btn-signout-all-devices" style="padding: 10px 8px; font-weight: 600; text-align: center; justify-content: center;">
+              Sign out all devices
+            </button>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+            Signing in once keeps this device signed in for 365 days. "Sign out all devices" instantly invalidates every logged-in phone and computer.
           </div>
         </div>
 
@@ -2839,13 +3002,30 @@
     } catch (_) {}
 
     // Priority: 1) sessionStorage custom override, 2) buildApiUrl, 3) window.location.origin if served from backend
-    let API_BASE = sessionStorage.getItem('custom_api_url') || buildApiUrl || '';
+    let API_BASE = localStorage.getItem('custom_api_url') || sessionStorage.getItem('custom_api_url') || buildApiUrl || '';
     if (!API_BASE && window.location.origin && !window.location.origin.includes('github.io') && !window.location.origin.includes('localhost:5173')) {
       API_BASE = window.location.origin;
     }
 
-    // App State
-    let authToken = sessionStorage.getItem('auth_token') || '';
+    // App State & Token Storage (Persistent across reloads & tab closes with safe fallback)
+    function getStoredAuthToken() {
+      try {
+        return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || '';
+      } catch (_) {
+        try { return sessionStorage.getItem('auth_token') || ''; } catch (_) { return ''; }
+      }
+    }
+    function setStoredAuthToken(tok) {
+      authToken = tok;
+      try { localStorage.setItem('auth_token', tok); } catch (_) {}
+      try { sessionStorage.setItem('auth_token', tok); } catch (_) {}
+    }
+    function clearStoredAuthToken() {
+      authToken = '';
+      try { localStorage.removeItem('auth_token'); } catch (_) {}
+      try { sessionStorage.removeItem('auth_token'); } catch (_) {}
+    }
+    let authToken = getStoredAuthToken();
     let activeChatJid = null;
     let selectedMode = 'all';
     let linkPollInterval = null;
@@ -2952,8 +3132,8 @@
         showToast('Please enter a valid backend URL', true);
         return;
       }
-      API_BASE = input.replace(/\/+$/, '');
-      sessionStorage.setItem('custom_api_url', API_BASE);
+      try { localStorage.setItem('custom_api_url', API_BASE); } catch (_) {}
+      try { sessionStorage.setItem('custom_api_url', API_BASE); } catch (_) {}
       missingApiOverlay.classList.remove('open');
       showToast('Backend connected');
       checkAuthentication();
@@ -2981,8 +3161,7 @@
 
       const res = await fetch(url, options);
       if (res.status === 401) {
-        authToken = '';
-        sessionStorage.removeItem('auth_token');
+        clearStoredAuthToken();
         authSheet.classList.add('open');
         const err = new Error('Session expired or unauthorized');
         err.hint = 'Please enter your dashboard password.';
@@ -3044,8 +3223,7 @@
           throw err;
         }
 
-        authToken = data.token;
-        sessionStorage.setItem('auth_token', authToken);
+        setStoredAuthToken(data.token);
         authSheet.classList.remove('open');
         document.getElementById('auth-pass-val').value = '';
         showToast('Signed in successfully');
@@ -3140,6 +3318,16 @@
         const s = await api('/api/state');
         if (!s) return;
         latestState = s;
+
+        if (s.identity?.appTitle) {
+          const brandEl = document.getElementById('app-brand-title');
+          if (brandEl && brandEl.textContent !== s.identity.appTitle) {
+            brandEl.textContent = s.identity.appTitle;
+          }
+          if (document.title !== s.identity.appTitle) {
+            document.title = s.identity.appTitle;
+          }
+        }
 
         const uptimeMins = Math.floor((s.server?.uptimeSec ?? s.uptime ?? 0) / 60);
         const nodeVer = s.server?.nodeVersion || '22.x';
@@ -5362,13 +5550,61 @@
         document.getElementById('set-min-delay').value = s.minDelay ?? 300;
         document.getElementById('set-max-delay').value = s.maxDelay ?? 1200;
 
-        if (s.profile) {
-          document.getElementById('set-prof-name').value = s.profile.ownerName || s.profile.name || '';
-          document.getElementById('set-prof-first-name').value = s.profile.ownerFirstName || '';
-          document.getElementById('set-prof-about').value = s.profile.ownerAbout || s.profile.about || s.profile.facts || '';
-          document.getElementById('set-prof-languages').value = s.profile.ownerLanguages || s.profile.languages || '';
-          document.getElementById('set-prof-style').value = s.profile.writingStyle || '';
+        if (s.identity) {
+          if (document.getElementById('set-assistant-name')) document.getElementById('set-assistant-name').value = s.identity.assistantName || 'JTech Assistant';
+          if (document.getElementById('set-app-title')) document.getElementById('set-app-title').value = s.identity.appTitle || 'JTech Assistant';
+          if (document.getElementById('set-prof-name')) document.getElementById('set-prof-name').value = s.identity.ownerName || '';
+          if (document.getElementById('set-prof-first-name')) document.getElementById('set-prof-first-name').value = s.identity.ownerFirstName || '';
+          if (document.getElementById('set-prof-preferred-name')) document.getElementById('set-prof-preferred-name').value = s.identity.ownerPreferredName || '';
+          if (document.getElementById('set-prof-about')) document.getElementById('set-prof-about').value = s.identity.ownerAbout || '';
+          if (document.getElementById('set-prof-languages')) document.getElementById('set-prof-languages').value = s.identity.languages || '';
+          if (document.getElementById('set-prof-style')) document.getElementById('set-prof-style').value = s.identity.writingStyle || '';
+        } else if (s.profile) {
+          if (document.getElementById('set-prof-name')) document.getElementById('set-prof-name').value = s.profile.ownerName || s.profile.name || '';
+          if (document.getElementById('set-prof-first-name')) document.getElementById('set-prof-first-name').value = s.profile.ownerFirstName || '';
+          if (document.getElementById('set-prof-about')) document.getElementById('set-prof-about').value = s.profile.ownerAbout || s.profile.about || s.profile.facts || '';
+          if (document.getElementById('set-prof-languages')) document.getElementById('set-prof-languages').value = s.profile.ownerLanguages || s.profile.languages || '';
+          if (document.getElementById('set-prof-style')) document.getElementById('set-prof-style').value = s.profile.writingStyle || '';
         }
+
+        if (s.personality) {
+          if (document.getElementById('set-reply-length')) document.getElementById('set-reply-length').value = s.personality.replyLength || 'medium';
+          if (document.getElementById('set-reply-playfulness')) document.getElementById('set-reply-playfulness').value = s.personality.playfulness || 'medium';
+          if (document.getElementById('set-reply-formality')) document.getElementById('set-reply-formality').value = s.personality.formality || 'balanced';
+          if (document.getElementById('set-reply-emojis')) document.getElementById('set-reply-emojis').value = s.personality.emojiLevel || 'low';
+        }
+
+        const currentTemp = s.temperature ?? s.personality?.temperature ?? 0.85;
+        if (document.getElementById('set-ai-temperature')) {
+          document.getElementById('set-ai-temperature').value = currentTemp;
+        }
+        if (document.getElementById('val-ai-temperature')) {
+          document.getElementById('val-ai-temperature').textContent = parseFloat(currentTemp).toFixed(2);
+        }
+
+        // Masked API Key Badges
+        const geminiBadge = document.getElementById('gemini-key-status');
+        if (geminiBadge && s.apiKeys?.gemini) {
+          if (s.apiKeys.gemini.configured) {
+            geminiBadge.textContent = `Configured (${s.apiKeys.gemini.masked || 'Active'})`;
+            geminiBadge.style.color = 'var(--accent-secondary)';
+          } else {
+            geminiBadge.textContent = 'Not configured';
+            geminiBadge.style.color = 'var(--text-muted)';
+          }
+        }
+
+        const groqBadge = document.getElementById('groq-key-status');
+        if (groqBadge && s.apiKeys?.groq) {
+          if (s.apiKeys.groq.configured) {
+            groqBadge.textContent = `Configured (${s.apiKeys.groq.masked || 'Active'})`;
+            groqBadge.style.color = 'var(--accent-secondary)';
+          } else {
+            groqBadge.textContent = 'Not configured';
+            groqBadge.style.color = 'var(--text-muted)';
+          }
+        }
+
         document.getElementById('set-notify-owner').checked = Boolean(s.notifyOwnerOnWhatsApp);
 
         if (s.contactRules) {
@@ -5455,6 +5691,84 @@
       });
     });
 
+    // Temperature slider live feedback
+    const tempSlider = document.getElementById('set-ai-temperature');
+    if (tempSlider) {
+      tempSlider.addEventListener('input', (e) => {
+        const valEl = document.getElementById('val-ai-temperature');
+        if (valEl) valEl.textContent = parseFloat(e.target.value).toFixed(2);
+      });
+    }
+
+    // Change Password Handler
+    const btnChangePass = document.getElementById('btn-change-password');
+    if (btnChangePass) {
+      btnChangePass.addEventListener('click', async () => {
+        const cur = document.getElementById('sec-current-password').value.trim();
+        const nw = document.getElementById('sec-new-password').value.trim();
+        const conf = document.getElementById('sec-confirm-password').value.trim();
+
+        if (!cur) {
+          showToast('Please enter your current password', true);
+          return;
+        }
+        if (!nw || nw.length < 6) {
+          showToast('New password must be at least 6 characters', true);
+          return;
+        }
+        if (nw !== conf) {
+          showToast('New passwords do not match', true);
+          return;
+        }
+
+        btnChangePass.disabled = true;
+        btnChangePass.textContent = 'Updating...';
+
+        try {
+          await api('/api/change-password', {
+            method: 'POST',
+            body: { currentPassword: cur, newPassword: nw }
+          });
+          document.getElementById('sec-current-password').value = '';
+          document.getElementById('sec-new-password').value = '';
+          document.getElementById('sec-confirm-password').value = '';
+          showToast('Password changed successfully');
+        } catch (err) {
+          showToast(err.message, true, err.hint);
+        } finally {
+          btnChangePass.disabled = false;
+          btnChangePass.textContent = 'Update password';
+        }
+      });
+    }
+
+    // Sign out this device handler
+    const btnSignoutDev = document.getElementById('btn-signout-device');
+    if (btnSignoutDev) {
+      btnSignoutDev.addEventListener('click', async () => {
+        try {
+          await api('/api/signout', { method: 'POST' });
+        } catch (_) {}
+        clearStoredAuthToken();
+        authSheet.classList.add('open');
+        showToast('Signed out on this device');
+      });
+    }
+
+    // Sign out all devices handler
+    const btnSignoutAll = document.getElementById('btn-signout-all-devices');
+    if (btnSignoutAll) {
+      btnSignoutAll.addEventListener('click', async () => {
+        if (!confirm('Sign out all devices? This will invalidate all active sessions across every phone and computer.')) return;
+        try {
+          await api('/api/signout-all', { method: 'POST' });
+        } catch (_) {}
+        clearStoredAuthToken();
+        authSheet.classList.add('open');
+        showToast('Signed out of all devices');
+      });
+    }
+
     // Settings Screen: Save All Settings (POST /api/cfg)
     document.getElementById('btn-save-settings').addEventListener('click', async () => {
       const baseRules = document.getElementById('set-base-rules').value.trim();
@@ -5473,15 +5787,49 @@
       const minDelay = parseInt(document.getElementById('set-min-delay').value, 10);
       const maxDelay = parseInt(document.getElementById('set-max-delay').value, 10);
 
+      const assistantName = document.getElementById('set-assistant-name')?.value.trim() || 'JTech Assistant';
+      const appTitle = document.getElementById('set-app-title')?.value.trim() || 'JTech Assistant';
+      const ownerName = document.getElementById('set-prof-name').value.trim() || 'JTech';
+      const ownerFirstName = document.getElementById('set-prof-first-name').value.trim();
+      const ownerPreferredName = document.getElementById('set-prof-preferred-name')?.value.trim() || '';
+      const ownerAbout = document.getElementById('set-prof-about').value.trim();
+      const languages = document.getElementById('set-prof-languages').value.trim() || 'English, Krio';
+      const writingStyle = document.getElementById('set-prof-style').value.trim();
+
+      const identity = {
+        assistantName,
+        appTitle,
+        ownerName,
+        ownerFirstName,
+        ownerPreferredName,
+        ownerAbout,
+        languages,
+        writingStyle
+      };
+
       const profile = {
-        ownerName: document.getElementById('set-prof-name').value.trim(),
-        ownerFirstName: document.getElementById('set-prof-first-name').value.trim(),
-        name: document.getElementById('set-prof-name').value.trim(),
-        ownerAbout: document.getElementById('set-prof-about').value.trim(),
-        about: document.getElementById('set-prof-about').value.trim(),
-        ownerLanguages: document.getElementById('set-prof-languages').value.trim(),
-        languages: document.getElementById('set-prof-languages').value.trim(),
-        writingStyle: document.getElementById('set-prof-style').value.trim()
+        ownerName,
+        ownerFirstName,
+        name: ownerName,
+        ownerAbout,
+        about: ownerAbout,
+        ownerLanguages: languages,
+        languages,
+        writingStyle
+      };
+
+      const replyLength = document.getElementById('set-reply-length')?.value || 'medium';
+      const playfulness = document.getElementById('set-reply-playfulness')?.value || 'medium';
+      const formality = document.getElementById('set-reply-formality')?.value || 'balanced';
+      const emojiLevel = document.getElementById('set-reply-emojis')?.value || 'low';
+      const temperature = parseFloat(document.getElementById('set-ai-temperature')?.value) || 0.85;
+
+      const personality = {
+        replyLength,
+        playfulness,
+        formality,
+        emojiLevel,
+        temperature
       };
 
       const notifyOwnerOnWhatsApp = document.getElementById('set-notify-owner').checked;
@@ -5513,29 +5861,47 @@
         wakingGraceHours: parseInt(document.getElementById('set-sch-grace-hours').value, 10) || 3
       };
 
+      const apiKeyGeminiRaw = document.getElementById('set-gemini-key')?.value.trim();
+      const apiKeyGroqRaw = document.getElementById('set-groq-key')?.value.trim();
+
+      const cfgPayload = {
+        personalPrompt: baseRules,
+        baseRules,
+        identity,
+        personality,
+        temperature,
+        provider,
+        geminiModel,
+        groqModel,
+        minDelay,
+        maxDelay,
+        profile,
+        notifyOwnerOnWhatsApp,
+        learnFromReplies,
+        dailySummaryEnabled,
+        dailySummaryTime,
+        contactRules: { mode: selectedMode, allowlist, blocklist },
+        pacing,
+        scheduledLimits
+      };
+
+      if (apiKeyGeminiRaw && !apiKeyGeminiRaw.startsWith('...')) {
+        cfgPayload.apiKeyGemini = apiKeyGeminiRaw;
+      }
+      if (apiKeyGroqRaw && !apiKeyGroqRaw.startsWith('...')) {
+        cfgPayload.apiKeyGroq = apiKeyGroqRaw;
+      }
+
       try {
         await api('/api/cfg', {
           method: 'POST',
-          body: {
-            personalPrompt: baseRules,
-            baseRules,
-            provider,
-            geminiModel,
-            groqModel,
-            minDelay,
-            maxDelay,
-            profile,
-            notifyOwnerOnWhatsApp,
-            learnFromReplies,
-            dailySummaryEnabled,
-            dailySummaryTime,
-            contactRules: { mode: selectedMode, allowlist, blocklist },
-            pacing,
-            scheduledLimits
-          }
+          body: cfgPayload
         });
+        if (document.getElementById('set-gemini-key')) document.getElementById('set-gemini-key').value = '';
+        if (document.getElementById('set-groq-key')) document.getElementById('set-groq-key').value = '';
         showToast('Settings saved successfully');
         fetchState();
+        fetchSettings();
       } catch (e) { showToast(e.message, true, e.hint); }
     });
 
@@ -6006,12 +6372,15 @@
     }
 
     // Session Actions: Sign out of Dashboard
-    document.getElementById('btn-action-signout').addEventListener('click', () => {
-      sessionStorage.removeItem('auth_token');
-      authToken = '';
-      authSheet.classList.add('open');
-      showToast('Signed out');
-    });
+    const btnActionSignout = document.getElementById('btn-action-signout');
+    if (btnActionSignout) {
+      btnActionSignout.addEventListener('click', async () => {
+        try { await api('/api/signout', { method: 'POST' }); } catch (_) {}
+        clearStoredAuthToken();
+        authSheet.classList.add('open');
+        showToast('Signed out');
+      });
+    }
 
     // App Initialization
     function initDashboard() {

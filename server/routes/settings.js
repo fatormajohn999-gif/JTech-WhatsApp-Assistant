@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { redis } from '../lib/redis.js';
 import { logEvent } from '../lib/logger.js';
 import { getSettings, invalidateSettingsCache } from '../lib/settings.js';
+import { setEffectiveApiKey } from '../lib/keys.js';
 import { startWhatsApp, logoutWhatsApp } from '../whatsapp/socket.js';
 import { clearAllMemory } from '../memory/store.js';
 import { requireAuth } from './auth.js';
@@ -26,6 +27,9 @@ router.post('/cfg', requireAuth, async (req, res) => {
   try {
     const {
       profile,
+      identity,
+      personality,
+      temperature,
       personalPrompt,
       baseRules,
       provider,
@@ -40,8 +44,26 @@ router.post('/cfg', requireAuth, async (req, res) => {
       learnFromReplies,
       dailySummaryEnabled,
       dailySummaryTime,
-      scheduledLimits
+      scheduledLimits,
+      apiKeyGemini,
+      apiKeyGroq
     } = req.body;
+
+    // 1. Identity & Profile
+    let updatedIdentity = null;
+    if (identity && typeof identity === 'object') {
+      updatedIdentity = {
+        assistantName: String(identity.assistantName || 'JTech Assistant').trim(),
+        ownerName: String(identity.ownerName || 'JTech').trim(),
+        ownerFirstName: String(identity.ownerFirstName || '').trim(),
+        ownerPreferredName: String(identity.ownerPreferredName || '').trim(),
+        appTitle: String(identity.appTitle || 'JTech Assistant').trim(),
+        ownerAbout: String(identity.ownerAbout || '').trim(),
+        languages: String(identity.languages || 'English, Krio').trim(),
+        writingStyle: String(identity.writingStyle || '').trim()
+      };
+      await redis.set('config:identity', JSON.stringify(updatedIdentity));
+    }
 
     if (profile && typeof profile === 'object') {
       const cleanProfile = { ...profile };
@@ -49,15 +71,63 @@ router.post('/cfg', requireAuth, async (req, res) => {
       delete cleanProfile.sampleMessage1;
       delete cleanProfile.sampleMessage2;
       delete cleanProfile.sampleMessage3;
+      if (updatedIdentity) {
+        cleanProfile.ownerName = updatedIdentity.ownerName || cleanProfile.ownerName;
+        cleanProfile.ownerFirstName = updatedIdentity.ownerFirstName || cleanProfile.ownerFirstName;
+        cleanProfile.ownerAbout = updatedIdentity.ownerAbout || cleanProfile.ownerAbout;
+        cleanProfile.ownerLanguages = updatedIdentity.languages || cleanProfile.ownerLanguages;
+        cleanProfile.writingStyle = updatedIdentity.writingStyle || cleanProfile.writingStyle;
+      }
       await redis.set('config:owner_profile', JSON.stringify(cleanProfile));
+    } else if (updatedIdentity) {
+      // Keep legacy owner_profile in sync
+      const rawCurrent = await redis.get('config:owner_profile');
+      let currentProf = {};
+      if (rawCurrent) {
+        try { currentProf = JSON.parse(rawCurrent); } catch (_) {}
+      }
+      currentProf.ownerName = updatedIdentity.ownerName || currentProf.ownerName || 'JTech';
+      currentProf.name = currentProf.ownerName;
+      currentProf.ownerFirstName = updatedIdentity.ownerFirstName;
+      currentProf.ownerAbout = updatedIdentity.ownerAbout;
+      currentProf.about = updatedIdentity.ownerAbout;
+      currentProf.ownerLanguages = updatedIdentity.languages;
+      currentProf.languages = updatedIdentity.languages;
+      currentProf.writingStyle = updatedIdentity.writingStyle;
+      await redis.set('config:owner_profile', JSON.stringify(currentProf));
     }
 
-    // Save personalPrompt; if client sent baseRules instead, support it transparently
+    // 2. Personality & Tuning
+    if (personality && typeof personality === 'object') {
+      const cleanPersonality = {
+        replyLength: ['short', 'medium', 'detailed'].includes(personality.replyLength) ? personality.replyLength : 'medium',
+        playfulness: ['low', 'medium', 'high'].includes(personality.playfulness) ? personality.playfulness : 'medium',
+        formality: ['casual', 'balanced', 'formal'].includes(personality.formality) ? personality.formality : 'balanced',
+        emojiLevel: ['none', 'low', 'moderate', 'high'].includes(personality.emojiLevel) ? personality.emojiLevel : 'low',
+        temperature: Math.max(0.0, Math.min(1.0, parseFloat(personality.temperature ?? 0.85) || 0.85))
+      };
+      await redis.set('config:personality', JSON.stringify(cleanPersonality));
+    }
+
+    if (temperature !== undefined) {
+      const numTemp = Math.max(0.0, Math.min(1.0, parseFloat(temperature) || 0.85));
+      await redis.set('config:temperature', String(numTemp));
+    }
+
+    // 3. Write-only API Keys (never logged or exposed)
+    if (apiKeyGemini !== undefined) {
+      await setEffectiveApiKey('gemini', apiKeyGemini);
+    }
+    if (apiKeyGroq !== undefined) {
+      await setEffectiveApiKey('groq', apiKeyGroq);
+    }
+
+    // 4. Personal Prompt
     const promptToSave = personalPrompt !== undefined ? personalPrompt : baseRules;
     if (typeof promptToSave === 'string') {
       const cleanPrompt = promptToSave.trim();
       await redis.set('config:personal_prompt', cleanPrompt);
-      await redis.set('config:base_rules', cleanPrompt); // Keep backward compatible
+      await redis.set('config:base_rules', cleanPrompt);
     }
 
     if (provider && (provider === 'gemini' || provider === 'groq')) {

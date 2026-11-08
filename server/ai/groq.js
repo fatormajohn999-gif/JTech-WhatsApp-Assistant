@@ -1,9 +1,10 @@
-import { GROQ_API_KEY, DEFAULT_GROQ_MODEL, AI_CALL_TIMEOUT_MS } from '../config.js';
+import { DEFAULT_GROQ_MODEL, AI_CALL_TIMEOUT_MS } from '../config.js';
 import { logEvent } from '../lib/logger.js';
+import { getEffectiveApiKey } from '../lib/keys.js';
 import { parseHttpError, getAiErrorHint } from './gemini.js';
 
-async function executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs) {
-  const apiKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
+async function executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs, options = {}) {
+  const apiKey = await getEffectiveApiKey('groq');
   if (!apiKey) {
     throw new Error('GROQ_API_KEY is not configured');
   }
@@ -23,6 +24,9 @@ async function executeGroqRequest(turnsOrText, systemInstruction, modelName, tim
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  const temperature = typeof options?.temperature === 'number' ? options.temperature : 0.85;
+  const max_tokens = options?.maxOutputTokens || options?.max_tokens || 400;
+
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -34,8 +38,8 @@ async function executeGroqRequest(turnsOrText, systemInstruction, modelName, tim
       body: JSON.stringify({
         model: modelName,
         messages: groqMessages,
-        max_tokens: 350,
-        temperature: 0.65
+        max_tokens,
+        temperature
       })
     });
 
@@ -66,9 +70,9 @@ async function executeGroqRequest(turnsOrText, systemInstruction, modelName, tim
 /**
  * Call Groq with timeout and 1 automatic retry on 429, 503, or timeout, honoring retry-after hints.
  */
-export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelName = DEFAULT_GROQ_MODEL, timeoutMs = AI_CALL_TIMEOUT_MS) {
+export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelName = DEFAULT_GROQ_MODEL, timeoutMs = AI_CALL_TIMEOUT_MS, options = {}) {
   try {
-    return await executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs);
+    return await executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs, options);
   } catch (err) {
     const errText = (err.message || '').toLowerCase();
     const isTimeout = /timeout|aborterror/i.test(errText);
@@ -77,7 +81,6 @@ export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelN
 
     if (isTimeout || is503 || is429) {
       let waitMs = 1500;
-      // Parse "try again in X.Xs" if present
       const match = errText.match(/try again in ([\d.]+)s/);
       if (match && match[1]) {
         const parsedSecs = parseFloat(match[1]);
@@ -87,7 +90,7 @@ export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelN
       }
       logEvent('warn', `Groq returned ${is429 ? '429/rate-limit' : (isTimeout ? 'timeout' : '503')}. Waiting ${waitMs}ms to retry once before fallback...`);
       await new Promise(r => setTimeout(r, waitMs));
-      return await executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs);
+      return await executeGroqRequest(turnsOrText, systemInstruction, modelName, timeoutMs, options);
     }
     throw err;
   }
@@ -98,14 +101,14 @@ export async function callGroqWithTimeout(turnsOrText, systemInstruction, modelN
  */
 export async function testGroqProbe(modelName = DEFAULT_GROQ_MODEL, timeout = 25000) {
   const start = Date.now();
-  const apiKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
+  const apiKey = await getEffectiveApiKey('groq');
   if (!apiKey) {
     return {
       ok: false,
       model: modelName,
       latencyMs: Date.now() - start,
       status: 401,
-      error: 'GROQ_API_KEY is not configured in environment',
+      error: 'GROQ_API_KEY is not configured',
       hint: getAiErrorHint(401, 'GROQ_API_KEY is not configured')
     };
   }

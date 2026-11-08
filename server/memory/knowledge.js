@@ -176,7 +176,7 @@ export async function answerTeachMeItem(id, { answer, scope = 'everyone', sendTo
     try {
       const settings = await getSettings();
       const pacing = settings.pacing || DEFAULT_PACING_SETTINGS;
-      const ownerName = settings.profile?.ownerName || 'JTech';
+      const ownerName = settings.identity?.ownerName || settings.profile?.ownerName || 'JTech';
 
       const prompt = `
 You are the personal assistant for ${ownerName}.
