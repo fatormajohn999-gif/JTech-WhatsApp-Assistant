@@ -13,6 +13,8 @@ export async function recordTeachMeItem({ contactJid, contactName, originalMessa
   if (!question || !question.trim()) return;
 
   const cleanQuestion = question.trim();
+  logEvent('info', `Teach me: question detected: "${cleanQuestion}"`);
+
   const normalizedNew = cleanQuestion.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const newWords = new Set(normalizedNew.split(' ').filter(w => w.length > 2));
 
@@ -36,7 +38,7 @@ export async function recordTeachMeItem({ contactJid, contactName, originalMessa
         }
         const union = new Set([...newWords, ...existingWords]).size;
         const jaccard = union > 0 ? intersection / union : 0;
-        if (jaccard >= 0.6) {
+        if (jaccard >= 0.55) {
           matchedItem = pending;
           break;
         }
@@ -67,7 +69,7 @@ export async function recordTeachMeItem({ contactJid, contactName, originalMessa
       matchedItem.originalMessage = (originalMessage || '').slice(0, 300) || matchedItem.originalMessage;
 
       await redis.hset('teachme:items', matchedItem.id, JSON.stringify(matchedItem));
-      logEvent('info', `Updated question in Teach-Me (Asked ${matchedItem.askCount} times): "${matchedItem.question}"`);
+      logEvent('info', `Teach me: updated existing item (Asked ${matchedItem.askCount} times): "${matchedItem.question}"`);
       return matchedItem;
     }
 
@@ -92,11 +94,99 @@ export async function recordTeachMeItem({ contactJid, contactName, originalMessa
     };
 
     await redis.hset('teachme:items', id, JSON.stringify(item));
-    logEvent('info', `Added question to Teach-Me inbox from ${item.contactName}: "${item.question}"`);
+    logEvent('info', `Teach me: saved item for ${item.contactName}: "${item.question}"`);
     return item;
   } catch (err) {
     console.warn('[Knowledge] Error recording teach-me item:', err.message);
   }
+}
+
+/**
+ * Asynchronous background knowledge gap check.
+ * Evaluates whether an unassisted question was asked that the assistant lacked knowledge on.
+ * Runs non-blocking AFTER reply has dispatched.
+ */
+export async function checkKnowledgeGap({ userMessage, botReply, senderJid, contactName }) {
+  if (!userMessage || userMessage.length < 5) return;
+
+  try {
+    const settings = await getSettings();
+    if (settings.detectQuestionsEnabled === false) {
+      return; // Disabled by user in settings
+    }
+
+    const prompt = `
+Analyze the following exchange between a contact and an executive personal assistant.
+Determine if the contact asked a specific question or request for information about the owner (business pricing, project terms, specific services, personal schedule, location, policies, or contact details) that the assistant did NOT have confirmed knowledge to answer, deferred, apologized for not knowing, or gave a vague placeholder response.
+
+Contact ("${contactName}"): "${userMessage}"
+Assistant reply: "${botReply}"
+
+Return ONLY a valid JSON object without markdown formatting:
+If a knowledge gap exists:
+{"hasGap": true, "question": "Concise formulation of the question to ask the owner"}
+
+If no knowledge gap exists (normal conversation, greeting, confirmed answer was already given, banter, simple acknowledgment, or contact only sent pleasantries):
+{"hasGap": false}
+`.trim();
+
+    const resultRaw = await runAiCompletion(prompt, 'You are a meticulous knowledge gap detector. Output only strict JSON.');
+    if (!resultRaw) {
+      logEvent('info', 'Teach me: no gap found');
+      return;
+    }
+
+    let parsed = null;
+    try {
+      const cleanJson = resultRaw.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(cleanJson);
+    } catch (_) {
+      // Check for partial json pattern
+      const match = resultRaw.match(/\{[\s\S]*"hasGap"\s*:\s*(true|false)[\s\S]*\}/);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); } catch (_) {}
+      }
+    }
+
+    if (parsed && parsed.hasGap && parsed.question) {
+      logEvent('info', `Teach me: question detected by background gap check: "${parsed.question}"`);
+      await recordTeachMeItem({
+        contactJid: senderJid,
+        contactName,
+        originalMessage: userMessage,
+        question: parsed.question
+      });
+    } else {
+      logEvent('info', 'Teach me: no gap found');
+    }
+  } catch (err) {
+    console.warn('[Knowledge] Background gap check error:', err.message);
+  }
+}
+
+/**
+ * Record a test question to verify the Teach-Me pipeline immediately
+ */
+export async function recordTestTeachMeItem(customQuestion = '') {
+  const sampleQuestions = [
+    'What are your consulting rates for weekend emergency projects?',
+    'Do you offer student discounts for your software training courses?',
+    'What is your standard turnaround time for a mobile app MVP?',
+    'Are you accepting new clients for custom web development this month?'
+  ];
+  const question = customQuestion && customQuestion.trim()
+    ? customQuestion.trim()
+    : sampleQuestions[Math.floor(Math.random() * sampleQuestions.length)];
+
+  const item = await recordTeachMeItem({
+    contactJid: 'test-contact@s.whatsapp.net',
+    contactName: 'Test Contact (Simulated)',
+    originalMessage: `Hi, ${question}`,
+    question
+  });
+
+  logEvent('info', `Teach me: test question created successfully: "${question}"`);
+  return item;
 }
 
 /**
@@ -316,8 +406,8 @@ export async function getKnowledgeForPrompt(senderJid = '') {
     const lines = sliced.map(k => `- Question: ${k.question}\n  Confirmed Fact: ${k.answer}`);
 
     return `
-=== OWNER KNOWLEDGE BASE (VERIFIED FACTS) ===
-(Use these confirmed facts to answer questions accurately. Never reveal private movements or sensitive schedule details unless explicitly stated here.)
+=== OWNER KNOWLEDGE BASE (ABSOLUTE VERIFIED TRUTH) ===
+(These confirmed facts were provided directly by the owner. They are the supreme source of truth and OVERRIDE any assumptions, defaults, or guesses. When a contact asks about any topic covered here, answer authoritatively using these verified facts.)
 ${lines.join('\n\n')}
 `.trim();
   } catch (err) {

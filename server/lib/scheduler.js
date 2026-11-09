@@ -9,6 +9,15 @@ import { sanitizeOutboundText, parseSplitChunks, calculateTypingDelay } from '..
 import { matchesContactRule } from '../whatsapp/handler.js';
 
 let schedulerInterval = null;
+let cachedSummary = null;
+let lastSummaryFetch = 0;
+let earliestNextRunAt = 0;
+
+export function invalidateSchedulerCache() {
+  cachedSummary = null;
+  lastSummaryFetch = 0;
+  earliestNextRunAt = 0;
+}
 
 // Helper: parse "HH:mm" in Africa/Freetown (UTC+0) and return next timestamp
 export function computeNextRun({
@@ -207,6 +216,7 @@ export async function createSchedule(data) {
   ]);
 
   logEvent('info', `Created scheduled message [${id}] for ${contactName || schedule.contactJid} (Next run: ${new Date(schedule.nextRunAt).toISOString()})`);
+  invalidateSchedulerCache();
   return schedule;
 }
 
@@ -253,6 +263,7 @@ export async function updateSchedule(id, updates) {
 
   await redis.set(`schedule:${id}`, JSON.stringify(updated));
   logEvent('info', `Updated schedule [${id}] for ${schedule.contactName || schedule.contactJid}`);
+  invalidateSchedulerCache();
   return updated;
 }
 
@@ -268,6 +279,7 @@ export async function deleteSchedule(id) {
       redis.srem(`schedules:contact:${schedule.contactJid}`, id)
     ]);
     logEvent('info', `Deleted schedule [${id}]`);
+    invalidateSchedulerCache();
     return true;
   }
   return false;
@@ -722,10 +734,18 @@ export async function checkScheduledTasks() {
     };
 
     const now = Date.now();
-    const allSchedules = await listAllSchedules();
-    const dueSchedules = allSchedules.filter(s => s.status === 'active' && s.nextRunAt && s.nextRunAt <= now);
+    if (earliestNextRunAt > 0 && now < earliestNextRunAt - 10000) {
+      return; // Skip reading Redis: no schedule is due yet
+    }
 
+    const allSchedules = await listAllSchedules();
+    const activeRuns = allSchedules.filter(s => s.status === 'active' && s.nextRunAt && s.nextRunAt > now).map(s => s.nextRunAt);
+    earliestNextRunAt = activeRuns.length > 0 ? Math.min(...activeRuns) : 0;
+
+    const dueSchedules = allSchedules.filter(s => s.status === 'active' && s.nextRunAt && s.nextRunAt <= now);
     if (dueSchedules.length === 0) return;
+
+    invalidateSchedulerCache();
 
     for (const schedule of dueSchedules) {
       const contactJid = schedule.contactJid;
@@ -975,6 +995,11 @@ export async function checkScheduledTasks() {
  * Get earliest upcoming schedule and pending approval count
  */
 export async function getSchedulerSummary() {
+  const now = Date.now();
+  if (cachedSummary && (now - lastSummaryFetch < 25000)) {
+    return cachedSummary;
+  }
+
   try {
     const schedules = await listAllSchedules();
     let nextScheduled = null;
@@ -991,13 +1016,18 @@ export async function getSchedulerSummary() {
         nextRunAt: top.nextRunAt,
         purpose: top.purpose
       };
+      earliestNextRunAt = top.nextRunAt;
+    } else {
+      earliestNextRunAt = 0;
     }
 
     pendingApprovalCount = schedules.filter(s => s.status === 'pending_approval').length;
 
-    return { nextScheduled, pendingApprovalCount, totalCount: schedules.length };
+    cachedSummary = { nextScheduled, pendingApprovalCount, totalCount: schedules.length };
+    lastSummaryFetch = now;
+    return cachedSummary;
   } catch (_) {
-    return { nextScheduled: null, pendingApprovalCount: 0, totalCount: 0 };
+    return cachedSummary || { nextScheduled: null, pendingApprovalCount: 0, totalCount: 0 };
   }
 }
 

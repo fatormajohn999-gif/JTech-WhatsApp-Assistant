@@ -56,7 +56,12 @@ export async function getSettings(forceRefresh = false) {
       rawLearnReplies,
       rawDailySummaryEnabled,
       rawDailySummaryTime,
-      rawScheduledLimits
+      rawScheduledLimits,
+      rawDetectQuestions,
+      rawUpstashEmail,
+      rawUpstashApiKey,
+      rawUpstashDbId,
+      rawUpstashLimits
     ] = await Promise.all([
       redis.get('config:owner_profile'),
       redis.get('config:identity'),
@@ -76,7 +81,12 @@ export async function getSettings(forceRefresh = false) {
       redis.get('config:learn_from_replies'),
       redis.get('config:daily_summary_enabled'),
       redis.get('config:daily_summary_time'),
-      redis.get('config:scheduled_limits')
+      redis.get('config:scheduled_limits'),
+      redis.get('config:detect_questions_enabled'),
+      redis.get('config:upstash:email'),
+      redis.get('config:upstash:api_key'),
+      redis.get('config:upstash:db_id'),
+      redis.get('config:upstash:limits')
     ]);
 
     let profile = { ...DEFAULT_PROFILE };
@@ -162,6 +172,19 @@ export async function getSettings(forceRefresh = false) {
 
     const apiKeys = await getApiKeysStatus();
 
+    let upstashLimits = { maxMonthlyCommands: 500000, maxBandwidthBytes: 10737418240, maxStorageBytes: 262144000 };
+    if (rawUpstashLimits) {
+      try { upstashLimits = { ...upstashLimits, ...JSON.parse(rawUpstashLimits) }; } catch (_) {}
+    }
+
+    const upstash = {
+      email: rawUpstashEmail || '',
+      dbId: rawUpstashDbId || '',
+      configured: Boolean(rawUpstashEmail && rawUpstashApiKey && rawUpstashDbId),
+      maskedApiKey: rawUpstashApiKey ? `${rawUpstashApiKey.slice(0, 4)}...${rawUpstashApiKey.slice(-4)}` : null,
+      limits: upstashLimits
+    };
+
     cachedSettings = {
       profile,
       identity,
@@ -176,13 +199,15 @@ export async function getSettings(forceRefresh = false) {
       maxDelay: parseInt(maxDelay || '1200', 10),
       isPaused: isPaused === 'true',
       notifyOwnerOnWhatsApp: rawNotifyOwner === 'true',
+      detectQuestionsEnabled: rawDetectQuestions !== 'false',
       contactRules: rules,
       pacing,
       learnFromReplies: rawLearnReplies !== 'false',
       dailySummaryEnabled: rawDailySummaryEnabled !== 'false',
       dailySummaryTime: rawDailySummaryTime || '21:00',
       scheduledLimits,
-      apiKeys
+      apiKeys,
+      upstash
     };
     lastSettingsFetch = now;
     return cachedSettings;

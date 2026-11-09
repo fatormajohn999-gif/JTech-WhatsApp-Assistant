@@ -5,6 +5,7 @@ import {
   getPendingTeachMe,
   answerTeachMeItem,
   dismissTeachMeItem,
+  recordTestTeachMeItem,
   listKnowledge,
   addKnowledgeItem,
   updateKnowledgeItem,
@@ -58,6 +59,16 @@ router.post('/teachme/:id/dismiss', requireAuth, async (req, res) => {
   try {
     const success = await dismissTeachMeItem(req.params.id);
     res.json({ success });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/teachme/test', requireAuth, async (req, res) => {
+  try {
+    const { question } = req.body || {};
+    const item = await recordTestTeachMeItem(question);
+    res.json({ success: true, item });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

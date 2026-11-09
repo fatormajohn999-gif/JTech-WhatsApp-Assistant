@@ -6,6 +6,7 @@ import { getSettings, invalidateSettingsCache } from '../lib/settings.js';
 import { setEffectiveApiKey } from '../lib/keys.js';
 import { startWhatsApp, logoutWhatsApp } from '../whatsapp/socket.js';
 import { clearAllMemory } from '../memory/store.js';
+import { invalidateUsageCache } from '../lib/upstash-usage.js';
 import { requireAuth } from './auth.js';
 
 const router = express.Router();
@@ -46,7 +47,12 @@ router.post('/cfg', requireAuth, async (req, res) => {
       dailySummaryTime,
       scheduledLimits,
       apiKeyGemini,
-      apiKeyGroq
+      apiKeyGroq,
+      detectQuestionsEnabled,
+      upstashEmail,
+      upstashApiKey,
+      upstashDbId,
+      upstashLimits
     } = req.body;
 
     // 1. Identity & Profile
@@ -208,6 +214,38 @@ router.post('/cfg', requireAuth, async (req, res) => {
         schedulerGracePeriodHours: Math.max(1, parseInt(scheduledLimits.schedulerGracePeriodHours ?? currentLimits.schedulerGracePeriodHours, 10) || 3)
       };
       await redis.set('config:scheduled_limits', JSON.stringify(updatedLimits));
+    }
+
+    // 5. Teach-Me Question Detection Switch
+    if (detectQuestionsEnabled !== undefined) {
+      await redis.set('config:detect_questions_enabled', detectQuestionsEnabled ? 'true' : 'false');
+    }
+
+    // 6. Upstash Developer API Configuration & Limits
+    let upstashConfigChanged = false;
+    if (upstashEmail !== undefined) {
+      await redis.set('config:upstash:email', String(upstashEmail).trim());
+      upstashConfigChanged = true;
+    }
+    if (upstashApiKey !== undefined && upstashApiKey !== null && upstashApiKey !== '') {
+      await redis.set('config:upstash:api_key', String(upstashApiKey).trim());
+      upstashConfigChanged = true;
+    }
+    if (upstashDbId !== undefined) {
+      await redis.set('config:upstash:db_id', String(upstashDbId).trim());
+      upstashConfigChanged = true;
+    }
+    if (upstashLimits && typeof upstashLimits === 'object') {
+      const cleanLimits = {
+        maxMonthlyCommands: Math.max(1000, parseInt(upstashLimits.maxMonthlyCommands, 10) || 500000),
+        maxBandwidthBytes: Math.max(1048576, parseInt(upstashLimits.maxBandwidthBytes, 10) || 10737418240),
+        maxStorageBytes: Math.max(1048576, parseInt(upstashLimits.maxStorageBytes, 10) || 262144000)
+      };
+      await redis.set('config:upstash:limits', JSON.stringify(cleanLimits));
+      upstashConfigChanged = true;
+    }
+    if (upstashConfigChanged) {
+      invalidateUsageCache();
     }
 
     invalidateSettingsCache();

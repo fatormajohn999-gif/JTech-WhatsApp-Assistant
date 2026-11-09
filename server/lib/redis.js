@@ -2,6 +2,13 @@ import { Redis } from '@upstash/redis';
 import { UPSTASH_URL, UPSTASH_TOKEN } from '../config.js';
 import { logEvent } from './logger.js';
 
+function getCurrentMonthKey() {
+  const d = new Date();
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
 export class UpstashStore {
   constructor() {
     this.isUpstash = Boolean(UPSTASH_URL && UPSTASH_TOKEN && !UPSTASH_URL.includes('your-database'));
@@ -22,12 +29,124 @@ export class UpstashStore {
       logEvent('warn', 'No valid UPSTASH_REDIS_REST_URL / TOKEN. Running with in-memory store.');
       this.client = null;
     }
+
     this.memory = new Map();
-    this.hashes = new Map(); // in-memory fallback for hash keys
-    this.sets = new Map();   // in-memory fallback for set keys
+    this.hashes = new Map();
+    this.sets = new Map();
+
+    // Command usage tracking (in memory, periodically flushed to Redis)
+    this.usage = {
+      reads: 0,
+      writes: 0,
+      bytesRead: 0,
+      bytesWritten: 0,
+      flushedReads: 0,
+      flushedWrites: 0,
+      flushedBytesRead: 0,
+      flushedBytesWritten: 0,
+      lastFlushedAt: Date.now()
+    };
+
+    // Load persisted month counts from Redis on startup
+    this.initMonthUsage().catch(() => {});
+
+    // Periodic flush every 5 minutes (single Redis write per 5 mins)
+    this.flushInterval = setInterval(() => {
+      this.flushUsageStats().catch(() => {});
+    }, 5 * 60 * 1000);
+  }
+
+  async initMonthUsage() {
+    try {
+      const monthKey = getCurrentMonthKey();
+      const raw = await this.get(`stats:redis:usage:${monthKey}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.usage.reads = parsed.reads || 0;
+        this.usage.writes = parsed.writes || 0;
+        this.usage.bytesRead = parsed.bytesRead || 0;
+        this.usage.bytesWritten = parsed.bytesWritten || 0;
+        this.usage.flushedReads = this.usage.reads;
+        this.usage.flushedWrites = this.usage.writes;
+        this.usage.flushedBytesRead = this.usage.bytesRead;
+        this.usage.flushedBytesWritten = this.usage.bytesWritten;
+      }
+    } catch (_) {}
+  }
+
+  recordRead(approxBytes = 64) {
+    this.usage.reads += 1;
+    this.usage.bytesRead += approxBytes;
+  }
+
+  recordWrite(approxBytes = 64) {
+    this.usage.writes += 1;
+    this.usage.bytesWritten += approxBytes;
+  }
+
+  async flushUsageStats() {
+    const unflushedReads = this.usage.reads - this.usage.flushedReads;
+    const unflushedWrites = this.usage.writes - this.usage.flushedWrites;
+
+    // Skip if no commands were issued since last flush
+    if (unflushedReads === 0 && unflushedWrites === 0) return;
+
+    try {
+      const monthKey = getCurrentMonthKey();
+      const payload = {
+        month: monthKey,
+        reads: this.usage.reads,
+        writes: this.usage.writes,
+        total: this.usage.reads + this.usage.writes,
+        bytesRead: this.usage.bytesRead,
+        bytesWritten: this.usage.bytesWritten,
+        totalBytes: this.usage.bytesRead + this.usage.bytesWritten,
+        updatedAt: Date.now()
+      };
+
+      // Write directly without calling wrapper set() to avoid recursion loop
+      const strVal = JSON.stringify(payload);
+      if (this.isUpstash && this.client) {
+        await this.client.set(`stats:redis:usage:${monthKey}`, strVal);
+      } else {
+        this.memory.set(`stats:redis:usage:${monthKey}`, strVal);
+      }
+
+      this.usage.flushedReads = this.usage.reads;
+      this.usage.flushedWrites = this.usage.writes;
+      this.usage.flushedBytesRead = this.usage.bytesRead;
+      this.usage.flushedBytesWritten = this.usage.bytesWritten;
+      this.usage.lastFlushedAt = Date.now();
+    } catch (e) {
+      console.warn('[Redis] Flush usage stats error:', e.message);
+    }
+  }
+
+  getAppEstimatedUsage() {
+    const totalCommands = this.usage.reads + this.usage.writes;
+    const totalBytes = this.usage.bytesRead + this.usage.bytesWritten;
+    const now = new Date();
+    const dayOfMonth = now.getUTCDate();
+    const estimatedDailyCommands = Math.round(totalCommands / Math.max(1, dayOfMonth));
+
+    // Approximate key count
+    const keyCount = this.memory.size + this.hashes.size + this.sets.size;
+
+    return {
+      reads: this.usage.reads,
+      writes: this.usage.writes,
+      totalCommands,
+      bytesRead: this.usage.bytesRead,
+      bytesWritten: this.usage.bytesWritten,
+      totalBytes,
+      keyCount,
+      estimatedDailyCommands,
+      lastFlushedAt: this.usage.lastFlushedAt
+    };
   }
 
   async ping() {
+    this.recordRead(16);
     try {
       if (this.isUpstash && this.client) {
         await this.client.get('__ping__');
@@ -39,11 +158,25 @@ export class UpstashStore {
     }
   }
 
+  async dbsize() {
+    this.recordRead(16);
+    try {
+      if (this.isUpstash && this.client) {
+        const res = await this.client.dbsize();
+        if (typeof res === 'number') return res;
+      }
+    } catch (_) {}
+    return this.memory.size + this.hashes.size + this.sets.size;
+  }
+
   async get(key) {
+    this.recordRead(key.length + 32);
     try {
       if (this.isUpstash && this.client) {
         const val = await this.client.get(key);
-        return val === null ? null : String(val);
+        const strVal = val === null ? null : String(val);
+        if (strVal) this.usage.bytesRead += strVal.length;
+        return strVal;
       }
     } catch (e) {
       console.error(`[Redis] GET error for ${key}:`, e.message);
@@ -51,9 +184,32 @@ export class UpstashStore {
     return this.memory.has(key) ? this.memory.get(key) : null;
   }
 
-  async set(key, value, options = {}) {
+  async mget(...keys) {
+    keys = keys.flat().filter(Boolean);
+    if (keys.length === 0) return [];
+    this.recordRead(keys.join('').length + 32);
     try {
-      const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+      if (this.isUpstash && this.client) {
+        const res = await this.client.mget(...keys);
+        if (Array.isArray(res)) {
+          return res.map(v => {
+            if (v === null || v === undefined) return null;
+            const str = String(v);
+            this.usage.bytesRead += str.length;
+            return str;
+          });
+        }
+      }
+    } catch (e) {
+      console.error(`[Redis] MGET error for ${keys.length} keys:`, e.message);
+    }
+    return keys.map(k => this.memory.has(k) ? this.memory.get(k) : null);
+  }
+
+  async set(key, value, options = {}) {
+    const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+    this.recordWrite(key.length + strVal.length + 32);
+    try {
       if (this.isUpstash && this.client) {
         if (options.ex) {
           await this.client.set(key, strVal, { ex: options.ex });
@@ -74,6 +230,7 @@ export class UpstashStore {
   async del(...keys) {
     keys = keys.flat().filter(Boolean);
     if (keys.length === 0) return 0;
+    this.recordWrite(keys.join('').length + 32);
     try {
       if (this.isUpstash && this.client) {
         await this.client.del(...keys);
@@ -90,6 +247,7 @@ export class UpstashStore {
   }
 
   async expire(key, seconds) {
+    this.recordWrite(key.length + 16);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.expire(key, seconds);
@@ -101,6 +259,7 @@ export class UpstashStore {
   }
 
   async incr(key) {
+    this.recordWrite(key.length + 16);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.incr(key);
@@ -116,6 +275,7 @@ export class UpstashStore {
 
   async lpush(key, value) {
     const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+    this.recordWrite(key.length + strVal.length + 32);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.lpush(key, strVal);
@@ -131,6 +291,7 @@ export class UpstashStore {
 
   async rpush(key, value) {
     const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+    this.recordWrite(key.length + strVal.length + 32);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.rpush(key, strVal);
@@ -145,6 +306,7 @@ export class UpstashStore {
   }
 
   async lrange(key, start, stop) {
+    this.recordRead(key.length + 32);
     try {
       if (this.isUpstash && this.client) {
         const res = await this.client.lrange(key, start, stop);
@@ -161,6 +323,7 @@ export class UpstashStore {
   }
 
   async ltrim(key, start, stop) {
+    this.recordWrite(key.length + 32);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.ltrim(key, start, stop);
@@ -183,9 +346,13 @@ export class UpstashStore {
       ? fieldOrObject
       : { [fieldOrObject]: value };
     const data = {};
+    let approxBytes = key.length;
     for (const [f, v] of Object.entries(obj)) {
-      data[f] = typeof v === 'string' ? v : JSON.stringify(v);
+      const s = typeof v === 'string' ? v : JSON.stringify(v);
+      data[f] = s;
+      approxBytes += f.length + s.length;
     }
+    this.recordWrite(approxBytes + 32);
     try {
       if (this.isUpstash && this.client) {
         await this.client.hset(key, data);
@@ -201,6 +368,7 @@ export class UpstashStore {
   }
 
   async hget(key, field) {
+    this.recordRead(key.length + field.length + 32);
     try {
       if (this.isUpstash && this.client) {
         const val = await this.client.hget(key, field);
@@ -214,6 +382,7 @@ export class UpstashStore {
   }
 
   async hgetall(key) {
+    this.recordRead(key.length + 64);
     try {
       if (this.isUpstash && this.client) {
         const res = await this.client.hgetall(key);
@@ -235,6 +404,7 @@ export class UpstashStore {
   async hdel(key, ...fields) {
     fields = fields.flat().filter(f => f !== undefined && f !== null);
     if (fields.length === 0) return 0;
+    this.recordWrite(key.length + fields.join('').length + 32);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.hdel(key, ...fields);
@@ -254,6 +424,7 @@ export class UpstashStore {
   async sadd(key, ...members) {
     members = members.flat().filter(m => m !== undefined && m !== null).map(String);
     if (members.length === 0) return 0;
+    this.recordWrite(key.length + members.join('').length + 32);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.sadd(key, members[0], ...members.slice(1));
@@ -271,6 +442,7 @@ export class UpstashStore {
   async srem(key, ...members) {
     members = members.flat().filter(m => m !== undefined && m !== null).map(String);
     if (members.length === 0) return 0;
+    this.recordWrite(key.length + members.join('').length + 32);
     try {
       if (this.isUpstash && this.client) {
         return await this.client.srem(key, ...members);
@@ -287,6 +459,7 @@ export class UpstashStore {
   }
 
   async smembers(key) {
+    this.recordRead(key.length + 32);
     try {
       if (this.isUpstash && this.client) {
         const res = await this.client.smembers(key);
@@ -301,6 +474,7 @@ export class UpstashStore {
 
   // ---------- Key search ----------
   async keys(pattern = '*') {
+    this.recordRead(pattern.length + 64);
     try {
       if (this.isUpstash && this.client) {
         const res = await this.client.keys(pattern);
@@ -313,6 +487,7 @@ export class UpstashStore {
   }
 
   async scan(cursor = '0', options = {}) {
+    this.recordRead(64);
     try {
       if (this.isUpstash && this.client) {
         const res = await this.client.scan(cursor, options);

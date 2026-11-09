@@ -1374,6 +1374,18 @@
           </div>
         </div>
 
+        <!-- Database Usage Summary on Home -->
+        <div class="card" id="home-db-usage-card" style="padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+            <span style="font-size: 16px;">🗄️</span>
+            <div style="min-width: 0;">
+              <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Database commands</div>
+              <div style="font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="home-db-usage-summary">Checking usage...</div>
+            </div>
+          </div>
+          <a href="#dashboard" class="btn btn-sm btn-secondary" style="font-size: 11px; padding: 4px 10px; flex-shrink: 0;">View</a>
+        </div>
+
         <!-- Teach-Me Attention Card on Home -->
         <div class="card" id="home-teachme-card" style="display: none; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.06); padding: 12px 14px; margin-bottom: 12px;">
           <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -1448,9 +1460,14 @@
 
       <!-- SCREEN: TEACH ME (#teachme) -->
       <section class="app-screen" id="screen-teachme">
-        <div style="margin-bottom: 12px;">
-          <div class="card-title">Teach me & knowledge</div>
-          <div class="card-desc">Answer questions the assistant didn't know and manage permanent facts.</div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px;">
+          <div>
+            <div class="card-title">Teach me & knowledge</div>
+            <div class="card-desc">Answer questions the assistant didn't know and manage permanent facts.</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-teachme-test-question" style="flex-shrink: 0; font-size: 11px; padding: 5px 9px; white-space: nowrap;">
+            Send test question
+          </button>
         </div>
 
         <!-- Mode selector: Pending Questions vs Knowledge Base -->
@@ -1789,6 +1806,81 @@
           <div class="stat-box">
             <span class="stat-label">Server uptime</span>
             <span class="stat-val" id="dash-stat-uptime" style="font-size: 18px;">--</span>
+          </div>
+        </div>
+
+        <!-- 2x2 Upstash Database Usage Card -->
+        <div class="card" id="card-database-usage" style="margin-bottom: 12px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🗄️</span>
+              <div>
+                <div class="card-title" style="margin: 0; font-size: 15px;">Database usage</div>
+                <div class="card-desc" id="db-usage-source-desc">Upstash Redis instance stats</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span class="chip" id="chip-db-usage-source" style="font-size: 10.5px; padding: 2px 7px;">Estimated by this app</span>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-db-usage" style="padding: 3px 8px; font-size: 11px;">Refresh</button>
+            </div>
+          </div>
+
+          <!-- 2x2 Metric Quadrants -->
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px;">
+            <!-- Quadrant 1: Commands -->
+            <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Commands</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-main);" id="db-val-cmd-percent">0%</span>
+              </div>
+              <div style="font-size: 14px; font-weight: 800; color: var(--text-main); overflow-wrap: anywhere;" id="db-val-cmd-text">0 / 500k</div>
+              <!-- Progress Bar -->
+              <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; margin: 6px 0; overflow: hidden;">
+                <div id="db-bar-cmd" style="width: 0%; height: 100%; background: var(--accent-primary); border-radius: 3px; transition: width 0.3s ease;"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); flex-wrap: wrap; gap: 2px;">
+                <span id="db-val-cmd-breakdown">0 reads · 0 writes</span>
+                <span id="db-val-cmd-daily">Est. ~0 / day</span>
+              </div>
+            </div>
+
+            <!-- Quadrant 2: Bandwidth -->
+            <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Bandwidth</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-main);" id="db-val-bw-percent">0%</span>
+              </div>
+              <div style="font-size: 14px; font-weight: 800; color: var(--text-main); overflow-wrap: anywhere;" id="db-val-bw-text">0 B / 10 GB</div>
+              <!-- Progress Bar -->
+              <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; margin: 6px 0; overflow: hidden;">
+                <div id="db-bar-bw" style="width: 0%; height: 100%; background: var(--accent-primary); border-radius: 3px; transition: width 0.3s ease;"></div>
+              </div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="db-val-bw-sub">Monthly transfer</div>
+            </div>
+
+            <!-- Quadrant 3: Storage -->
+            <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Storage</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-main);" id="db-val-storage-percent">0%</span>
+              </div>
+              <div style="font-size: 14px; font-weight: 800; color: var(--text-main); overflow-wrap: anywhere;" id="db-val-storage-text">0 B / 250 MB</div>
+              <!-- Progress Bar -->
+              <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; margin: 6px 0; overflow: hidden;">
+                <div id="db-bar-storage" style="width: 0%; height: 100%; background: var(--accent-primary); border-radius: 3px; transition: width 0.3s ease;"></div>
+              </div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="db-val-storage-sub">Key data footprint</div>
+            </div>
+
+            <!-- Quadrant 4: Cost -->
+            <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); min-width: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Current Cost</span>
+                <span style="font-size: 10px; color: var(--accent-secondary); font-weight: 700;" id="db-val-tier">Free Tier</span>
+              </div>
+              <div style="font-size: 16px; font-weight: 800; color: var(--accent-secondary);" id="db-val-cost">$0.00</div>
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;" id="db-val-cost-sub">No overage charges</div>
+            </div>
           </div>
         </div>
 
@@ -2274,6 +2366,18 @@
             </label>
           </div>
 
+          <!-- Detect questions I should answer switch -->
+          <div class="toggle-row" style="margin-bottom: 12px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">Detect questions I should answer</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Automatically catch unassisted questions and send them to Teach me</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="set-detect-questions" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
           <!-- Learned Style Display -->
           <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -2447,6 +2551,57 @@
           <div class="form-group" style="margin-top: 6px;">
             <label for="set-sch-grace-hours">Waking grace period (hours)</label>
             <input type="number" id="set-sch-grace-hours" min="1" max="24" value="3">
+          </div>
+        </div>
+
+        <!-- Database & Upstash API Section -->
+        <div class="card" id="sec-settings-database">
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🗄️</span>
+              <div>
+                <div class="card-title" style="font-size: 15px;">Database & Upstash API</div>
+                <div class="card-desc">Optional Developer API credentials to display official Upstash usage & cost metrics.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="set-upstash-email">Upstash Developer Email</label>
+            <input type="email" id="set-upstash-email" placeholder="e.g. developer@example.com">
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label for="set-upstash-api-key">Upstash Management API Key</label>
+              <span id="upstash-key-status" style="font-size: 11px; font-weight: 600; color: var(--text-muted);">Not configured</span>
+            </div>
+            <input type="password" id="set-upstash-api-key" placeholder="Enter API key to update or leave blank to keep">
+          </div>
+
+          <div class="form-group">
+            <label for="set-upstash-db-id">Upstash Database ID</label>
+            <input type="text" id="set-upstash-db-id" placeholder="e.g. 5d848130-...">
+          </div>
+
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-main); margin-top: 10px; margin-bottom: 6px;">Usage limits & warning thresholds</div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+            <div class="form-group">
+              <label for="set-upstash-cmd-limit">Max cmds/mo</label>
+              <input type="number" id="set-upstash-cmd-limit" value="500000" min="1000">
+            </div>
+            <div class="form-group">
+              <label for="set-upstash-bw-limit">Bandwidth (MB)</label>
+              <input type="number" id="set-upstash-bw-limit" value="10240" min="100">
+            </div>
+            <div class="form-group">
+              <label for="set-upstash-storage-limit">Storage (MB)</label>
+              <input type="number" id="set-upstash-storage-limit" value="250" min="10">
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+            If Upstash API credentials are not set, the app automatically tracks and estimates database usage using local command counters.
           </div>
         </div>
 
@@ -3763,7 +3918,117 @@
         } else if (errList) {
           errList.innerHTML = '<div style="color:var(--text-muted); font-size:12.5px; text-align:center; padding:12px;">No errors recorded. All systems healthy.</div>';
         }
+
+        await fetchRedisUsage();
       } catch (_) {}
+    }
+
+    // Upstash Database Usage fetcher & renderer
+    async function fetchRedisUsage(forceRefresh = false) {
+      if (!authToken || !API_BASE) return;
+      try {
+        const u = forceRefresh 
+          ? await api('/api/redis-usage/refresh', { method: 'POST' }).then(r => r.usage)
+          : await api('/api/redis-usage');
+        if (!u) return;
+
+        // Source badge
+        const chipSource = document.getElementById('chip-db-usage-source');
+        if (chipSource) {
+          chipSource.textContent = u.sourceLabel || (u.source === 'upstash_api' ? 'Upstash API' : 'Estimated by this app');
+          chipSource.style.color = u.source === 'upstash_api' ? 'var(--accent-secondary)' : 'var(--accent-primary)';
+        }
+        const descSource = document.getElementById('db-usage-source-desc');
+        if (descSource) {
+          descSource.textContent = u.source === 'upstash_api' 
+            ? `Synced from Upstash API (${u.databaseName || u.databaseId || 'Active'})`
+            : 'Tracked via in-app command counters';
+        }
+
+        // Quadrant 1: Commands
+        const cmdUsed = u.commands?.used || 0;
+        const cmdLimit = u.commands?.limit || 500000;
+        const cmdPct = Math.min(100, u.commands?.percent || Math.round((cmdUsed / cmdLimit) * 100));
+        const cmdPctEl = document.getElementById('db-val-cmd-percent');
+        const cmdTextEl = document.getElementById('db-val-cmd-text');
+        const cmdBarEl = document.getElementById('db-bar-cmd');
+        const cmdBreakdownEl = document.getElementById('db-val-cmd-breakdown');
+        const cmdDailyEl = document.getElementById('db-val-cmd-daily');
+
+        if (cmdPctEl) cmdPctEl.textContent = `${cmdPct}%`;
+        if (cmdTextEl) cmdTextEl.textContent = `${cmdUsed.toLocaleString()} / ${(cmdLimit >= 1000 ? (cmdLimit / 1000) + 'k' : cmdLimit)}`;
+        if (cmdBarEl) {
+          cmdBarEl.style.width = `${cmdPct}%`;
+          cmdBarEl.style.background = cmdPct >= 95 ? '#ef4444' : (cmdPct >= 80 ? '#f59e0b' : 'var(--accent-primary)');
+        }
+        if (cmdBreakdownEl) {
+          const reads = u.commands?.reads;
+          const writes = u.commands?.writes;
+          cmdBreakdownEl.textContent = (reads !== null && writes !== null && reads !== undefined && writes !== undefined)
+            ? `${reads.toLocaleString()} reads · ${writes.toLocaleString()} writes`
+            : `${cmdUsed.toLocaleString()} total commands`;
+        }
+        if (cmdDailyEl) {
+          cmdDailyEl.textContent = `Est. ~${(u.commands?.estimatedDaily || 0).toLocaleString()} / day`;
+        }
+
+        // Quadrant 2: Bandwidth
+        const bwPct = Math.min(100, u.bandwidth?.percent || 0);
+        const bwPctEl = document.getElementById('db-val-bw-percent');
+        const bwTextEl = document.getElementById('db-val-bw-text');
+        const bwBarEl = document.getElementById('db-bar-bw');
+        if (bwPctEl) bwPctEl.textContent = `${bwPct}%`;
+        if (bwTextEl) bwTextEl.textContent = `${u.bandwidth?.usedFormatted || '0 B'} / ${u.bandwidth?.limitFormatted || '10 GB'}`;
+        if (bwBarEl) {
+          bwBarEl.style.width = `${bwPct}%`;
+          bwBarEl.style.background = bwPct >= 95 ? '#ef4444' : (bwPct >= 80 ? '#f59e0b' : 'var(--accent-primary)');
+        }
+
+        // Quadrant 3: Storage
+        const stPct = Math.min(100, u.storage?.percent || 0);
+        const stPctEl = document.getElementById('db-val-storage-percent');
+        const stTextEl = document.getElementById('db-val-storage-text');
+        const stBarEl = document.getElementById('db-bar-storage');
+        if (stPctEl) stPctEl.textContent = `${stPct}%`;
+        if (stTextEl) stTextEl.textContent = `${u.storage?.usedFormatted || '0 B'} / ${u.storage?.limitFormatted || '250 MB'}`;
+        if (stBarEl) {
+          stBarEl.style.width = `${stPct}%`;
+          stBarEl.style.background = stPct >= 95 ? '#ef4444' : (stPct >= 80 ? '#f59e0b' : 'var(--accent-primary)');
+        }
+
+        // Quadrant 4: Cost
+        const costEl = document.getElementById('db-val-cost');
+        const tierEl = document.getElementById('db-val-tier');
+        if (costEl) costEl.textContent = u.cost?.amount || '$0.00';
+        if (tierEl) tierEl.textContent = u.cost?.tier || 'Free Tier';
+
+        // Home Screen small summary
+        const homeDbSummary = document.getElementById('home-db-usage-summary');
+        if (homeDbSummary) {
+          const limitLabel = cmdLimit >= 1000 ? `${cmdLimit / 1000}k` : cmdLimit;
+          const dailyLabel = u.commands?.estimatedDaily ? ` · ~${u.commands.estimatedDaily.toLocaleString()}/day` : '';
+          homeDbSummary.textContent = `${cmdUsed.toLocaleString()} / ${limitLabel} cmds${dailyLabel} (${u.cost?.tier || 'Free tier'})`;
+        }
+      } catch (err) {
+        console.warn('Failed to load redis usage:', err);
+      }
+    }
+
+    // Refresh Database Usage Button
+    const btnRefreshDb = document.getElementById('btn-refresh-db-usage');
+    if (btnRefreshDb) {
+      btnRefreshDb.addEventListener('click', async () => {
+        btnRefreshDb.disabled = true;
+        btnRefreshDb.textContent = '...';
+        try {
+          await fetchRedisUsage(true);
+          showToast('Database stats refreshed');
+        } catch (_) {}
+        finally {
+          btnRefreshDb.disabled = false;
+          btnRefreshDb.textContent = 'Refresh';
+        }
+      });
     }
 
     // Quick Pause/Resume Switch Handler (POST /api/cfg)
@@ -5229,6 +5494,26 @@
       }
     };
 
+    // Send a test question button handler
+    const btnTestQuestion = document.getElementById('btn-teachme-test-question');
+    if (btnTestQuestion) {
+      btnTestQuestion.addEventListener('click', async () => {
+        btnTestQuestion.disabled = true;
+        btnTestQuestion.textContent = 'Generating...';
+        try {
+          const res = await api('/api/teachme/test', { method: 'POST', body: {} });
+          showToast('Test question added to Teach me!');
+          await fetchTeachMe();
+          await fetchState();
+        } catch (err) {
+          showToast(err.message || 'Failed to generate test question', true);
+        } finally {
+          btnTestQuestion.disabled = false;
+          btnTestQuestion.textContent = 'Send test question';
+        }
+      });
+    }
+
     async function fetchKnowledge() {
       if (!authToken || !API_BASE) return;
       const listEl = document.getElementById('kb-items-list');
@@ -5679,6 +5964,37 @@
             document.getElementById('set-sch-grace-hours').value = s.scheduledLimits.wakingGraceHours;
           }
         }
+
+        if (s.detectQuestionsEnabled !== undefined) {
+          const detSwitch = document.getElementById('set-detect-questions');
+          if (detSwitch) detSwitch.checked = Boolean(s.detectQuestionsEnabled);
+        }
+
+        if (s.upstash) {
+          if (document.getElementById('set-upstash-email')) document.getElementById('set-upstash-email').value = s.upstash.email || '';
+          if (document.getElementById('set-upstash-db-id')) document.getElementById('set-upstash-db-id').value = s.upstash.dbId || '';
+          const upstashKeyStatus = document.getElementById('upstash-key-status');
+          if (upstashKeyStatus) {
+            if (s.upstash.configured) {
+              upstashKeyStatus.textContent = `Configured (${s.upstash.maskedApiKey || 'Active'})`;
+              upstashKeyStatus.style.color = 'var(--accent-secondary)';
+            } else {
+              upstashKeyStatus.textContent = 'Not configured';
+              upstashKeyStatus.style.color = 'var(--text-muted)';
+            }
+          }
+          if (s.upstash.limits) {
+            if (document.getElementById('set-upstash-cmd-limit') && s.upstash.limits.maxMonthlyCommands) {
+              document.getElementById('set-upstash-cmd-limit').value = s.upstash.limits.maxMonthlyCommands;
+            }
+            if (document.getElementById('set-upstash-bw-limit') && s.upstash.limits.maxBandwidthBytes) {
+              document.getElementById('set-upstash-bw-limit').value = Math.round(s.upstash.limits.maxBandwidthBytes / 1048576);
+            }
+            if (document.getElementById('set-upstash-storage-limit') && s.upstash.limits.maxStorageBytes) {
+              document.getElementById('set-upstash-storage-limit').value = Math.round(s.upstash.limits.maxStorageBytes / 1048576);
+            }
+          }
+        }
       } catch (_) {}
     }
 
@@ -5882,7 +6198,8 @@
         dailySummaryTime,
         contactRules: { mode: selectedMode, allowlist, blocklist },
         pacing,
-        scheduledLimits
+        scheduledLimits,
+        detectQuestionsEnabled: document.getElementById('set-detect-questions') ? document.getElementById('set-detect-questions').checked : true
       };
 
       if (apiKeyGeminiRaw && !apiKeyGeminiRaw.startsWith('...')) {
@@ -5892,6 +6209,23 @@
         cfgPayload.apiKeyGroq = apiKeyGroqRaw;
       }
 
+      // Upstash Developer API settings
+      const upstashEmail = document.getElementById('set-upstash-email')?.value.trim();
+      const upstashApiKeyRaw = document.getElementById('set-upstash-api-key')?.value.trim();
+      const upstashDbId = document.getElementById('set-upstash-db-id')?.value.trim();
+      const upstashCmdLimit = parseInt(document.getElementById('set-upstash-cmd-limit')?.value, 10) || 500000;
+      const upstashBwMb = parseInt(document.getElementById('set-upstash-bw-limit')?.value, 10) || 10240;
+      const upstashStorageMb = parseInt(document.getElementById('set-upstash-storage-limit')?.value, 10) || 250;
+
+      if (upstashEmail !== undefined) cfgPayload.upstashEmail = upstashEmail;
+      if (upstashApiKeyRaw) cfgPayload.upstashApiKey = upstashApiKeyRaw;
+      if (upstashDbId !== undefined) cfgPayload.upstashDbId = upstashDbId;
+      cfgPayload.upstashLimits = {
+        maxMonthlyCommands: upstashCmdLimit,
+        maxBandwidthBytes: upstashBwMb * 1024 * 1024,
+        maxStorageBytes: upstashStorageMb * 1024 * 1024
+      };
+
       try {
         await api('/api/cfg', {
           method: 'POST',
@@ -5899,9 +6233,11 @@
         });
         if (document.getElementById('set-gemini-key')) document.getElementById('set-gemini-key').value = '';
         if (document.getElementById('set-groq-key')) document.getElementById('set-groq-key').value = '';
+        if (document.getElementById('set-upstash-api-key')) document.getElementById('set-upstash-api-key').value = '';
         showToast('Settings saved successfully');
         fetchState();
         fetchSettings();
+        fetchRedisUsage(true);
       } catch (e) { showToast(e.message, true, e.hint); }
     });
 
@@ -6382,15 +6718,20 @@
       });
     }
 
-    // App Initialization
+    // App Initialization with adaptive, low-command polling
     function initDashboard() {
       route();
       fetchState();
+      fetchRedisUsage();
 
-      let isTabVisible = !document.hidden;
-      document.addEventListener('visibilitychange', () => {
-        isTabVisible = !document.hidden;
-        if (isTabVisible) {
+      function startMainPolling() {
+        if (mainPollInterval) clearInterval(mainPollInterval);
+        if (document.hidden) return; // Completely stopped in background tab
+        mainPollInterval = setInterval(() => {
+          if (document.hidden) {
+            stopMainPolling();
+            return;
+          }
           fetchState();
           const hash = window.location.hash.slice(1);
           if (hash === 'chats' && !activeChatJid) {
@@ -6400,22 +6741,30 @@
           } else if (hash === 'dashboard') {
             fetchStats();
           }
+        }, 12000); // 12-second polling to minimize Redis command usage
+      }
+
+      function stopMainPolling() {
+        if (mainPollInterval) {
+          clearInterval(mainPollInterval);
+          mainPollInterval = null;
+        }
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          fetchState();
+          const hash = window.location.hash.slice(1);
+          if (hash === 'chats' && !activeChatJid) fetchChats();
+          else if (activeChatJid) openChatDetail(activeChatJid, true);
+          else if (hash === 'dashboard') fetchStats();
+          startMainPolling();
+        } else {
+          stopMainPolling();
         }
       });
 
-      if (mainPollInterval) clearInterval(mainPollInterval);
-      mainPollInterval = setInterval(() => {
-        if (!isTabVisible) return;
-        fetchState();
-        const hash = window.location.hash.slice(1);
-        if (hash === 'chats' && !activeChatJid) {
-          fetchChats();
-        } else if (activeChatJid) {
-          openChatDetail(activeChatJid, true);
-        } else if (hash === 'dashboard') {
-          fetchStats();
-        }
-      }, 5000);
+      startMainPolling();
     }
 
 

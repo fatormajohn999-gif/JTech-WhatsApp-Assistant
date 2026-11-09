@@ -8,6 +8,7 @@ import chatsRouter from './server/routes/chats.js';
 import aiRouter from './server/routes/ai.js';
 import learningRouter from './server/routes/learning.js';
 import schedulesRouter from './server/routes/schedules.js';
+import usageRouter from './server/routes/usage.js';
 import systemRouter, { initKeepAwake } from './server/routes/system.js';
 import { initWhatsAppOnStartup } from './server/whatsapp/socket.js';
 import { initDailySummaryScheduler } from './server/lib/daily-summary.js';
@@ -52,7 +53,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use('/api', [authRouter, stateRouter, linkRouter, settingsRouter, chatsRouter, aiRouter, learningRouter, schedulesRouter]);
+app.use('/api', [authRouter, stateRouter, linkRouter, settingsRouter, chatsRouter, aiRouter, learningRouter, schedulesRouter, usageRouter]);
 app.use(systemRouter);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`JTech Assistant online on port ${PORT}`);

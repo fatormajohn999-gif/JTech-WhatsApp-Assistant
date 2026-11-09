@@ -28,7 +28,7 @@ import {
   getLearnedStyle,
   getLearnedExamples
 } from '../memory/owner-style.js';
-import { recordTeachMeItem, getKnowledgeForPrompt } from '../memory/knowledge.js';
+import { recordTeachMeItem, checkKnowledgeGap, getKnowledgeForPrompt } from '../memory/knowledge.js';
 import { markChatActiveToday } from '../lib/daily-summary.js';
 import { pauseSchedulesForContact } from '../lib/scheduler.js';
 
@@ -342,6 +342,17 @@ export async function handleIncomingMessage(m) {
             senderLabel,
             hourKey: rateCheck.hourKey
           });
+
+          // Run background knowledge gap check if model did not use the explicit [UNKNOWN] marker
+          if (!unknownQuestion && liveSettings.detectQuestionsEnabled !== false) {
+            const contactDisplayName = memory.settings?.displayName || memory.profile?.displayName || pushName || phone || senderJid;
+            checkKnowledgeGap({
+              userMessage: combinedUserText,
+              botReply: trimmedText,
+              senderJid,
+              contactName: contactDisplayName
+            }).catch(err => console.warn('[TeachMe] Background check error:', err.message));
+          }
         }
 
       } catch (err) {
